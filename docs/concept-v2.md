@@ -14,6 +14,8 @@ Written 21 Nov 2026, evening, after v1 went public. It turns what the pilot taug
 1. Register first, then run: every result that went public was registered before its data, and that kept the FAIL honest. Keep doing it, in small dated amendments.
 2. Numbers only from scripts: the card, figures and report are rendered from result files. Keep the large inputs optional (file sizes now live in `results/pilot/file-bytes.tsv`).
 3. Chains need a dry run: two chain failures today came from shell mistakes (a helper used before it was defined, a zsh variable that did not split). Every new chain gets `sh -n`, a stub run with `DRY=1`, and helpers defined at the top.
+3b. Never edit a shell script while a chain is running it. `sh` reads scripts as it goes, so an insertion shifts what it reads next. Edit before launch, or put new steps in a new script.
+3c. One heavy job at a time on the shared Mac, GPU and CPU alike: the GPU lock (`scripts/gpu-lock.sh`, shared with the sibling repo) for runs, and at least 30% free memory before splices or quantize jobs. Swap reached its limit once when an unlocked run met the sibling's 22 GB capture.
 4. Logits are the disk bottleneck: 13 GB per S run. Analyse right after the run, keep only the base, delete the rest (regenerable bit for bit, run-to-run KL is exactly 0).
 5. Downloads are slow here (about 2 to 8 MB/s): start them first, in parallel with GPU work.
 6. Speed needs an idle machine: KL is deterministic and can run next to other work. llama-bench cannot. Speed runs go in a separate, announced slot.
