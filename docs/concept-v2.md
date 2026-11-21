@@ -41,6 +41,24 @@ Reading rule: if hybrid is at or below UD, our layout is as good as theirs and t
 2. bartowski Q2_K (11.88 GB), the last standard-type file under 12 GB, so the card can say "under 12 GB" if we stay ahead.
 3. Speed for new files only in an idle slot.
 
+### Update, 21 Nov ~23:50: what A found
+
+Measured on S (`results/pilot/addendum-h.md`):
+
+| Build | KL on S |
+|---|---|
+| cand | 0.02931 |
+| cand with UD's NVFP4 down (hybrid) | 0.02813 |
+| cand with UD's non-expert tensors | 0.02941 |
+| cand with UD's gate_up experts | 0.02121 |
+| UD with our IQ4_NL down (mirror, fully on Metal) | 0.02149 |
+| UD-IQ3_XXS | 0.02050 |
+
+- The down format explains little. UD's gate_up experts explain the whole gap, at about 0.22 GB more bytes.
+- So the kernel (C1) no longer looks like the way to beat UD with our file. It would let UD's own file run fully on Metal, which helps Mac users and ends our speed edge.
+- The open question is whether UD's gate_up wins by type choice per layer or by better quantization at the same type (a CPU comparison against BF16 is running, `scripts/gu-error.py`). That decides C2 to C4.
+- The mirror is a fully-Metal file at 0.02149 on S. Releasing it would be a Metal-native re-encode of Unsloth's layout, with clear credit; that is Daniel's call.
+
 ### C. Improve (after A; v2 candidate)
 
 Order depends on the 2 x 2:
