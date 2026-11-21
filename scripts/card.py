@@ -873,6 +873,7 @@ def lean_card(v: dict, cand_bytes: int) -> list[str]:
          "| File | Size | KL | Fully on Metal | Prompt t/s | Generation t/s |", "|---|---|---|---|---|---|",
          row("cand", c1["kc"]), row(nxt, v["mrows"][("T1", nxt)]["ko"]), row("UD-IQ3_XXS", v["mrows"][("T1", "UD-IQ3_XXS")]["ko"]), "",
          f"![Held-out KL of every file we compared](figures/mac-comparison.png)", "",
+         f"![Speed against KL on the Mac](figures/speed-vs-kl.png)", "",
          f"Of the {len(under) + 1} all-Metal GGUFs under {limit / 1e9:.1f} GB we tested on {day(v['g_date'])}, this one is "
          f"closest to the original. Unsloth's file is closer still, but on a Mac it's {f['vs_ud']['pp512'][0]:.1f}× slower "
          f"at reading prompts and {f['vs_ud']['tg128'][0]:.2f}× slower at generating. All files, both test sets, "
