@@ -1,0 +1,22 @@
+nvfp4: block 64 elems, 36 bytes, 4.5000 bpw, block 4-byte aligned: True
+mxfp4: block 32 elems, 17 bytes, 4.2500 bpw, block 4-byte aligned: False
+iq4_nl: block 32 elems, 18 bytes, 4.5000 bpw, block 4-byte aligned: False
+nvfp4: ne00 1152 -> 18 blocks/row, 2 steps of 16 lane pairs, lane use 0.562
+iq4_nl: ne00 1152 -> 36 blocks/row, 3 steps of 16 lane pairs, lane use 0.750
+ne00 % 128 == 0 (mul_mv_ext gate): True; ne00 % 64 == 0: True
+PR20456 ggml/src/ggml-metal/ggml-metal-device.cpp: +12 -0, 2 hunks
+PR20456 ggml/src/ggml-metal/ggml-metal-device.m: +2 -2, 2 hunks
+PR20456 ggml/src/ggml-metal/ggml-metal-impl.h: +3 -0, 1 hunks
+PR20456 ggml/src/ggml-metal/ggml-metal-ops.cpp: +1 -0, 1 hunks
+PR20456 ggml/src/ggml-metal/ggml-metal.metal: +202 -0, 11 hunks
+PR20456 total: +220 -2
+PR20456: state open, merged False, draft False, +220 -2, 5 files, mergeable_state dirty, created 2026-03-12T13:44:27Z, updated 2026-06-23T18:47:04Z, base d8c331c0a
+PR20060: state closed, merged False, draft True, +707 -2, 25 files, mergeable_state dirty, created 2026-03-03T08:10:07Z, updated 2026-03-11T20:38:45Z, base 24350fdf9
+bench cand: pp512 224.41, tg128 18.97, expert tensors off Metal 0
+bench UD-IQ3_XXS: pp512 68.06, tg128 10.87, expert tensors off Metal 20
+bench uniform-IQ3_XXS: pp512 234.34, tg128 19.43, expert tensors off Metal 0
+UD-IQ3_XXS / cand pp512: 0.303
+UD-IQ3_XXS / cand tg128: 0.573
+merge days ggerganov: n 68, median 0.2, q1 0.1, q3 0.9, p90 2.8
+merge days other authors: n 122, median 3.7, q1 0.6, q3 12.1, p90 30.7
+PR20456 open 253 days, last update 150 days ago

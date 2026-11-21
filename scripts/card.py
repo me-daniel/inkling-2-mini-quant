@@ -859,7 +859,10 @@ def lean_card(v: dict, cand_bytes: int) -> list[str]:
     C = ["---", f"base_model: {v['model']}", "base_model_relation: quantized", f"license: {base_license()}", "tags:",
          "- gguf", "- llama.cpp", "- inkling2_loop", "- apple-silicon", "---", "",
          f"# Inkling 2 Mini, Metal GGUF ({cand_bytes / 1e9:.1f} GB)", "",
-         "This GGUF keeps the whole model on the Mac GPU.", "",
+         "This GGUF keeps the whole model on the Mac GPU. It failed our registered quality test against Unsloth's "
+         f"UD-IQ3_XXS, which stays closer to the original (KL {v['mrows'][('T1', 'UD-IQ3_XXS')]['d']} on T1 and "
+         f"{v['mrows'][('T2', 'UD-IQ3_XXS')]['d']} on T2, our file minus theirs) but runs "
+         f"{f['vs_ud']['pp512'][0]:.1f}× slower on prompts on a Mac at the moment.", "",
          "## How we made and tested it", "",
          "- Fully on Metal: every expert tensor uses a type the Mac GPU can run. Unsloth's UD-IQ3_XXS has "
          f"{ud['off']} NVFP4 expert tensors that currently fall back to the CPU on a Mac.",
