@@ -859,13 +859,14 @@ def lean_card(v: dict, cand_bytes: int) -> list[str]:
     C = ["---", f"base_model: {v['model']}", "base_model_relation: quantized", f"license: {base_license()}", "tags:",
          "- gguf", "- llama.cpp", "- inkling2_loop", "- apple-silicon", "---", "",
          f"# Inkling 2 Mini, Metal GGUF ({cand_bytes / 1e9:.1f} GB)", "",
-         "This GGUF keeps the whole model on Metal. Every expert tensor uses a type the Mac GPU can run. Unsloth's "
-         f"UD-IQ3_XXS has {ud['off']} NVFP4 expert tensors that currently fall back to the CPU on a Mac.", "",
+         "This GGUF keeps the whole model on the Mac GPU.", "",
          "## How we made and tested it", "",
-         f"We measured the cost of shrinking each of {nb} layer groups, including the core that runs three times. We "
-         f"chose the layout from {len(v['sel'])} candidates we tested.", "",
-         "Before release, we registered a quality test against Unsloth's file. Our file failed that test. We then "
-         "compared it with other all-Metal GGUFs of similar size on held-out text.", "",
+         "- Fully on Metal: every expert tensor uses a type the Mac GPU can run. Unsloth's UD-IQ3_XXS has "
+         f"{ud['off']} NVFP4 expert tensors that currently fall back to the CPU on a Mac.",
+         f"- Layout from measurement: we measured the cost of shrinking each of {nb} layer groups, including the core "
+         f"that runs three times, and chose the layout from {len(v['sel'])} tested candidates.",
+         "- Tested in the open: before release we registered a quality test against Unsloth's file. Our file failed "
+         "it. We then compared it with the other all-Metal GGUFs of similar size on held-out text.", "",
          "## Results", "",
          "Lower KL on held-out text means the file is closer to the original model. We measured prompt and generation "
          f"speeds on an {v['machine'].split(',')[0]}.", "",
@@ -891,16 +892,16 @@ def lean_card(v: dict, cand_bytes: int) -> list[str]:
          "three times with the same weights. We enabled quantization error on one pass at a time to measure how the "
          "errors add up across passes. The report covers that experiment. We chose the file's layout independently of it.", "",
          "## Limits", "",
-         "KL measures how closely a file matches the reference model's output distribution. Task quality needs a "
-         "separate test.", "",
-         "We used one machine, one llama.cpp build and one importance matrix for the comparison. It covers the files "
-         "we tested that day. On CUDA, or once Metal supports NVFP4, Unsloth's UD-IQ3_XXS is the better choice.", "",
+         "- KL measures how closely a file matches the reference model's outputs. Task quality needs its own test.",
+         "- One machine, one llama.cpp build and one importance matrix.",
+         "- The comparison covers the files we tested that day.",
+         "- On CUDA, or once Metal supports NVFP4, Unsloth's UD-IQ3_XXS is the better choice.", "",
          "## Provenance", "",
-         f"We used `{v['model']}` at revision `{v['rev'][v['model']][:7]}` and the importance matrix from "
-         "`ggml-org/Inkling-2-Mini-GGUF`.", "",
-         f"We used llama.cpp `{v['base'][:7]}` ({v['tag']}) with {len(v['patches'])} patches for measurement. The file "
-         "runs without those patches.", "",
-         "Scripts computed every number from the run logs. For full tables, settings and file revisions, see "
+         f"- Base model: `{v['model']}` at revision `{v['rev'][v['model']][:7]}`, importance matrix from "
+         "`ggml-org/Inkling-2-Mini-GGUF`.",
+         f"- Measurement build: llama.cpp `{v['base'][:7]}` ({v['tag']}) with {len(v['patches'])} patches. The file runs "
+         "without them.",
+         "- Numbers: computed by scripts from the run logs. Full tables, settings and file revisions are in "
          "[DETAILS.md](DETAILS.md).", ""]
     return C
 
