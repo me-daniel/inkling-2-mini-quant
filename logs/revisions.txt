@@ -6,3 +6,4 @@ bartowski/thinkingmachines_Inkling-2-Mini-GGUF sha=76d57028717ed7c63f5e90de75234
 AtomicChat/Inkling-2-Mini-GGUF sha=5c1759f05128fafff85df836c4b991156b5762d1 Inkling-2-Mini-AD-IQ2_S.gguf
 mudler/Inkling-2-Mini-APEX-GGUF sha=d85a58007995c3365eb2323b177937ce4d20b8f0 Inkling-2-Mini-APEX-I-Nano.gguf
 bartowski/thinkingmachines_Inkling-2-Mini-GGUF sha=76d57028717ed7c63f5e90de75234cae0bc9b360 thinkingmachines_Inkling-2-Mini-IQ2_M.gguf
+IsValorum/Inkling-2-Mini-APEX-I-NanoPlus-V2.1-GGUF sha=2431e9df856233a757a3d39b57f01b003c3e2257 Inkling-2-Mini-APEX-I-NanoPlus-V2.1.gguf
