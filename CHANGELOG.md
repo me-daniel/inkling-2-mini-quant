@@ -126,3 +126,10 @@ Logits are deleted after each group's analysis; `pp-base.kld` stays.
 - Hash and overlap: `data/T3.txt`, 65,792 tokens, sha256 `5a26eea1323fbade49482767b9ea4de14f539262b82135ab0e0e0a917be689a7`; 0 shared 13-grams with S, T1, the T2 traces and prompts and the calibration text (`results/data.md`).
 - Use: a v2 candidate is scored once on T3 with the T1/T2 protocol. T1 and T2 are reported for v2 but marked as seen.
 - Approval needed: T3 takes 65,792 of the WikiText-2 test tokens the 2026-11-21 entry reserved for the thesis (114,148 remain). Not used until Daniel approves.
+
+### Addendum H amendment 2: where UD's layout wins (2026-11-21, ~23:35, after H0, before these runs)
+
+H0 result (`results/pilot/addendum-h.md`): hybrid 0.02813 and mirror 0.02149 on S, against cand 0.02931 and UD-IQ3_XXS 0.02050. Both H0 rules fire: the gap is mostly UD's layout, not the down format. Two more S runs on cand split UD's layout into its parts (diagnostic, all expert tensors stay in Metal-supported types):
+- ne-ud: cand with every non-expert tensor taken from UD-IQ3_XXS (UD's attention, embedding and output types).
+- gu-ud: cand with UD-IQ3_XXS's gate_up expert tensors and their `.scale` tensors.
+Reading rule: each run's KL drop from cand (0.02931) as a share of the cand-to-mirror drop (0.00782); the larger share names the main source. Shares are reported as measured; they need not add up to 1.
