@@ -14,10 +14,12 @@ mkdir -p "$L" "$K"
 
 step() { echo "[$(date '+%H:%M:%S')] $*"; }
 
+# every output is written to .part and renamed only when its step succeeds, so a killed step is redone
 if [ ! -f "$M/Inkling-2-Mini-BF16.gguf" ]; then
     step "convert to BF16"
     "$ROOT/.venv/bin/python" "$ROOT/vendor/llama.cpp/convert_hf_to_gguf.py" "$M/Inkling-2-Mini" \
-        --outtype bf16 --outfile "$M/Inkling-2-Mini-BF16.gguf" > "$L/convert.log" 2>&1
+        --outtype bf16 --outfile "$M/Inkling-2-Mini-BF16.gguf.part" > "$L/convert.log" 2>&1
+    mv "$M/Inkling-2-Mini-BF16.gguf.part" "$M/Inkling-2-Mini-BF16.gguf"
 fi
 
 quant() { # out ftype [tensor-type overrides...]
@@ -27,7 +29,8 @@ quant() { # out ftype [tensor-type overrides...]
     tt=""
     for o in "$@"; do tt="$tt --tensor-type $o"; done
     # shellcheck disable=SC2086
-    "$BIN/llama-quantize" --imatrix "$IMAT" $tt "$M/Inkling-2-Mini-BF16.gguf" "$out" "$ftype" > "$L/quant-$(basename "$out" .gguf).log" 2>&1
+    "$BIN/llama-quantize" --imatrix "$IMAT" $tt "$M/Inkling-2-Mini-BF16.gguf" "$out.part" "$ftype" > "$L/quant-$(basename "$out" .gguf).log" 2>&1
+    mv "$out.part" "$out"
     grep -E 'fallback|n_fallback' "$L/quant-$(basename "$out" .gguf).log" | tail -2 || true
 }
 
@@ -44,7 +47,10 @@ ppl() { # name model passes extra-args...
     grep -E 'Final estimate|Mean +KLD|Same top p|llama_perf_context_print: +total' "$L/ppl-$name.log" || true
 }
 
-[ -f "$K/ref-S-P3.kld" ] || ppl ref-S-P3 "$M/Inkling-2-Mini-Q8_0.gguf" 3 --kl-divergence-base "$K/ref-S-P3.kld"
+if [ ! -f "$K/ref-S-P3.kld" ]; then
+    ppl ref-S-P3 "$M/Inkling-2-Mini-Q8_0.gguf" 3 --kl-divergence-base "$K/ref-S-P3.kld.part"
+    mv "$K/ref-S-P3.kld.part" "$K/ref-S-P3.kld"
+fi
 ppl floor-q8-S-P3    "$M/Inkling-2-Mini-Q8_0.gguf"   3 --kl-divergence-base "$K/ref-S-P3.kld" --kl-divergence
 ppl floor-iq4nl-S-P3 "$M/Inkling-2-Mini-IQ4_NL.gguf" 3 --kl-divergence-base "$K/ref-S-P3.kld" --kl-divergence
 step "done"
