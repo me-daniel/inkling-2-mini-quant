@@ -13,7 +13,7 @@ Every value is read from `results/pilot/`. Each figure exists as PNG (200 dpi) a
 | [`noise.png`](noise.png), [`noise.svg`](noise.svg) | perpass-kl.tsv, noise-ratio.txt | Noise shared by all passes costs 1.20 to 1.22 times independent noise. |
 | [`block-map.png`](block-map.png), [`block-map.svg`](block-map.svg) | kl.tsv, phase2.md | At 2-bit, a layer after the loop costs more than a looped layer. |
 | [`pass-sweep.png`](pass-sweep.png), [`pass-sweep.svg`](pass-sweep.svg) | kl.tsv | KL is lowest at P = 3 at both bit levels and higher on either side. |
-| [`depth-speed.png`](depth-speed.png), [`depth-speed.svg`](depth-speed.svg) | depth-*.txt, memory-*.txt | Speed against context depth. |
+| [`depth-speed.png`](depth-speed.png), [`depth-speed.svg`](depth-speed.svg) | depth-*.txt, memory-*.txt | At 16,384 tokens of context ours generates at 17.9 t/s, UD-IQ3_XXS at 12.2. |
 
 ## How to read them
 

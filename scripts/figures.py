@@ -511,16 +511,16 @@ def fig_depth_speed(src: Path, out: Path) -> None:
     mem = []
     for k in files:
         p = src / f"memory-{k}.txt"
-        m = re.search(r"(\d+)\s+peak memory footprint", p.read_text()) if p.exists() else None
+        m = re.search(r"(\d+)\s+maximum resident set size", p.read_text()) if p.exists() else None
         if m:
-            mem.append(f"{name(k)} {int(m.group(1)) / 2**30:.2f} GiB")
+            mem.append(f"{name(k)} {int(m.group(1)) / 1e9:.1f} GB")
     deep = max(d for f in files.values() for (_, d) in f["tests"])
     both = OURS in files and REF in files and ("tg128", deep) in files[OURS]["tests"] and ("tg128", deep) in files[REF]["tests"]
     title = (f"At {deep:,} tokens of context ours generates at {files[OURS]['tests'][('tg128', deep)][0]:.1f} t/s, "
              f"UD-IQ3_XXS at {files[REF]['tests'][('tg128', deep)][0]:.1f}" if both else "Speed against context depth")
     head(fig, title, "llama-bench with Metal, P = 3, 2 repetitions per depth.", bottom=0.12)
     if mem:
-        foot(fig, f"Peak memory footprint at {deep:,} tokens: " + ", ".join(mem) + ".")
+        foot(fig, f"Peak resident memory, model included, at {deep:,} tokens: " + ", ".join(mem) + ".")
     fig.legend(handles=[Line2D([], [], marker=marker(k), color=role(k), label=name(k)) for k in files],
                loc="lower left", bbox_to_anchor=(0.005, 0.045), ncols=len(files), fontsize=7.5)
     save(fig, out, "depth-speed")

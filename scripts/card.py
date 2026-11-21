@@ -778,8 +778,8 @@ def depth_section(v: dict) -> list[str]:
                 "| Test | " + " | ".join(mac_label(v, k, True) for k in names) + " |", "|---|" + "---|" * len(names)]
         out += [f"| {t} | " + " | ".join(f"{d[k][t][0]} ± {d[k][t][1]}" if t in d[k] else "n/a" for k in names) + " |" for t in tests]
     if mem:
-        out += ["", "Peak memory of one llama-bench run at depth 16,384 (macOS `/usr/bin/time -l`; the footprint includes "
-                "GPU allocations in unified memory):", "",
+        out += ["", "Peak memory of one llama-bench run at depth 16,384 (macOS `/usr/bin/time -l`). The model file is "
+                "memory-mapped, so it counts in the resident set size, not in the footprint:", "",
                 "| File | Peak memory footprint | Maximum resident set size |", "|---|---|---|"]
         out += [f"| {mac_label(v, k, True)} | {mem[k]['foot'] / 2**30:.2f} GiB | {mem[k]['rss'] / 2**30:.2f} GiB |" for k in DEPTH_FILES if k in mem]
     return out
@@ -798,6 +798,16 @@ def day(iso: str) -> str:
     import datetime
     d = datetime.date.fromisoformat(iso)
     return f"{d.day} {d.strftime('%b')} {d.year}"
+
+
+def depth_gap() -> str:
+    """One sentence on how the speed gap to UD-IQ3_XXS changes with a 16K context, if the depth bench exists."""
+    d = depth_rows()
+    if "cand" not in d or "UD-IQ3_XXS" not in d:
+        return ""
+    r = {t: float(d["cand"][t][0]) / float(d["UD-IQ3_XXS"][t][0]) for t in ("pp512 @ d16384", "tg128 @ d16384")}
+    return (f" With 16K tokens already in context the gap narrows to {r['pp512 @ d16384']:.1f}× and "
+            f"{r['tg128 @ d16384']:.2f}×.")
 
 
 def claim_par(v: dict) -> list[str]:
@@ -859,6 +869,7 @@ def lean_card(v: dict, cand_bytes: int) -> list[str]:
     C = ["---", f"base_model: {v['model']}", "base_model_relation: quantized", f"license: {base_license()}", "tags:",
          "- gguf", "- llama.cpp", "- inkling2_loop", "- apple-silicon", "---", "",
          f"# Inkling 2 Mini, Metal GGUF ({cand_bytes / 1e9:.1f} GB)", "",
+         "![Inkling 2 Mini runs layers 6 to 17 three times on the same expert weights](figures/hero.svg)", "",
          "This GGUF keeps the whole model on the Mac GPU. It failed our registered quality test against Unsloth's "
          f"UD-IQ3_XXS, which stays closer to the original (KL {v['mrows'][('T1', 'UD-IQ3_XXS')]['d']} on T1 and "
          f"{v['mrows'][('T2', 'UD-IQ3_XXS')]['d']} on T2, our file minus theirs) but runs "
@@ -877,11 +888,12 @@ def lean_card(v: dict, cand_bytes: int) -> list[str]:
          row("cand", c1["kc"]), row(nxt, v["mrows"][("T1", nxt)]["ko"]), row("UD-IQ3_XXS", v["mrows"][("T1", "UD-IQ3_XXS")]["ko"]), "",
          "![Held-out KL of every file we compared](figures/mac-comparison.png)", "",
          "![Speed against KL on the Mac](figures/speed-vs-kl.png)", "",
+         "![Speed as the context fills up](figures/depth-speed.png)", "",
          f"Of the {len(under) + 1} all-Metal GGUFs under {limit / 1e9:.1f} GB we tested on {day(v['g_date'])}, this file "
          f"had the lowest KL. Unsloth's file was closer to the original, but on our Mac it was "
          f"{f['vs_ud']['pp512'][0]:.1f}× slower at reading prompts and {f['vs_ud']['tg128'][0]:.2f}× slower at "
-         "generating text. For all files, both test sets, confidence intervals and stability checks, see "
-         "[DETAILS.md](DETAILS.md).", "",
+         "generating text." + depth_gap() + " For all files, both test sets, confidence intervals and stability checks, "
+         "see [DETAILS.md](DETAILS.md).", "",
          "## Use", "",
          "Use a llama.cpp build with Inkling 2 support (upstream after 20 Nov 2026).", "",
          "```sh",
@@ -904,7 +916,13 @@ def lean_card(v: dict, cand_bytes: int) -> list[str]:
     C += ["## Research background", "",
          "We made this file as part of a master's thesis pilot on looped models. Inkling 2 Mini runs layers 6 to 17 "
          "three times with the same weights. We enabled quantization error on one pass at a time to measure how the "
-         "errors add up across passes. The report covers that experiment. We chose the file's layout independently of it.", "",
+         "errors add up across passes. We chose the file's layout independently of it.", "",
+         "![How the per-pass test is built](figures/loop-diagram.svg)", "",
+         "![The pass split against a layer-split control](figures/pass-vs-layer-split.png)", "",
+         "- Each pass costs about the same, and all three together cost more than the sum of the single passes.",
+         "- Splitting the same block by layer instead of by pass gives a measurably different residual (the intervals "
+         "don't overlap). Which way that points depends on the statistic, so we don't classify the error yet.",
+         "- Full write-up with every figure and table: [REPORT.md](REPORT.md).", "",
          "## Limits", "",
          "- KL measures how closely a file matches the reference model's outputs. Task quality needs its own test.",
          "- One machine, one llama.cpp build and one importance matrix.",

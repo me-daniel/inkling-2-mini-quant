@@ -19,6 +19,10 @@ Every number comes from `results/pilot/`. KL is measured against a Q8_0 referenc
 
 ![KL on T1 and T2 for the seven files](figures/mac-comparison.png)
 
+![Speed as the context fills up](figures/depth-speed.png)
+
+With 16K tokens already in context the speed gap to UD-IQ3_XXS narrows to 2.1× on prompts and 1.46× on generation (`results/pilot/depth-*.txt`).
+
 ### 2. Single-pass changes do not add up to the all-pass change (2-bit block, layers 6-11)
 
 - The test: we put a 2-bit block (layers 6-11) on pass 1 only, pass 2 only, pass 3 only and on all three. Then we compared the all-pass logit change with the sum of the three single-pass changes. The residual share r is 0.675 [0.657, 0.693], where 0 would mean the parts add up exactly.
