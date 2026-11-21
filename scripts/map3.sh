@@ -9,6 +9,8 @@ M="$ROOT/models"; L="$ROOT/logs"; K="$M/logits"; T="$M/tmp"
 PY="$ROOT/.venv/bin/python -I"
 REF="$M/Inkling-2-Mini-Q8_0.gguf"
 mkdir -p "$T"
+step() { echo "[$(date '+%H:%M:%S')] $*"; }
+done_log() { [ -f "$1" ] && grep -q 'Mean *KLD' "$1"; }
 
 if ! done_log "$L/ppl-UD-IQ3_XXS-S-P3.log"; then
     step "perplexity UD-IQ3_XXS (P=3)"
@@ -16,8 +18,6 @@ if ! done_log "$L/ppl-UD-IQ3_XXS-S-P3.log"; then
         --override-kv "inkling2_loop.loop.count=int:3" --kl-divergence-base "$K/ref-S-P3.kld" --kl-divergence > "$L/ppl-UD-IQ3_XXS-S-P3.log" 2>&1
     grep -E 'Mean +KLD|Same top p' "$L/ppl-UD-IQ3_XXS-S-P3.log" || true
 fi
-step() { echo "[$(date '+%H:%M:%S')] $*"; }
-done_log() { [ -f "$1" ] && grep -q 'Mean *KLD' "$1"; }
 
 for spec in B1:0-5 B2:6-11 B3:12-17 B4:18-19 B5:20-23; do
     b=${spec%%:*} range=${spec#*:}
