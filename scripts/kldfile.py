@@ -62,6 +62,17 @@ def iter_chunks(path: str | Path) -> Iterator[tuple[int, np.ndarray, np.ndarray]
         yield c, h.tokens[c, first + 1 : first + 1 + h.n_scored], logp
 
 
+def iter_blocks(path: str | Path, rows: int = 256) -> Iterator[tuple[int, int, np.ndarray]]:
+    """Yields (chunk index, first scored position, float32 log-probs [<= rows, n_vocab]) without loading whole chunks."""
+    h = read_header(path)
+    raw = np.memmap(path, dtype="<u2", mode="r", offset=h.data_offset, shape=(h.n_chunk, h.n_scored, h.nv))
+    for c in range(h.n_chunk):
+        for s in range(0, h.n_scored, rows):
+            block = np.asarray(raw[c, s : s + rows])
+            params = np.ascontiguousarray(block[:, :4]).view("<f4")
+            yield c, s, params[:, 1:2] + params[:, 0:1] * block[:, 4 : 4 + h.n_vocab].astype(np.float32)
+
+
 def same_tokens(*paths: str | Path) -> bool:
     hs = [read_header(p) for p in paths]
     return all(h.n_ctx == hs[0].n_ctx and h.n_vocab == hs[0].n_vocab and np.array_equal(h.tokens, hs[0].tokens) for h in hs)

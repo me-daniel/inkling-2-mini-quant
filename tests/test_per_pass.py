@@ -68,3 +68,16 @@ def test_shift_invariance(tmp_path: Path) -> None:
     shifted = {k: v + 3.0 for k, v in d.items()}
     out = call(*make(tmp_path, shifted, d["p1"] + d["p2"] + d["p3"] - 7.0))
     assert out["r"] < 0.02
+
+
+def test_fisher_norm_matches_kl(tmp_path: Path) -> None:
+    # for small changes KL(base || S) ~ 1/2 ||Delta_S||_p^2; check against the independent KL code in kldfile
+    import kldfile
+
+    d = {k: v * 0.2 for k, v in deltas((1, 1, 1)).items()}
+    base, singles, combined = make(tmp_path, d, d["p1"] + d["p2"] + d["p3"])
+    acc = per_pass.accumulate(base, singles, combined)
+    n_pos = N_CHUNK * N_SCORED
+    half_fisher = 0.5 * acc[:, per_pass.TERMS.index("d3"), 0].sum() / n_pos
+    kl = kldfile.kl_per_chunk(base, singles[2]).mean()
+    assert abs(half_fisher - kl) / kl < 0.05
