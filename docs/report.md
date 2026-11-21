@@ -2,15 +2,15 @@
 
 ![Inkling 2 Mini has 24 layers. Layers 6 to 17 run three times on the same expert weights. Does quantization error count once per pass?](../figures/hero.svg)
 
-*Exploratory pilot, run on 21 November 2026. Every measured number in this report is copied from the files in `results/`, which scripts wrote from the run logs. Nothing here is confirmatory evidence.*
+*Exploratory pilot, run on 21 November 2026. We copied every measured number in this report from files in `results/` that the scripts produced from the run logs. Nothing here is confirmatory evidence.*
 
 ## Abstract
 
-Inkling 2 Mini is a mixture-of-experts model with 24 layers. Layers 6 to 17 run three times on the same expert weights. This pilot asks two things. Can a block-wise bit allocation, chosen from measurements, give a GGUF with lower KL than a public 3-bit file at no more bytes? And how does quantization error on one looped block behave when it is applied on one pass, or on all three?
+Inkling 2 Mini is a mixture-of-experts model with 24 layers. Layers 6 to 17 run three times on the same expert weights. Can we use measurements to allocate bits by block and produce a GGUF with lower KL than a public 3-bit file without using more bytes? How does the error change when we quantize one looped block on one pass or on all three?
 
-- **The release gate failed on quality.** Our candidate (11,514,054,944 bytes) has higher KL to the reference than Unsloth UD-IQ3_XXS (11,663,310,784 bytes) on both held-out sets. The difference is +0.00747 [+0.00654, +0.00845] on T1 and +0.00581 [+0.00513, +0.00673] on T2. The FAIL stands.
-- **A narrower comparison, registered after the FAIL, passes. It is post hoc.** Among the 3 scored files under the size limit that keep all expert tensors in Metal-supported types, the candidate has lower KL on T1 and T2, with the 95% CI below zero. On an Apple M5 Pro it generates 1.75 times as fast as UD-IQ3_XXS, which keeps 20 expert tensors in a type Metal cannot multiply.
-- **Single-pass changes do not add up to the all-pass change.** On block B2 (layers 6-11) at a 2-bit level, Fisher r is 0.675 [0.657, 0.693]. A control that splits the same block by layer pair, with no shared weights, gives 0.838 [0.822, 0.855]. On r and on the norm ratio the pass split is closer to additive than the layer split. The additivity comparators disagree, and we do not classify the error.
+- Release gate: FAIL on quality. Our candidate (11,514,054,944 bytes) has higher KL to the reference than Unsloth UD-IQ3_XXS (11,663,310,784 bytes) on both held-out sets. The difference is +0.00747 [+0.00654, +0.00845] on T1 and +0.00581 [+0.00513, +0.00673] on T2. The FAIL stands.
+- The candidate passes a narrower, post hoc comparison that we registered after the FAIL. Among the 3 scored files under the size limit that keep all expert tensors in Metal-supported types, the candidate has lower KL than each of them on T1 and T2, with the 95% CI for each difference below zero. On an Apple M5 Pro, the candidate generates tokens 1.75 times as fast as UD-IQ3_XXS, which keeps 20 expert tensors in a type Metal cannot multiply.
+- The single-pass changes do not add up to the all-pass change. On block B2 (layers 6-11) at the 2-bit level, Fisher r is 0.675 [0.657, 0.693]. A control that splits the same block by layer pair, with no shared weights, gives 0.838 [0.822, 0.855]. By both r and the norm ratio, the pass split is closer to additive than the layer split. The additivity measures disagree, so we do not classify the error.
 
 ## The question
 
@@ -22,11 +22,11 @@ A quantized tensor carries one rounding error. In a looped model the same tensor
 
 The answer matters for bit allocation. A file has a byte budget, and an allocator needs to know what a bit removed from a looped layer costs compared with a bit removed elsewhere.
 
-The pilot does not settle this. It builds the tools, checks that the measurement works, and reports what one block shows at two levels. It also tests a practical side question. Does a block-wise allocation chosen from a measured table give a file worth releasing?
+The pilot does not settle this question. We built the tools, checked that the measurement works, and report results for one block at two bit levels. We also tested whether a block-wise allocation chosen from a table of measurements gives a file worth releasing.
 
 ## The model and the loop
 
-The model is `thinkingmachines/Inkling-2-Mini`. `llama-bench` reports 26.07 B parameters. It has 24 layers. Layers 6 to 17 are the looped core, and the default loop count is 3. We write P for the number of passes. With P passes the model makes 12 + 12 P layer visits, so P = 3 gives 48 visits from 24 layers. The model rejects P = 1.
+The model is `thinkingmachines/Inkling-2-Mini`. `llama-bench` reports 26.07 B parameters. The model has 24 layers. Layers 6 to 17 are the looped core, and the default loop count is 3. We write P for the number of passes. With P passes the model makes 12 + 12 P layer visits, so P = 3 gives 48 visits from 24 layers. The model rejects P = 1.
 
 Each layer has routed experts in two tensors. `ffn_gate_up_exps` holds the gate and up projections, and `ffn_down_exps` holds the down projection. We call them gate_up and down. In the release, layers 0 to 19 hold their expert weights in NVFP4 and layers 20 to 23 hold them in MXFP8 (spot-checked in `results/convert-check.md`).
 
@@ -42,25 +42,25 @@ We group the layers into five blocks.
 
 ![Physical layers, cache slots and the five conditions of the per-pass test](../figures/loop-diagram.svg)
 
-*Layers, cache slots and the conditions of the per-pass test. The diagram holds no measured values.*
+*Layers, cache slots and the conditions of the per-pass test. The diagram contains no measured values.*
 
-How the loop runs in the pinned llama.cpp (`src/models/inkling2-loop.cpp`):
+How the loop runs in the pinned llama.cpp commit (`src/models/inkling2-loop.cpp`):
 
-- Layers 0 to 5 run once. Then the core runs P times. Then layers 18 to 23 run once.
+- Layers 0 to 5 run once, the core runs P times, and layers 18 to 23 run once.
 - Passes 2 and 3 start again from the output of layer 5. They read the previous pass through loop-control tensors, which are not expert tensors.
-- Every layer visit has its own cache slot. Slots 0 to 23 are the physical layers. Pass 2 uses slots 24 to 35 and pass 3 uses slots 36 to 47. For pass p of 2 or 3 over core layer l, the slot is `24 + (p - 2) * 12 + (l - 6)`.
-- A slot shares the weights of its physical layer. Our patch 0003 lets a slot carry its own expert tensors. That is how one pass can run on different expert weights from the others.
+- Every layer visit has its own cache slot. Slots 0 to 23 correspond to the physical layers. Pass 2 uses slots 24 to 35 and pass 3 uses slots 36 to 47. For pass p of 2 or 3 over core layer l, the slot is `24 + (p - 2) * 12 + (l - 6)`.
+- A slot shares the weights of its physical layer. Our patch 0003 lets a slot carry its own expert tensors, so one pass can use different expert weights from the others.
 
 ## What we measured
 
 - Pass count P = 3 for every run (the model's default loop count is 3).
 - Reference: a Q8_0 GGUF converted from the release, scored at the same P.
-- Metric: mean KL divergence and top-1 agreement against the reference, from `llama-perplexity --kl-divergence`. The text is fixed, so scoring involves no sampling.
+- Metrics: mean KL divergence and top-1 agreement against the reference, from `llama-perplexity --kl-divergence`. The text is fixed, so scoring involves no sampling.
 - Context: S in 16 chunks of 4,096 tokens, T1 in 16 chunks of 4,096 tokens, T2 in 5 chunks of 2,048 tokens.
-- T2 text: reasoning traces from the reference at P = 3 on 40 prompts (GSM8K train 1-20 and 51-70). Effort low, temperature 0, cap 2,048 tokens. 10,628 completion tokens. None of the traces hit the cap. The traces were made before any candidate existed.
+- T2 text: reasoning traces from the reference at P = 3 on 40 prompts (GSM8K train 1-20 and 51-70). We used low effort, temperature 0 and a cap of 2,048 tokens. The traces totaled 10,628 completion tokens. None hit the cap. We generated the traces before any candidate existed.
 - Statistics: paired bootstrap over chunks, 10,000 resamples, seed 0, 95% percentile CI.
 
-S is the selection set. T1 and T2 are the held-out test sets, scored only after the candidate was fixed.
+S is the selection set. We scored the held-out test sets T1 and T2 only after we fixed the candidate.
 
 | File | Tokens | sha256 prefix | Exact word 13-gram overlap with bartowski v6 calibration text |
 |---|---|---|---|
@@ -68,18 +68,18 @@ S is the selection set. T1 and T2 are the held-out test sets, scored only after 
 | `T1.txt` | 65,792 | `b92d716fcae5582f` | 0 of 42,630 (0.000%) |
 | `T2-prompts.jsonl` | 40 prompts | `db381a9a4b500762` | n/a |
 
-Two bit levels recur below. The **2-bit level** is IQ2_XXS for gate_up and Q2_0 for down. The **3-bit level** is IQ3_XXS for gate_up and IQ4_NL for down. The down projection has rows 1152 wide, so `llama-quantize` falls back from every 256-block type there (`results/convert-check.md`).
+Two bit levels recur below. The **2-bit level** is IQ2_XXS for gate_up and Q2_0 for down. The **3-bit level** is IQ3_XXS for gate_up and IQ4_NL for down. The down projection has rows 1152 wide, so `llama-quantize` falls back from every 256-block type for down (`results/convert-check.md`).
 
 The runs, in order:
 
-1. **Floors.** The reference against itself, and our IQ4_NL build against the reference.
-2. **Block map** on S. One block's experts are changed and everything else stays as in the reference.
-3. **Pass sweep** on S. Uniform builds at P = 2, 3 and 4.
-4. **Per-pass test** on S. Block B2 at the 2-bit level on one pass or on all three, with two controls and a noise comparison.
-5. **Selection** on S, then the **release gate** on T1 and T2.
-6. **Mac comparison**, registered after the gate failed.
+1. Floors: we scored the reference against itself and our IQ4_NL build against the reference.
+2. Block map on S: we changed one block's experts at a time and kept everything else as in the reference.
+3. Pass sweep on S: we scored uniform builds at P = 2, 3 and 4.
+4. Per-pass test on S: we tested block B2 at the 2-bit level on one pass or on all three, with two controls and a noise comparison.
+5. Selection on S, then the release gate on T1 and T2.
+6. Mac comparison, registered after the gate failed.
 
-Variants are built by copying tensors byte for byte between pre-quantized files (`scripts/splice.py`). The hypotheses, data splits, stop rules and the gate were written down before the data they govern. The change log with every dated addendum is public: [CHANGELOG.md](../CHANGELOG.md). Where this report cites an addendum, it means a dated entry in that change log.
+We built variants by copying tensors byte for byte between pre-quantized files (`scripts/splice.py`). We recorded the hypotheses, data splits, stop rules and gate before the data they govern existed. The public change log includes every dated addendum ([CHANGELOG.md](../CHANGELOG.md)). When we cite an addendum, we mean a dated entry in that change log.
 
 ## Results
 
@@ -90,7 +90,7 @@ Variants are built by copying tensors byte for byte between pre-quantized files 
 
 ### Block map (S, P = 3)
 
-One block's experts changed, everything else as in the reference. KL on S.
+We measured KL on S after changing one block's experts at a time. Everything else matched the reference.
 
 | Block | Layers | 2-bit (IQ2_XXS / Q2_0) | IQ2_XXS / IQ4_NL | IQ2_S / IQ4_NL | IQ3_XXS / Q2_0 (ours) | 3-bit (IQ3_XXS / IQ4_NL) |
 |---|---|---|---|---|---|---|
@@ -100,20 +100,20 @@ One block's experts changed, everything else as in the reference. KL on S.
 | B4 | 18-19, after the loop | 0.03593 | 0.00731 | 0.00403 | 0.00927 | 0.00233 |
 | B5 | 20-23, after the loop, MXFP8 source | 0.06675 | 0.01670 | 0.00876 | 0.01655 | 0.00469 |
 
-Non-expert tensors at Q6_K, experts as in the reference: KL 0.00353.
+With non-expert tensors at Q6_K and experts as in the reference, KL was 0.00353.
 
 ![Block map: KL of each block divided by its number of layers, five levels](../figures/block-map.png)
 
 *KL of each block divided by its number of layers, in thousandths. Each panel has its own scale. Looped blocks are magenta.*
 
-- At the 2-bit level a layer after the loop costs more than a looped layer. KL per layer is 0.0180 for B4 and 0.0167 for B5, against 0.0104 for B2 and 0.0142 for B3. B4 has 2 layers and its interval is wide.
-- At the 3-bit level the order is different. B2 is highest at 0.00137 per layer.
+- At the 2-bit level, KL per layer is higher after the loop than inside it. KL per layer is 0.0180 for B4 and 0.0167 for B5, against 0.0104 for B2 and 0.0142 for B3. B4 has 2 layers and its interval is wide.
+- At the 3-bit level, the order changes. B2 has the highest KL per layer at 0.00137.
 - The map changes a looped block on all passes at once. It cannot separate the passes.
-- The blocks do not add up exactly. The 2-bit sum of blocks is 0.2781 against 0.3046 for the uniform build (uniform / sum 1.10). The 3-bit sum is 0.0282 against 0.0221 (0.78).
+- The block KLs do not add up exactly. The 2-bit sum is 0.2781 against 0.3046 for the uniform build (uniform / sum 1.10). The 3-bit sum is 0.0282 against 0.0221 (0.78).
 
 ### Pass sweep (S)
 
-Uniform builds, each scored against the reference at the same P. P = 2 and P = 4 are outside what the model was tuned for. We draw no causal claim about the loop from this sweep.
+We scored each uniform build against the reference at the same P. P = 2 and P = 4 are outside what the model was tuned for. We draw no causal conclusion about the loop from this sweep.
 
 | Level | P = 2 | P = 3 | P = 4 |
 |---|---|---|---|
@@ -124,7 +124,7 @@ Uniform builds, each scored against the reference at the same P. P = 2 and P = 4
 
 *Each P is scored against the reference run at the same P, so the three points in a panel have three different references.*
 
-Run time against layer visits, from the sweep itself:
+Run time and layer visits in the sweep:
 
 - P = 2: 157 s, 0.75 of the P = 3 time, visits ratio 0.75.
 - P = 3: 210 s, 1.00 of the P = 3 time, visits ratio 1.00.
@@ -134,7 +134,7 @@ The P = 4 time did not follow the visits ratio. A back-to-back recheck on the 3-
 
 ### Per-pass test (B2, 2-bit level, S, P = 3)
 
-On these documents, at P = 3, changing B2's experts on pass k produced the measured logit changes below. B2 is layers 6-11. The base is our IQ4_NL build. The 2-bit level is IQ2_XXS gate_up with stock Q2_0 down. Its mean relative weight error against the IQ4_NL base is 0.5292 on ffn_down_exps and 0.1288 on ffn_gate_up_exps. Every number in this section holds for that amplitude only.
+On these documents, at P = 3, we measured how the logits changed when we changed B2's experts on pass k. B2 covers layers 6-11. The base is our IQ4_NL build. The 2-bit level uses IQ2_XXS gate_up with stock Q2_0 down. Its mean relative weight error against the IQ4_NL base is 0.5292 on ffn_down_exps and 0.1288 on ffn_gate_up_exps. The numbers in this section apply only at the amplitude tested.
 
 Two checks came before the test. A no-op splice reproduced the base logits byte for byte. Switching all three passes through slot tensors reproduced an ordinary build with the same tensors.
 
@@ -149,7 +149,7 @@ Two checks came before the test. A no-op splice reproduced the base logits byte 
 
 *KL against the IQ4_NL base. The stacked bar is the sum of the three single-pass runs.*
 
-We compare d_all, the change in log-probabilities from all three passes, with the sum of the three single-pass changes d_1 + d_2 + d_3. The residual share is r = ||d_all - sum_k d_k|| / ||d_all||. It is 0 when the parts add up exactly. The norm is the Fisher norm under the base distribution. Its square is the variance of the change under the base model's token probabilities, summed over tokens. To second order, KL is half that square. The last column of the table uses centred Euclidean over the full vocabulary instead, with floored entries kept as written. It is a sensitivity check.
+We compare d_all, the change in log-probabilities from all three passes, with the sum of the three single-pass changes d_1 + d_2 + d_3. The residual share is r = ||d_all - sum_k d_k|| / ||d_all||. It is 0 when the parts add up exactly. The norm is the Fisher norm under the base distribution. Its square is the variance of the change under the base model's token probabilities, summed over tokens. To second order, KL is half that square. As a sensitivity check, the last column uses the centred Euclidean norm over the full vocabulary and keeps floored entries as written.
 
 | Statistic | Pass split, 2-bit | Layer split, 2-bit (control) | Pass split, 3-bit | Pass split, 2-bit, full vocabulary |
 |---|---|---|---|---|
@@ -161,22 +161,22 @@ We compare d_all, the change in log-probabilities from all three passes, with th
 | cos(d1, d3) | 0.134 [0.120, 0.147] | 0.225 [0.206, 0.245] | 0.125 [0.110, 0.141] | 0.205 [0.189, 0.222] |
 | KL all / sum of parts | 1.135 [1.112, 1.162] | 0.888 (point only) | 0.875 (point only) | n/a (KL has no norm) |
 
-- The layer split puts the 2-bit block on layers 6-7, 8-9 or 10-11 only, on all passes. Its three parts share no weights, so it shows how far from additive any three-way split of B2 is.
-- The 3-bit rung changes gate_up only (IQ3_XXS). In `t-blocks.tsv`, which uses a different base from the errors given above, its mean relative error on B2 is 0.0353, against 0.1251 for the 2-bit gate_up. It has no layer-split control of its own.
-- The additivity comparators disagree. KL all / sum is 1.135, above 1. The Fisher norm ratio is 0.841, below 1. We do not choose among them here.
+- The layer split applies the 2-bit change to one layer pair at a time, on all passes. The pairs are layers 6-7, 8-9 and 10-11. Its three parts share no weights, so it shows how far from additive a three-way split of B2 can be.
+- The 3-bit level changes only gate_up (IQ3_XXS). In `t-blocks.tsv`, which uses a different base from the errors given above, its mean relative error on B2 is 0.0353, against 0.1251 for the 2-bit gate_up. It has no layer-split control of its own.
+- The additivity measures disagree. KL all / sum is 1.135, above 1. The Fisher norm ratio is 0.841, below 1. We do not choose between them here.
 
 ![Residual share r and norm ratio for the pass split at 2-bit and 3-bit and for the layer-split control](../figures/pass-vs-layer-split.png)
 
 *Pass split against the layer-split control. Navy is the control.*
 
-**What the controls allow.** The change log set a rule before the controls ran (Addendum F). A claim about the loop needs the pass-split r and norm ratio to both differ from the layer-split values beyond both 95% CIs. We apply it under the Fisher norm, which was fixed in code before the per-pass logits existed. The head Euclidean substitute gives the same verdict, and so does the full-vocabulary form against the layer split's full-vocabulary values.
+**What the controls allow.** We recorded the rule in the change log before running the controls (Addendum F). A claim about the loop requires both r and the norm ratio for the pass split to differ from their layer-split values beyond both 95% CIs. We used the Fisher norm, which was fixed in code before the per-pass logits existed. The Euclidean norm on the head gives the same verdict. So does the full-vocabulary norm when compared with the layer split's full-vocabulary values.
 
-- At the 2-bit level on B2, splitting the change across passes on shared weights gives a different r and norm ratio than splitting it across layer pairs. On these two statistics the pass split is closer to additive.
-- The controls do not license a classification of the error as counting once, per pass or growing across passes. They say nothing about B3 or other levels.
+- At the 2-bit level on B2, splitting the change across passes on shared weights gives different values of r and the norm ratio than splitting it across layer pairs. By both measures, the pass split is closer to additive.
+- The controls cannot tell us whether the error counts once, counts per pass or grows across passes. They say nothing about B3 or other levels.
 - The 3-bit r and norm ratio differ from the 2-bit values beyond both CIs, so these statistics depend on the level.
-- At the 3-bit rung the all-pass KL against the base is 0.00809, about 7.7 times lower than the 0.06198 at 2 bits. Fisher r there is 0.748, against 0.675 at 2 bits. So the residual does not shrink in proportion to the amplitude.
+- At the 3-bit level, the all-pass KL against the base is 0.00809. At 2 bits it is 0.06198, about 7.7 times as large. Fisher r is 0.748 there, against 0.675 at 2 bits. So the residual does not shrink in proportion to the amplitude.
 
-**Noise comparison.** This part follows the linearity theorem of Malinovskii et al. (arXiv 2411.17525). Gaussian noise of the same relative error as the 2-bit level goes on B2. A tied condition puts one draw on all three passes, and there are 3 tied draws. The independent condition puts draws 1, 2 and 3 on passes 1, 2 and 3, and it has one draw. The table gives KL against the base and each tied draw over the independent one (paired bootstrap over chunks).
+**Noise comparison.** We followed the linearity theorem of Malinovskii et al. (arXiv 2411.17525). We applied Gaussian noise to B2 with the same relative error as the 2-bit level. Each of the 3 tied draws used one noise sample on all three passes. The independent condition used draws 1, 2 and 3 on passes 1, 2 and 3, and we ran it once. The table gives KL against the base and the ratio of each tied KL to the independent KL, with intervals from a paired bootstrap over chunks.
 
 | Condition | KL vs base | Tied / independent [95% CI] |
 |---|---|---|
@@ -187,24 +187,24 @@ We compare d_all, the change in log-probabilities from all three passes, with th
 
 ![KL for noise shared by all passes, three draws, and for a different draw on each pass](../figures/noise.png)
 
-- Tied over independent runs from 1.196 to 1.223 across the 3 tied draws. The tied KLs span 0.06353 to 0.06493.
-- All ratios share the one independent draw, so the draw effect on the independent side is not measured. Each CI covers chunk sampling only.
+- The tied-to-independent KL ratio ranged from 1.196 to 1.223 across the 3 tied draws. The tied KLs ranged from 0.06353 to 0.06493.
+- All ratios share the one independent draw, so we could not measure variation across independent draws. Each CI covers chunk sampling only.
 
-Three analysis choices differ from the registered plan. They are the Fisher norm as primary, a 10-nat head for the Euclidean substitute, and a pooled ratio of sums instead of a per-token ratio. They were fixed in code in commit `9dd17b8` at 05:09. The per-pass logits came at 06:36. They have a dated entry in the change log (Addendum G, section 2), which is awaiting approval.
+Three analysis choices differ from the registered plan. We used the Fisher norm as the primary norm, a 10-nat head for the Euclidean check, and a pooled ratio of sums instead of a per-token ratio. We fixed these choices in code in commit `9dd17b8` at 05:09. The per-pass logits came at 06:36. The dated change log entry (Addendum G, section 2) is awaiting approval.
 
-The per-pass test is a scientific result. It is not the reason for the release allocation. The block map measures looped blocks with all passes tied.
+The per-pass test addresses how changes across passes add up. We did not use it to choose the release allocation. The block map measures looped blocks with all passes tied.
 
 ### A side result: a weighted Q2_0 encoder
 
-llama.cpp's reference Q2_0 encoder sets the block scale from the largest weight, so one level goes unused, and it ignores the importance matrix. We wrote an imatrix-weighted Q2_0 encoding (our encoder, `scripts/q2opt.py`). It searches signed scales over all four levels and refits each block's scale by weighted least squares. The format, kernels and bytes do not change.
+llama.cpp's reference Q2_0 encoder sets the block scale from the largest weight, which leaves one level unused. It ignores the importance matrix. We wrote an imatrix-weighted Q2_0 encoder (`scripts/q2opt.py`). It searches signed scales over all four levels and refits each block's scale by weighted least squares. The format, kernels and bytes do not change.
 
 - ffn_down_exps: mean relative l2 weight error 0.5198 (stock) against 0.1354 (ours), over 24 layers.
 - ffn_gate_up_exps: mean relative l2 weight error 0.5160 (stock) against 0.1284 (ours), over 24 layers.
-- Picks sel-0 and sel-3 used it for block B1's down projections. The chosen pick does not use it.
+- Picks sel-0 and sel-3 used our encoder for block B1's down projections. The candidate does not use it.
 
 ### Release: selection on S
 
-The allocator added per-projection changes from the map under the byte limit and proposed 4 allocations. The limit is the size of UD-IQ3_XXS, 11,663,310,784 bytes. Each allocation was built by splicing tensors from pre-quantized pools, then scored on S. The lowest measured KL became the candidate before T1 or T2 were scored.
+The allocator summed the per-projection changes from the map and proposed 4 allocations under the byte limit. The limit is the size of UD-IQ3_XXS, 11,663,310,784 bytes. We built each allocation by splicing tensors from pre-quantized pools, then scored it on S. We chose the allocation with the lowest measured KL as the candidate before scoring T1 or T2.
 
 | Pick | Allocation (gate_up / down) | Non-expert | Predicted KL | Measured KL ± SE | Measured / predicted | File bytes |
 |---|---|---|---|---|---|---|
@@ -213,14 +213,14 @@ The allocator added per-projection changes from the map under the byte limit and
 | sel-2 (chosen) | B1 IQ2_XXS/IQ4_NL, B2 IQ2_S/IQ4_NL, B3 IQ3_XXS/IQ4_NL, B4 IQ3_XXS/IQ4_NL, B5 IQ3_XXS/IQ4_NL | Q6_K | 0.04001 | 0.02931 ± 0.00042 | 0.73 | 11,514,054,944 |
 | sel-3 | B1 IQ2_S/Q2_0 (ours), B2 IQ3_XXS/IQ4_NL, B3 IQ3_XXS/IQ4_NL, B4 IQ3_XXS/IQ4_NL, B5 IQ3_XXS/IQ4_NL | Q6_K | 0.04011 | 0.02945 ± 0.00044 | 0.73 | 11,450,353,952 |
 
-- The allocator overpredicted 4 of 4 picks (measured / predicted 0.73 to 0.81).
-- Its top pick, sel-0, measured worst. The order by measured KL is sel-2, sel-3, sel-1, sel-0.
+- The allocator overpredicted KL for 4 of 4 picks (measured / predicted 0.73 to 0.81).
+- Its top pick, sel-0, had the highest measured KL. The order from lowest to highest measured KL is sel-2, sel-3, sel-1, sel-0.
 - Each file is 11,977,760 to 11,978,144 bytes larger than the allocator's count. 4 of 4 stayed under the limit of 11,663,310,784 bytes.
-- UD-IQ3_XXS scored 0.02050 on S, below every pick. Its S score was not used for selection.
+- UD-IQ3_XXS scored 0.02050 on S, below every pick. We did not use its S score for selection.
 
 ### Release: the gate failed
 
-The gate needs the candidate's paired KL to be lower than both baselines on both sets, with the 95% CI excluding zero, and top-1 agreement no worse. Negative differences favour the candidate.
+The gate requires the candidate to have lower paired KL than both baselines on both sets, with the 95% CI excluding zero and top-1 agreement no worse. Negative differences favour the candidate.
 
 | Set | Baseline | KL cand | KL baseline | cand minus baseline [95% CI] | Chunks where cand is worse | Top-1 cand vs baseline |
 |---|---|---|---|---|---|---|
@@ -229,12 +229,12 @@ The gate needs the candidate's paired KL to be lower than both baselines on both
 | T2 | UD-IQ3_XXS | 0.01942 | 0.01361 | +0.00581 [+0.00513, +0.00673] | 5 of 5 | 95.29% vs 95.95% |
 | T2 | stock IQ3_XXS (larger) | 0.01942 | 0.04622 | -0.02680 [-0.02912, -0.02407] | 0 of 5 | 95.29% vs 92.67% |
 
-**Verdict: FAIL.** The candidate is worse than UD-IQ3_XXS on 16 of 16 T1 chunks and 5 of 5 T2 chunks. Under the pre-registered rule a failed gate means no model is released on that gate. The candidate was frozen, and nothing was reselected after T1 and T2 were seen.
+**Verdict: FAIL.** The candidate had higher KL than UD-IQ3_XXS on 16 of 16 T1 chunks and 5 of 5 T2 chunks. Under the pre-registered rule, we released no model on this gate. The candidate was frozen, and we did not repeat selection after seeing T1 and T2.
 
-- The plain IQ3_XXS build has 11,747,211,680 bytes, more than UD-IQ3_XXS, so it is labelled stock IQ3_XXS (larger). The candidate has lower KL than it on both sets.
-- Teacher check: not run. It applies when a gap to UD-IQ3_XXS is below 0.005 KL. Both gaps go against the candidate and are larger (+0.00747 on T1, +0.00581 on T2).
+- The plain IQ3_XXS build has 11,747,211,680 bytes, more than UD-IQ3_XXS, so we label it stock IQ3_XXS (larger). The candidate has lower KL than this build on both sets.
+- Teacher check: we did not run it. It applies when a gap to UD-IQ3_XXS is below 0.005 KL. Both gaps were larger and went against the candidate (+0.00747 on T1, +0.00581 on T2).
 
-Expert tensors in types the pinned Metal backend cannot multiply, read from each file's tensor types:
+We checked the tensor types in each file to count the expert tensors the pinned Metal backend cannot multiply:
 
 | Build | Bytes | Expert tensor types | Off-Metal expert tensors |
 |---|---|---|---|
@@ -242,15 +242,15 @@ Expert tensors in types the pinned Metal backend cannot multiply, read from each
 | stock IQ3_XXS (larger) | 11,747,211,680 | ffn_down_exps IQ4_NL x24, ffn_gate_up_exps IQ3_XXS x24 | 0 |
 | UD-IQ3_XXS | 11,663,310,784 | ffn_down_exps IQ4_NL x4, ffn_down_exps NVFP4 x20, ffn_gate_up_exps IQ2_S x9, ffn_gate_up_exps IQ2_XS x1, ffn_gate_up_exps IQ2_XXS x1, ffn_gate_up_exps IQ3_XXS x13 | 20 |
 
-UD-IQ3_XXS keeps the release's NVFP4 down projections in 20 expert tensors. The candidate stores every expert down projection as IQ4_NL. Our reading is that this explains the KL gap. That is an inference from the tensor types. This report has no controlled build that tests it.
+UD-IQ3_XXS keeps the release's NVFP4 down projections in 20 expert tensors. The candidate stores every expert down projection as IQ4_NL. A swap test on S (Addendum H, `results/pilot/addendum-h.md`) shows this difference explains little of the gap. The candidate with UD's NVFP4 down scores 0.02813 against its own 0.02931. UD's file with our IQ4_NL down scores 0.02149 against UD's 0.02050. Most of the gap comes from UD's layout, not from the down format.
 
 ### Release: the Mac comparison (post hoc)
 
-This comparison was registered on 2026-11-21 at about 14:45 (Addendum G), after the gate above had failed and before any of its numbers existed. Two of the files were added by an amendment at about 14:55, before any download or score. It is post hoc, and it does not change the FAIL.
+We registered this comparison on 2026-11-21 at about 14:45 (Addendum G), after the release gate failed and before we had any results from the comparison. An amendment at about 14:55 added two of the files before we downloaded or scored any. The comparison is post hoc and does not change the FAIL.
 
-The rule needs the candidate to have lower KL than each of the 3 comparators under the limit (bartowski IQ2_S, AtomicChat AD-IQ2_S, mudler APEX-I-Nano) on both T1 and T2, with the 95% CI of the difference below 0 and top-1 not worse (`analysis/compare.py`). Each comparator must have all expert tensors in Metal-supported types, and 3 of 3 are confirmed from their tensor types. The result in `results/pilot/mac-quality.txt` is **PASS**.
+The rule requires lower KL for the candidate than for each of the 3 comparators under the limit (bartowski IQ2_S, AtomicChat AD-IQ2_S, mudler APEX-I-Nano). On both T1 and T2, the 95% CI for each difference must lie below 0, and top-1 must be at least as high for the candidate (`analysis/compare.py`). We checked the tensor types in each file. All expert tensors must use Metal-supported types, and 3 of 3 comparators meet that requirement. The result in `results/pilot/mac-quality.txt` is **PASS**.
 
-Bytes are read from each file. The off-Metal count is read from each file's tensor types. Differences are candidate minus file, so negative values favour the candidate. Speed is llama-bench mean ± standard deviation.
+We read the byte count from each file and counted off-Metal expert tensors by type. Differences are candidate minus file, so negative values favour the candidate. Speed is the llama-bench mean ± standard deviation.
 
 | File | Bytes | Size limit | Off-Metal expert tensors | KL T1 | KL T2 | cand minus file, T1 [95% CI] | cand minus file, T2 [95% CI] | Top-1 T1 / T2 | pp512 t/s | tg128 t/s |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -264,23 +264,23 @@ Bytes are read from each file. The off-Metal count is read from each file's tens
 
 ![KL on T1 and T2 for the seven files](../figures/mac-comparison.png)
 
-*KL to the Q8_0 reference with 95% chunk intervals. Hatched bars are over the size limit. The figure prints the size `llama-bench` reports in GiB. The table above has the file bytes.*
+*KL to the Q8_0 reference with 95% chunk intervals. Hatched bars are over the size limit. The figure shows the size in GiB reported by `llama-bench`. The table gives file sizes in bytes.*
 
-- UD-IQ3_XXS stays closest to the reference. The candidate is next on both sets.
+- UD-IQ3_XXS has the lowest KL on both sets. The candidate is next on both.
 - bartowski IQ2_M is over the limit and shown for context. It has higher KL than the candidate on both sets.
-- A later amendment (about 21:40) added two more files under the limit as comparators: IsValorum APEX-I-NanoPlus-V2.1 (10,981,551,648 bytes) and prithivMLmods Q2_K (10,863,738,816 bytes). Those byte counts come from the change log. The two files had no scores when this report was written. The PASS covers the 3 scored files only.
+- A later amendment (about 21:40) added two more files under the limit as comparators: IsValorum APEX-I-NanoPlus-V2.1 (10,981,551,648 bytes) and prithivMLmods Q2_K (10,863,738,816 bytes). Those byte counts come from the change log. The two files had no scores when we wrote this report. The PASS covers the 3 scored files only.
 
-**Speed.** The 6 files with all expert tensors in Metal-supported types run at about the same speed as each other. Their pp512 lies between 224.41 and 235.78 t/s (largest over smallest 1.05), and their tg128 between 18.34 and 20.54 t/s (1.12). Among them the candidate ranks 6 of 6 on pp512 and 4 of 6 on tg128.
+**Speed.** The 6 files with all expert tensors in Metal-supported types ran at about the same speed. For pp512, speeds ranged from 224.41 to 235.78 t/s (highest divided by lowest, 1.05). For tg128, the range was 18.34 to 20.54 t/s (1.12). The candidate ranked 6 of 6 on pp512 and 4 of 6 on tg128.
 
-The speed difference is against UD-IQ3_XXS only. Its 20 NVFP4 expert tensors run off Metal, and it measured 68.06 t/s pp512 and 10.87 t/s tg128. The candidate is 3.30 times as fast on pp512 and 1.75 times as fast on tg128. For the all-Metal files the ratios to UD-IQ3_XXS run from 3.30 to 3.46 (pp512) and 1.69 to 1.89 (tg128). This would change if the Metal backend gained NVFP4 matrix multiplies.
+The speed advantage is limited to the comparison with UD-IQ3_XXS. Its 20 NVFP4 expert tensors run off Metal, and it measured 68.06 t/s on pp512 and 10.87 t/s on tg128. The candidate is 3.30 times as fast on pp512 and 1.75 times as fast on tg128. For the all-Metal files, the speed ratios relative to UD-IQ3_XXS range from 3.30 to 3.46 (pp512) and 1.69 to 1.89 (tg128). This would change if the Metal backend gained NVFP4 matrix multiplies.
 
 ![Speed against T1 KL for the seven files, generation and prompt processing](../figures/speed-vs-kl.png)
 
-*Tokens per second against T1 KL. Left is generation (tg128), right is prompt processing (pp512).*
+*Tokens per second against T1 KL. The left panel shows generation (tg128) and the right shows prompt processing (pp512).*
 
-Measured with `llama-bench -ngl 99 -p 512 -n 128 -r 3` at each file's default loop count, one binary for all files (build `9f5b9d6` as printed by llama-bench). The ± is llama-bench's standard deviation over the 3 repetitions. Machine: Apple M5 Pro, 48 GB, macOS 26.5, iogpu.wired_limit_mb=40960. Speed at context depth and peak memory exist for the candidate (`results/pilot/depth-cand.txt`, `results/pilot/memory-cand.txt`). The same runs for the comparison files were still in progress when this report was written, so that comparison is not included.
+We ran `llama-bench -ngl 99 -p 512 -n 128 -r 3` at each file's default loop count, using one binary for all files (build `9f5b9d6` as reported by llama-bench). The ± values are llama-bench's standard deviations over the 3 repetitions. We used an Apple M5 Pro with 48 GB, macOS 26.5 and iogpu.wired_limit_mb=40960. We measured speed at context depth and peak memory for the candidate (`results/pilot/depth-cand.txt`, `results/pilot/memory-cand.txt`). The corresponding runs for the comparison files were still in progress when we wrote this report, so we omit that comparison.
 
-**Stability.** The registered battery, run on the candidate and on the Q8_0 reference with the same server settings.
+**Stability.** We ran the registered checks on the candidate and the Q8_0 reference with the same server settings.
 
 | Check | Q8_0 reference | Candidate | Rule | Result |
 |---|---|---|---|---|
@@ -292,9 +292,9 @@ Measured with `llama-bench -ngl 99 -p 512 -n 128 -r 3` at each file's default lo
 | GSM8K correct | 30 of 30 | 30 of 30 | at most 4 below | pass |
 | GSM8K replies that hit the cap | 0 | 0 | at most 2 more | pass |
 
-Stability verdict: PASS (7 of 7 checks, thresholds fixed in `scripts/stability.py` before any candidate existed). The long prompt has 16,359 tokens. 30 GSM8K items are a smoke test, not an accuracy estimate. Both runs use llama-server's chat endpoint at P = 3.
+The stability verdict is PASS. The candidate passed 7 of 7 checks under thresholds fixed in `scripts/stability.py` before any candidate existed. The long prompt has 16,359 tokens. We used the 30 GSM8K items only as a smoke test. They provide no accuracy estimate. Both runs use llama-server's chat endpoint at P = 3.
 
-Outside files in the comparison:
+External files in the comparison:
 
 | File | Repo | File name | Revision | loop.count | MTP tensors |
 |---|---|---|---|---|---|
@@ -305,30 +305,30 @@ Outside files in the comparison:
 
 ## Limits
 
-- This is an exploratory pilot. None of it is confirmatory evidence.
-- One reference, one importance matrix, one machine, one engine commit.
+- This exploratory pilot provides no confirmatory evidence.
+- We used one reference, one importance matrix, one machine and one engine commit.
 - T2 has 5 chunks, so its bootstrap is coarse.
 - KL to a reference is not task quality. We report no task scores.
-- The per-pass test covers block B2 at two levels. B3 was not perturbed per pass.
+- The per-pass test covers block B2 at two levels. We did not perturb B3 per pass.
 - The per-pass conditions use stock Q2_0 for the down projection, which has a relative weight error of about 0.52. The result is specific to that amplitude.
-- Three per-pass analysis choices differ from the registered plan and their change-log entry is awaiting approval.
-- The Mac comparison was registered after the gate failed. It is post hoc. Its speed figures hold for one machine and one engine commit.
-- The Mac comparison covers the files scored on 21 Nov 2026. Two registered comparators were not yet scored, and later uploads are not covered.
+- Three per-pass analysis choices differ from the registered plan. Their change-log entry is awaiting approval.
+- The Mac comparison is post hoc. We registered it after the gate failed. Its speed figures hold for one machine and one engine commit.
+- The Mac comparison covers the files scored on 21 Nov 2026. Two registered comparators still lacked scores. Later uploads fall outside the comparison.
 - The reference is a Q8_0 conversion. Absolute KL here cannot be compared with numbers on other repos' cards.
 
 ## Prior work
 
-From the prior-work check of 21 Nov 2026. Every link below was opened then and reopened late on 21 Nov 2026. All were live.
+We checked the prior work on 21 Nov 2026 and reopened every link late on 21 Nov 2026. All were live.
 
-- **LoopQ** (arXiv 2605.16343, 8 May 2026), [https://arxiv.org/abs/2605.16343](https://arxiv.org/abs/2605.16343). Post-training quantization of weights and activations for looped transformers. It names recursive error accumulation as one source of degradation.
-- **Feedback Exposure** (arXiv 2609.30820, 25 Sep 2026), [https://arxiv.org/abs/2609.30820](https://arxiv.org/abs/2609.30820). Integer quantization of a recurrent-depth model (Huginn). Hessians summed over recurrence steps do better than one-step Hessians. It perturbs by component, always on all steps. It has no condition where the weights differ on one step only, no MoE and no GGUF.
-- **Tilted Bowl** (arXiv 2609.39277, 30 Sep 2026), [https://arxiv.org/abs/2609.39277](https://arxiv.org/abs/2609.39277). Tests the accumulation account across several model families. A fixed rounding error does not accumulate when the loop settles. It contrasts fixed with fresh noise and runs the last loops at higher weight precision, so pass-specific weight precision is already published.
-- **Loopy** (arXiv 2610.05265, 4 Oct 2026), [https://arxiv.org/abs/2610.05265](https://arxiv.org/abs/2610.05265). Rankings of candidate low-bit representations change with recurrent depth, so it selects the shared representation by final loss at the deployment depth.
-- **LoopQuant** (arXiv 2610.16368, 12 Oct 2026), [https://arxiv.org/html/2610.16368v1](https://arxiv.org/html/2610.16368v1). Allocates activation precision per loop from Shapley-style marginals, with a pairwise term that flags stronger-than-additive degradation. That is a per-loop additivity analysis, on activations.
-- **LookAtMyQuant** (`shinmegamiboson/Inkling-2-Mini-LookAtMyQuant-8.9GB`, created 21 Nov, 12:48 UTC), [https://huggingface.co/shinmegamiboson/Inkling-2-Mini-LookAtMyQuant-8.9GB](https://huggingface.co/shinmegamiboson/Inkling-2-Mini-LookAtMyQuant-8.9GB). A Mini quantization whose card says it "Measured per-layer and per-expert-bucket ... KL sensitivity across all 48 logical visits (`L6-17` looped 3x)" and then ran QAT with "48-visit router Bernoulli-KL distillation". The card shows no table by visit, no single-pass intervention, no additivity test and no control without weight sharing.
-- **Linearity theorem**, Malinovskii et al. (arXiv 2411.17525, 26 Nov 2024), [https://arxiv.org/abs/2411.17525](https://arxiv.org/abs/2411.17525). The source of the noise comparison.
+- LoopQ (arXiv 2605.16343, 8 May 2026), [https://arxiv.org/abs/2605.16343](https://arxiv.org/abs/2605.16343). Post-training quantization of weights and activations for looped transformers. The paper identifies recursive error accumulation as one source of degradation.
+- Feedback Exposure (arXiv 2609.30820, 25 Sep 2026), [https://arxiv.org/abs/2609.30820](https://arxiv.org/abs/2609.30820). Integer quantization of a recurrent-depth model (Huginn). Hessians summed over recurrence steps do better than one-step Hessians. Each component perturbation applies to all steps. The study has no condition where weights differ on one step only, no MoE and no GGUF.
+- Tilted Bowl (arXiv 2609.39277, 30 Sep 2026), [https://arxiv.org/abs/2609.39277](https://arxiv.org/abs/2609.39277). Tests whether rounding error accumulates across several model families. A fixed rounding error does not accumulate when the loop settles. The paper compares fixed and fresh noise. It also uses higher weight precision on the last loops, so there is already published work on pass-specific weight precision.
+- Loopy (arXiv 2610.05265, 4 Oct 2026), [https://arxiv.org/abs/2610.05265](https://arxiv.org/abs/2610.05265). Rankings of candidate low-bit representations change with recurrent depth, so it selects the shared representation by final loss at the deployment depth.
+- LoopQuant (arXiv 2610.16368, 12 Oct 2026), [https://arxiv.org/html/2610.16368v1](https://arxiv.org/html/2610.16368v1). Allocates activation precision per loop using Shapley-style marginals. Its pairwise term tests additivity across loops by flagging degradation greater than the sum of the individual effects.
+- LookAtMyQuant (`shinmegamiboson/Inkling-2-Mini-LookAtMyQuant-8.9GB`, created 21 Nov, 12:48 UTC), [https://huggingface.co/shinmegamiboson/Inkling-2-Mini-LookAtMyQuant-8.9GB](https://huggingface.co/shinmegamiboson/Inkling-2-Mini-LookAtMyQuant-8.9GB). The card for this Mini quantization says it "Measured per-layer and per-expert-bucket ... KL sensitivity across all 48 logical visits (`L6-17` looped 3x)" and then ran QAT with "48-visit router Bernoulli-KL distillation". The card shows no table by visit, no single-pass intervention, no additivity test and no control without weight sharing.
+- Linearity theorem, Malinovskii et al. (arXiv 2411.17525, 26 Nov 2024), [https://arxiv.org/abs/2411.17525](https://arxiv.org/abs/2411.17525). The source of the noise comparison.
 
-Our per-pass test differs from these in design. It applies the same quantized expert block on one pass only, compares the sum of single-pass changes with the all-pass change, and sets that against a layer split that shares no weights.
+Our per-pass test differs from these in design. We apply the same quantized expert block on one pass at a time and compare the sum of the single-pass changes with the all-pass change. We then compare that result with a layer split that shares no weights.
 
 ## Reproduction
 
@@ -352,9 +352,9 @@ Pinned inputs:
 | `0006-tests-cover-pass-3-and-single-projections-in-the-slo.patch` | `d70a338a8b83256e` |
 | `0007-convert-inkling2-decode-each-packed-expert-tensor-on.patch` | `3f11430e992449c1` |
 
-Our llama.cpp patches make every loop pass read the expert scale tensors of its physical layer, let a pass carry its own expert tensors (used for the per-pass test), and speed up the BF16 conversion. The build runs 12 loop checks, and all pass (`results/env.md`). 4 of them match with nmse 0, and the largest nmse among the rest is 7.0e-09.
+Our llama.cpp patches make every loop pass read the expert scale tensors of its physical layer. They also let a pass carry its own expert tensors for the per-pass test and speed up the BF16 conversion. All 12 loop checks pass (`results/env.md`). Of these, 4 match with nmse 0. The largest nmse among the rest is 7.0e-09.
 
-Stock upstream llama.cpp (`c661033`, no patches) scores the candidate identically to the patched build on T1 (KL 0.026856, top-1 93.139%, `results/pilot/upstream-check.txt`).
+Stock upstream llama.cpp (`c661033`, no patches) gives the candidate the same scores as the patched build on T1 (KL 0.026856, top-1 93.139%, `results/pilot/upstream-check.txt`).
 
 Steps:
 
@@ -364,8 +364,8 @@ Steps:
 4. `sh scripts/map.sh` runs the block map and the pass sweep. `sh scripts/phase2b.sh` adds the map entry with non-expert tensors at Q6_K.
 5. `sh scripts/perpass.sh` runs the per-pass test and the noise conditions. `sh scripts/perpass2.sh` runs the two controls.
 6. `sh scripts/map2.sh` adds the map levels with a 2-bit gate_up only. `sh scripts/q2opt-all.sh` encodes every layer with our Q2_0 encoder, and `sh scripts/map3.sh` adds the map level that uses it.
-7. `sh scripts/phase4.sh` makes the T2 traces, the allocation and the candidate, and scores the gate.
-8. `sh scripts/fetch-ext.sh` downloads the outside files. `sh scripts/macgate.sh` runs the Mac comparison, the stability battery and the bench. `sh scripts/p4-timing.sh` and `sh scripts/depth-bench.sh` run the timing recheck and the depth bench.
+7. `sh scripts/phase4.sh` generates the T2 traces, computes the allocation, builds the candidate and scores the gate.
+8. `sh scripts/fetch-ext.sh` downloads the external files. `sh scripts/macgate.sh` runs the Mac comparison, the stability checks and the benchmark. `sh scripts/p4-timing.sh` and `sh scripts/depth-bench.sh` run the timing recheck and the depth benchmark.
 9. Reports and figures come from `analysis/phase2_report.py`, `analysis/perpass_report.py`, `scripts/gate-report.py` and `scripts/figures.py`.
 
 The chain scripts `scripts/pilot-chain.sh` to `scripts/pilot-chain6.sh` ran these steps back to back. Each one waits for the step before it and expects the earlier chain's output in `logs/`.
@@ -373,7 +373,7 @@ The chain scripts `scripts/pilot-chain.sh` to `scripts/pilot-chain6.sh` ran thes
 Tests:
 
 - `.venv/bin/python -I -m pytest -q tests` runs the analysis tests on synthetic data.
-- `vendor/llama.cpp/build/bin/test-llama-archs --loop-scales -s 42` and `--loop-slots -s 42` check the patches. Patches 0002, 0004 and 0006 are those tests.
+- `vendor/llama.cpp/build/bin/test-llama-archs --loop-scales -s 42` and `--loop-slots -s 42` check the patches. Patches 0002, 0004 and 0006 contain those tests.
 - `vendor/llama.cpp/build/bin/test-llama-archs -a 'inkling2.*'` runs upstream's consistency tests.
 
-Result files are in `results/pilot/`. The figures in this report are written by `scripts/figures.py` from those files, in one style (`analysis/style.py`).
+Result files are in `results/pilot/`. The script `scripts/figures.py` generates the report figures from those files using the common style in `analysis/style.py`.

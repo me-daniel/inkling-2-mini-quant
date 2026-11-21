@@ -802,6 +802,25 @@ def day(iso: str) -> str:
     return f"{d.day} {d.strftime('%b')} {d.year}"
 
 
+def gap_lines() -> list[str]:
+    """Addendum H, H0: the 2 x 2 on S that locates the gap to UD-IQ3_XXS (layout or down format), if it has run."""
+    kl = {r["run"]: (float(r["mean_kl"]), float(r["se"])) for r in csv.DictReader(open(R / "kl.tsv"), delimiter="\t")}
+    need = ("sel-2-S-P3", "UD-IQ3_XXS-S-P3", "hybrid-S-P3", "mirror-S-P3")
+    if not all(k in kl for k in need):
+        return []
+    c, u, h, m = (kl[k][0] for k in need)
+    return [f"Where the gap comes from (Addendum H, on S). Swapping only the down projections moves little: this file "
+            f"with UD's NVFP4 down scores {h:.5f} against {c:.5f}, and UD's file with our IQ4_NL down scores {m:.5f} "
+            f"against UD's {u:.5f}. Most of the gap ({c - m:.5f} of {c - u:.5f}) comes from UD's layout, not from the "
+            "down format.", ""]
+
+
+def lean_gap() -> str:
+    g = gap_lines()
+    return (" A swap test on S shows that most of the gap comes from Unsloth's layout choices, not from their NVFP4 "
+            "down tensors (see [DETAILS.md](DETAILS.md)).") if g else ""
+
+
 def depth_gap() -> str:
     """One sentence on how the speed gap to UD-IQ3_XXS changes with a 16K context, if the depth bench exists."""
     d = depth_rows()
@@ -894,7 +913,7 @@ def lean_card(v: dict, cand_bytes: int) -> list[str]:
          f"Of the {len(under) + 1} all-Metal GGUFs under {limit / 1e9:.1f} GB we tested on {day(v['g_date'])}, this file "
          f"had the lowest KL. Unsloth's file was closer to the original, but on our Mac it was "
          f"{f['vs_ud']['pp512'][0]:.1f}× slower at reading prompts and {f['vs_ud']['tg128'][0]:.2f}× slower at "
-         "generating text." + depth_gap() + " For all files, both test sets, confidence intervals and stability checks, "
+         "generating text." + depth_gap() + lean_gap() + " For all files, both test sets, confidence intervals and stability checks, "
          "see [DETAILS.md](DETAILS.md).", "",
          "## Use", "",
          "Use a llama.cpp build with Inkling 2 support (upstream after 20 Nov 2026).", "",
@@ -964,10 +983,9 @@ def mac_card(v: dict, label: dict, cand_bytes: int, ud_bytes: int, ud: list, s: 
          f"[{ud[1]['lo']:+.5f}, {ud[1]['hi']:+.5f}], worse on {ud[1]['worse']} of {ud[1]['n']} chunks. Under the "
          "pre-registered rule this is a FAIL, and it stands. The rule and every later change are in our public "
          "[change log](https://github.com/me-daniel/inkling-2-mini-quant/blob/main/CHANGELOG.md).", "",
-         f"Why. UD-IQ3_XXS keeps the release's native NVFP4 down projections in {nv} expert tensors. The pinned Metal "
-         f"backend cannot multiply NVFP4, so on Apple Silicon those {nv} tensors run on the CPU. This file stores every "
-         f"expert down projection as {cand_down[1]} ({cand_down[2]} tensors), a type Metal can multiply, and pays for it "
-         "in KL.", ""]
+         f"UD-IQ3_XXS keeps the release's native NVFP4 down projections in {nv} expert tensors, which the pinned Metal "
+         f"backend cannot multiply. This file stores every expert down projection as {cand_down[1]} ({cand_down[2]} "
+         "tensors), a type Metal can multiply.", ""] + gap_lines()
     C += gate_table(v, label)
     C += ["", "## What this card claims instead (post hoc)", "",
           f"After the FAIL we registered a narrower comparison in the change log (Addendum G, {v['g_date']}, about "
