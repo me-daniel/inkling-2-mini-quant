@@ -54,3 +54,4 @@ data/
 
 # --- Pinned third-party sources (rebuilt by scripts/build-llama.sh) ---
 vendor/
+logs/

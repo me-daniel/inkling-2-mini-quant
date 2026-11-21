@@ -35,9 +35,9 @@ $CMAKE -S "$SRC" -B "$SRC/build" -DCMAKE_BUILD_TYPE=Release -DGGML_METAL=ON -DLL
 # shellcheck disable=SC2086
 $CMAKE --build "$SRC/build" --target $TARGETS -j "$(sysctl -n hw.ncpu)" >/dev/null
 
-TEST_OUT=$("$SRC/build/bin/test-llama-archs" --loop-scales -s 42 2>&1 | grep '^loop-scales')
+TEST_OUT=$( { "$SRC/build/bin/test-llama-archs" --loop-scales -s 42; "$SRC/build/bin/test-llama-archs" --loop-slots -s 42; } 2>&1 | grep -E '^loop-(scales|slots)')
 echo "$TEST_OUT"
-echo "$TEST_OUT" | grep -q FAIL && { echo "loop-scales test failed" >&2; exit 1; }
+[ "$(echo "$TEST_OUT" | grep -c 'OK')" -eq 6 ] || { echo "loop tests failed" >&2; exit 1; }
 
 mkdir -p "$ROOT/results"
 {
@@ -53,7 +53,7 @@ mkdir -p "$ROOT/results"
     done
     echo "- Build: Release, GGML_METAL=ON, $($CMAKE --version | head -1), $(cc --version | head -1)"
     echo "- Machine: $(sysctl -n machdep.cpu.brand_string), $(( $(sysctl -n hw.memsize) / 1073741824 )) GB, macOS $(sw_vers -productVersion), iogpu.wired_limit_mb=$(sysctl -n iogpu.wired_limit_mb 2>/dev/null || echo default)"
-    echo "- Loop-scale test (\`test-llama-archs --loop-scales -s 42\`):"
+    echo "- Loop tests (\`test-llama-archs --loop-scales -s 42\`, \`--loop-slots -s 42\`):"
     echo "$TEST_OUT" | sed 's/^/  - /'
 } > "$ROOT/results/env.md"
 echo "wrote results/env.md (HEAD $HEAD)"
