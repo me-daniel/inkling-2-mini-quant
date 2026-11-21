@@ -119,3 +119,10 @@ Logits are deleted after each group's analysis; `pp-base.kld` stays.
 **H6. bartowski Q2_K** (11,875,433,536 bytes, the last standard-type file between 11.66 and 12 GB), T1 and T2 as in Addendum G. The card may say "under 12 GB" only if cand beats every all-Metal GGUF under 12 GB that we scored (adds bartowski IQ2_M and Q2_K) on both sets with the CI below 0.
 
 **Parallel, no result depends on them until reviewed:** a Metal NVFP4 matrix-multiply patch (0008) with `test-backend-ops` in a separate worktree; a fresh held-out set T3 for any v2 candidate (built and hashed before a candidate exists, same overlap rules as `scripts/prepare-data.py`).
+
+### Addendum H amendment 1: T3 (2026-11-21, ~23:10, before any v2 candidate exists; awaiting Daniel's approval)
+
+- Set: T3 = WikiText-2-raw test tokens 131,584 to 197,376 in the model tokenizer (chunks 33 to 48 of 4,096 tokens plus the 256-token margin), the span after T1 under the rule that defined S and T1. Built by `scripts/prepare-data.py --t3` from the test parquet already on disk (Salesforce/wikitext rev b08601e), no download.
+- Hash and overlap: `data/T3.txt`, 65,792 tokens, sha256 `5a26eea1323fbade49482767b9ea4de14f539262b82135ab0e0e0a917be689a7`; 0 shared 13-grams with S, T1, the T2 traces and prompts and the calibration text (`results/data.md`).
+- Use: a v2 candidate is scored once on T3 with the T1/T2 protocol. T1 and T2 are reported for v2 but marked as seen.
+- Approval needed: T3 takes 65,792 of the WikiText-2 test tokens the 2026-11-21 entry reserved for the thesis (114,148 remain). Not used until Daniel approves.
