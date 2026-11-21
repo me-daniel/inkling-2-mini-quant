@@ -1,0 +1,1 @@
+0f05cc2ebb1c3d48a60bc236b2037b1cf74ceb998f90c1033c1b64027e091a1d  v2a.gguf  11566703648 bytes, hashed 2026-11-22 before any T3 score

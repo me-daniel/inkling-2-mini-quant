@@ -20,21 +20,7 @@ L2="6 7 8 9 10 11"; L3="12 13 14 15 16 17"
 KL="$R/perpass3-kl.tsv"
 mkdir -p "$T" "$K"
 
-# shared with the sibling repo on this Mac: one heavy GPU run at a time (lock holds the owner's name)
-GLOCK="$HOME/GitHub/.gpu.lock"
-# lock content "<pid> <owner> <time>", the sibling's format; a lock whose pid is dead is stale
-gpu_owner() { cut -d' ' -f2 "$GLOCK" 2>/dev/null; }
-gpu_take() {
-    while :; do
-        if ( set -C; echo "$$ inkling-2-mini-quant $(date '+%H:%M:%S')" > "$GLOCK" ) 2>/dev/null; then return 0; fi
-        [ "$(gpu_owner)" = inkling-2-mini-quant ] && return 0
-        pid=$(cut -d' ' -f1 "$GLOCK" 2>/dev/null)
-        if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then rm -f "$GLOCK"; continue; fi
-        sleep 30
-    done
-}
-gpu_give() { [ "$(gpu_owner)" = inkling-2-mini-quant ] && rm -f "$GLOCK"; return 0; }
-trap gpu_give EXIT
+. "$ROOT/scripts/gpu-lock.sh"
 step() { echo "[$(date '+%H:%M:%S')] $*"; }
 # slots DONOR PASS LAYERS: --slot args putting DONOR's experts of each layer into that layer's cache slot for PASS
 slots() { for l in $3; do printf ' --slot %s %s %s' "$1" "$l" $((24 + ($2 - 2) * 12 + l - 6)); done; }

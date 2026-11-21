@@ -7,21 +7,7 @@ BIN="$ROOT/vendor/llama.cpp/build/bin"
 M="$ROOT/models"; L="$ROOT/logs"; K="$M/logits"
 PY="$ROOT/.venv/bin/python -I"
 LIMIT=11663310784
-# shared with the sibling repo on this Mac: one heavy GPU run at a time (lock holds the owner's name)
-GLOCK="$HOME/GitHub/.gpu.lock"
-# lock content "<pid> <owner> <time>", the sibling's format; a lock whose pid is dead is stale
-gpu_owner() { cut -d' ' -f2 "$GLOCK" 2>/dev/null; }
-gpu_take() {
-    while :; do
-        if ( set -C; echo "$$ inkling-2-mini-quant $(date '+%H:%M:%S')" > "$GLOCK" ) 2>/dev/null; then return 0; fi
-        [ "$(gpu_owner)" = inkling-2-mini-quant ] && return 0
-        pid=$(cut -d' ' -f1 "$GLOCK" 2>/dev/null)
-        if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then rm -f "$GLOCK"; continue; fi
-        sleep 30
-    done
-}
-gpu_give() { [ "$(gpu_owner)" = inkling-2-mini-quant ] && rm -f "$GLOCK"; return 0; }
-trap gpu_give EXIT
+. "$ROOT/scripts/gpu-lock.sh"
 step() { echo "[$(date '+%H:%M:%S')] $*"; }
 done_log() { [ -f "$1" ] && grep -q 'Mean *KLD' "$1"; }
 if [ ! -f "$M/v2a.gguf" ]; then
@@ -43,6 +29,9 @@ size=$(stat -f %z "$M/v2a.gguf"); [ "$size" -le "$LIMIT" ] || { echo "v2a is $si
 $PY - "$M/v2a.gguf" "$M/UD-IQ3_XXS.gguf" <<'PY'
 import sys, gguf
 a, b = ({t.name: t.tensor_type.name for t in gguf.GGUFReader(p).tensors if "gate_up_exps.weight" in t.name} for p in sys.argv[1:3])
+want = {f"blk.{i}.ffn_gate_up_exps.weight" for i in range(24)}
+if set(a) != want or set(b) != want:
+    sys.exit(f"expected exactly the 24 gate_up tensors on both sides, got {len(a)} and {len(b)}")
 bad = {k: (a[k], b[k]) for k in a if a[k] != b[k]}
 sys.exit(f"gate_up types differ from UD: {bad}") if bad else print(f"v2a gate_up types match UD in {len(a)} layers")
 PY

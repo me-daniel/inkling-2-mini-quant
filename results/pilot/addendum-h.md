@@ -12,6 +12,20 @@ Written by `analysis/addendum_h.py`. Reading rules as registered in `CHANGELOG.m
 - hybrid minus UD-IQ3_XXS +0.00762 (2 SE = 0.00113): our layout is worse than UD's even with UD's down projections.
 - mirror minus cand -0.00782 (2 SE = 0.00101): UD's layout is better than ours at equal down too.
 
+## Paired contrasts on S (corrected analysis, amendment 4)
+
+Per-chunk differences with a paired bootstrap; positive means b has lower KL than a. The registered H0 readings above use unpaired SEs and stay as registered.
+
+| Contrast (S) | a | b | a - b [95% CI, paired] |
+|---|---|---|---|
+| down effect on our layout | sel-2 | hybrid | +0.00118 [+0.00063, +0.00171] |
+| down effect on UD's layout | mirror | UD-IQ3_XXS | +0.00099 [+0.00070, +0.00125] |
+| layout effect, IQ4_NL down | sel-2 | mirror | +0.00782 [+0.00709, +0.00853] |
+| layout effect, NVFP4 down | hybrid | UD-IQ3_XXS | +0.00763 [+0.00690, +0.00837] |
+| UD non-expert tensors | sel-2 | ne-ud | -0.00010 [-0.00058, +0.00038] |
+| UD gate_up experts | sel-2 | gu-ud | +0.00810 [+0.00743, +0.00874] |
+| UD gate_up, layers 1-5 | sel-2 | gu15-ud | +0.00248 [+0.00193, +0.00303] |
+
 ## Amendment 2. Which part of UD's layout
 
 | Build (S, P = 3) | KL | drop from cand | share of the cand-to-mirror drop |

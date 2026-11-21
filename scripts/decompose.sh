@@ -7,6 +7,7 @@ M="$ROOT/models"; L="$ROOT/logs"; K="$M/logits"; T="$M/tmp"
 PY="$ROOT/.venv/bin/python -I"
 UD="$M/UD-IQ3_XXS.gguf"
 mkdir -p "$T"
+. "$ROOT/scripts/gpu-lock.sh"
 step() { echo "[$(date '+%H:%M:%S')] $*"; }
 done_log() { [ -f "$1" ] && grep -q 'Mean *KLD' "$1"; }
 one() { # name splice-args...
@@ -17,8 +18,10 @@ one() { # name splice-args...
     $PY "$ROOT/scripts/gguf-types.py" "$T/$name.gguf" > "$L/types-$name.txt"
     grep -q "tensors in types Metal cannot multiply: 0 " "$L/types-$name.txt" || { echo "$name has off-Metal tensors" >&2; exit 1; }
     step "perplexity $name (P=3)"
+    gpu_take
     "$BIN/llama-perplexity" -m "$T/$name.gguf" -f "$ROOT/data/S.txt" -c 4096 --chunks 16 -ngl 99 \
         --override-kv "inkling2_loop.loop.count=int:3" --kl-divergence-base "$K/ref-S-P3.kld" --kl-divergence > "$log" 2>&1
+    gpu_give
     grep -E 'Mean +KLD|Same top p' "$log"
     rm -f "$T/$name.gguf"
 }
@@ -27,4 +30,6 @@ one gu-ud --take "$UD" '^blk\.\d+\.ffn_gate_up_exps\.weight$' --add "$UD" '^blk\
 # amendment 3: isolating swaps
 one gu15-ud --take "$UD" '^blk\.[1-5]\.ffn_gate_up_exps\.weight$' --add "$UD" '^blk\.[1-5]\.ffn_gate_up_exps\.scale$'
 one gu911-ud --take "$UD" '^blk\.(9|10|11)\.ffn_gate_up_exps\.weight$' --add "$UD" '^blk\.(9|10|11)\.ffn_gate_up_exps\.scale$'
+# amendment 4: our encoder on UD's map, gate_up only
+one gu-v2a --take "$M/v2a.gguf" '^blk\.\d+\.ffn_gate_up_exps\.weight$'
 step "decompose done"

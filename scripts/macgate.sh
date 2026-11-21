@@ -13,21 +13,7 @@ PY="$ROOT/.venv/bin/python -I"
 B2='^blk\.(6|7|8|9|10|11)\.ffn_(gate_up|down)_exps\.weight$'
 EXT="bart-IQ2_S atomic-AD-IQ2_S apex-I-Nano bart-IQ2_M isvalorum-NanoPlus prithiv-Q2_K bart-Q2_K"
 mkdir -p "$T"
-# shared with the sibling repo on this Mac: one heavy GPU run at a time (lock holds the owner's name)
-GLOCK="$HOME/GitHub/.gpu.lock"
-# lock content "<pid> <owner> <time>", the sibling's format; a lock whose pid is dead is stale
-gpu_owner() { cut -d' ' -f2 "$GLOCK" 2>/dev/null; }
-gpu_take() {
-    while :; do
-        if ( set -C; echo "$$ inkling-2-mini-quant $(date '+%H:%M:%S')" > "$GLOCK" ) 2>/dev/null; then return 0; fi
-        [ "$(gpu_owner)" = inkling-2-mini-quant ] && return 0
-        pid=$(cut -d' ' -f1 "$GLOCK" 2>/dev/null)
-        if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then rm -f "$GLOCK"; continue; fi
-        sleep 30
-    done
-}
-gpu_give() { [ "$(gpu_owner)" = inkling-2-mini-quant ] && rm -f "$GLOCK"; return 0; }
-trap gpu_give EXIT
+. "$ROOT/scripts/gpu-lock.sh"
 step() { echo "[$(date '+%H:%M:%S')] $*"; }
 # one heavy GPU run at a time: wait while another chain holds the lock
 while [ -f "$ROOT/logs/gpu.lock" ]; do sleep 30; done

@@ -51,8 +51,39 @@ def all_above_one(ratios: list[float]) -> bool:
 def kl_rows() -> dict[str, dict]:
     rows = {}
     for r in csv.DictReader(open(R / "kl.tsv"), delimiter="\t"):
-        rows[r["run"]] = {"kl": float(r["mean_kl"]), "se": float(r["se"])}
+        rows[r["run"]] = {"kl": float(r["mean_kl"]), "se": float(r["se"]),
+                          "chunks": np.array([float(x) for x in r["per_chunk"].split(",")])}
     return rows
+
+
+# Paired contrasts on S (corrected analysis after the Astra review, CHANGELOG amendment 4): a - b per chunk,
+# percentile bootstrap over chunks (analysis/compare.py). The registered H0 readings above use unpaired SEs.
+CONTRASTS = [
+    ("down effect on our layout", "sel-2", "hybrid"),
+    ("down effect on UD's layout", "mirror", "UD-IQ3_XXS"),
+    ("layout effect, IQ4_NL down", "sel-2", "mirror"),
+    ("layout effect, NVFP4 down", "hybrid", "UD-IQ3_XXS"),
+    ("UD non-expert tensors", "sel-2", "ne-ud"),
+    ("UD gate_up experts", "sel-2", "gu-ud"),
+    ("UD gate_up, layers 1-5", "sel-2", "gu15-ud"),
+    ("UD gate_up, layers 9-11", "sel-2", "gu911-ud"),
+    ("our encoder on UD's map (gate_up only)", "sel-2", "gu-v2a"),
+    ("UD's encoding at UD's map, beyond ours", "gu-v2a", "gu-ud"),
+    ("v2a against the mirror", "mirror", "v2a"),
+    ("v2a against UD-IQ3_XXS", "UD-IQ3_XXS", "v2a"),
+]
+
+
+def paired_rows(kl: dict) -> list[str]:
+    from compare import paired
+    out = ["| Contrast (S) | a | b | a - b [95% CI, paired] |", "|---|---|---|---|"]
+    for label, a, b in CONTRASTS:
+        ka, kb = kl.get(f"{a}-S-P3"), kl.get(f"{b}-S-P3")
+        if ka is None or kb is None:
+            continue
+        d, lo, hi = paired(ka["chunks"], kb["chunks"])
+        out.append(f"| {label} | {a} | {b} | {d:+.5f} [{lo:+.5f}, {hi:+.5f}] |")
+    return out if len(out) > 2 else []
 
 
 def chunks() -> dict[str, np.ndarray]:
@@ -105,6 +136,12 @@ def main() -> None:
               + f" | UD-IQ3_XXS {ud['kl']:.5f} ± {ud['se']:.5f} |", ""]
         L += [f"- {s}" for s in two_by_two((cand["kl"], cand["se"]), (ud["kl"], ud["se"]),
                                            (h["kl"], h["se"]) if h else None, (m["kl"], m["se"]) if m else None)] + [""]
+
+    pr = paired_rows(kl)
+    if pr:
+        L += ["## Paired contrasts on S (corrected analysis, amendment 4)", "",
+              "Per-chunk differences with a paired bootstrap; positive means b has lower KL than a. The registered H0 "
+              "readings above use unpaired SEs and stay as registered.", ""] + pr + [""]
 
     # amendment 2: which part of UD's layout
     if "ne-ud-S-P3" in kl or "gu-ud-S-P3" in kl:
