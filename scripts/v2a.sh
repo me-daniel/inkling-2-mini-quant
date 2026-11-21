@@ -7,6 +7,21 @@ BIN="$ROOT/vendor/llama.cpp/build/bin"
 M="$ROOT/models"; L="$ROOT/logs"; K="$M/logits"
 PY="$ROOT/.venv/bin/python -I"
 LIMIT=11663310784
+# shared with the sibling repo on this Mac: one heavy GPU run at a time (lock holds the owner's name)
+GLOCK="$HOME/GitHub/.gpu.lock"
+# lock content "<pid> <owner> <time>", the sibling's format; a lock whose pid is dead is stale
+gpu_owner() { cut -d' ' -f2 "$GLOCK" 2>/dev/null; }
+gpu_take() {
+    while :; do
+        if ( set -C; echo "$$ inkling-2-mini-quant $(date '+%H:%M:%S')" > "$GLOCK" ) 2>/dev/null; then return 0; fi
+        [ "$(gpu_owner)" = inkling-2-mini-quant ] && return 0
+        pid=$(cut -d' ' -f1 "$GLOCK" 2>/dev/null)
+        if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then rm -f "$GLOCK"; continue; fi
+        sleep 30
+    done
+}
+gpu_give() { [ "$(gpu_owner)" = inkling-2-mini-quant ] && rm -f "$GLOCK"; return 0; }
+trap gpu_give EXIT
 step() { echo "[$(date '+%H:%M:%S')] $*"; }
 done_log() { [ -f "$1" ] && grep -q 'Mean *KLD' "$1"; }
 if [ ! -f "$M/v2a.gguf" ]; then
@@ -35,7 +50,9 @@ PY
 log="$L/ppl-v2a-S-P3.log"
 if ! done_log "$log"; then
     step "perplexity v2a (P=3)"
+    gpu_take
     "$BIN/llama-perplexity" -m "$M/v2a.gguf" -f "$ROOT/data/S.txt" -c 4096 --chunks 16 -ngl 99 \
         --override-kv "inkling2_loop.loop.count=int:3" --kl-divergence-base "$K/ref-S-P3.kld" --kl-divergence > "$log" 2>&1
+    gpu_give
 fi
 grep -E 'Mean +KLD|Same top p' "$log"

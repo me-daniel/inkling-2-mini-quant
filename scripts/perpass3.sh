@@ -22,8 +22,18 @@ mkdir -p "$T" "$K"
 
 # shared with the sibling repo on this Mac: one heavy GPU run at a time (lock holds the owner's name)
 GLOCK="$HOME/GitHub/.gpu.lock"
-gpu_take() { while [ -f "$GLOCK" ] && [ "$(cat "$GLOCK" 2>/dev/null)" != "inkling-2-mini-quant" ]; do sleep 30; done; echo inkling-2-mini-quant > "$GLOCK"; }
-gpu_give() { [ "$(cat "$GLOCK" 2>/dev/null)" = "inkling-2-mini-quant" ] && rm -f "$GLOCK"; return 0; }
+# lock content "<pid> <owner> <time>", the sibling's format; a lock whose pid is dead is stale
+gpu_owner() { cut -d' ' -f2 "$GLOCK" 2>/dev/null; }
+gpu_take() {
+    while :; do
+        if ( set -C; echo "$$ inkling-2-mini-quant $(date '+%H:%M:%S')" > "$GLOCK" ) 2>/dev/null; then return 0; fi
+        [ "$(gpu_owner)" = inkling-2-mini-quant ] && return 0
+        pid=$(cut -d' ' -f1 "$GLOCK" 2>/dev/null)
+        if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then rm -f "$GLOCK"; continue; fi
+        sleep 30
+    done
+}
+gpu_give() { [ "$(gpu_owner)" = inkling-2-mini-quant ] && rm -f "$GLOCK"; return 0; }
 trap gpu_give EXIT
 step() { echo "[$(date '+%H:%M:%S')] $*"; }
 # slots DONOR PASS LAYERS: --slot args putting DONOR's experts of each layer into that layer's cache slot for PASS
