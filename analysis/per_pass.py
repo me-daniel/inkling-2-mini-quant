@@ -29,8 +29,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import kldfile  # noqa: E402
 
 HEAD_NATS = 10.0
-# accumulated per chunk: squared norms of d1, d2, d3, d_all, sum_k d_k, R, under each norm
-TERMS = ("d1", "d2", "d3", "all", "sum", "res")
+# accumulated per chunk: squared norms of d1, d2, d3, d_all, sum_k d_k, R and the pairwise sums (for the 3x3 Gram)
+TERMS = ("d1", "d2", "d3", "all", "sum", "res", "d12", "d23", "d13")
 
 
 def _sq_norms(p: np.ndarray, head: np.ndarray, deltas: dict[str, np.ndarray]) -> dict[str, tuple[float, float]]:
@@ -63,6 +63,7 @@ def accumulate(base: str | Path, singles: list[str | Path], combined: str | Path
         d = {"d1": l1 - lb, "d2": l2 - lb, "d3": l3 - lb, "all": la - lb}
         d["sum"] = d["d1"] + d["d2"] + d["d3"]
         d["res"] = d["all"] - d["sum"]
+        d["d12"], d["d23"], d["d13"] = d["d1"] + d["d2"], d["d2"] + d["d3"], d["d1"] + d["d3"]
         for i, (k, (f, e)) in enumerate(_sq_norms(p, head, {k: d[k] for k in TERMS}).items()):
             acc[c, i] += (f, e)
     return acc
@@ -77,6 +78,10 @@ def _stats(acc: np.ndarray, norm: int) -> dict[str, float]:
         "norm_ratio": float(np.sqrt(get["all"] / get["sum"])),  # >1: the combined effect is larger than the sum
         "pass1_over_pass3": float(np.sqrt(get["d1"] / get["d3"])),
         "pass2_over_pass3": float(np.sqrt(get["d2"] / get["d3"])),
+        # squared-norm ratio ~ KL ratio: what perturbing all visits costs relative to one average visit
+        "visit_multiplier": float(get["all"] / ((get["d1"] + get["d2"] + get["d3"]) / 3)),
+        **{f"cos_{a}{b}": float((get[f"d{a}{b}"] - get[f"d{a}"] - get[f"d{b}"]) / (2 * np.sqrt(get[f"d{a}"] * get[f"d{b}"])))
+           for a, b in (("1", "2"), ("2", "3"), ("1", "3"))},
     }
 
 

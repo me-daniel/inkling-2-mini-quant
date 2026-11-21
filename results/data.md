@@ -6,7 +6,7 @@ Written by `scripts/prepare-data.py`. Do not edit by hand. Split rules: `CHANGEL
 |---|---|---|---|
 | `data/S.txt` | 65,792 | `7ab968dccbaa49aa` | 0 of 43,499 (0.000%) |
 | `data/T1.txt` | 65,792 | `b92d716fcae5582f` | 0 of 42,630 (0.000%) |
-| `data/T2-prompts.jsonl` | 20 prompts | `0a0cd13666aa27df` | n/a |
+| `data/T2-prompts.jsonl` | 40 prompts | `db381a9a4b500762` | n/a |
 
 Sources (sha256, first 16):
 - WikiText-2-raw test parquet `5f1bea067869d048` (Salesforce/wikitext rev b08601e)

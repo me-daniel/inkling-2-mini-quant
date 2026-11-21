@@ -23,7 +23,7 @@ BLOCKS = {"B1": range(0, 6), "B2": range(6, 12), "B3": range(12, 18), "B4": rang
 # type label -> GGML type for bytes; "Q2_0O" is our optimized encoding, stored as Q2_0
 GGML = {"IQ3_XXS": "IQ3_XXS", "IQ2_S": "IQ2_S", "IQ2_XXS": "IQ2_XXS", "Q2_0O": "Q2_0", "IQ4_NL": "IQ4_NL"}
 # gate_up option -> (map level with it, map level it is compared with); down likewise
-GU = {"IQ3_XXS": None, "IQ2_S": ("gu2s", "3bit"), "IQ2_XXS": ("gu2xxs", "3bit"), "Q2_0O": ("q2o", "dnq2o")}
+GU = {"IQ3_XXS": None, "IQ2_S": ("gu2s", "3bit"), "IQ2_XXS": ("gu2xxs", "3bit")}
 DN = {"IQ4_NL": None, "Q2_0O": ("dnq2o", "3bit")}
 BUDGET = 11_663_310_784 - 11_977_760  # Unsloth UD-IQ3_XXS file bytes minus the constant GGUF overhead
 
@@ -48,7 +48,7 @@ def tensor_table() -> tuple[dict, int, int]:
     return el, rest["Q8_0"], rest["Q6_K"]
 
 
-def main(top: int = 8) -> None:
+def main(top: int = 8, n_pick: int = 4) -> None:
     kl = measured()
     el, rest_q8, rest_q6 = tensor_table()
 
@@ -83,22 +83,49 @@ def main(top: int = 8) -> None:
                 best.append((kl_exp + ne_kl, by_exp + ne_bytes, ne_t, combo))
     best.sort(key=lambda r: r[0])
     for pred, nbytes, ne_t, combo in best[:top]:
-        desc = " ".join(f"{b}:{gu}/{dn}" for b, (gu, dn, _, _) in zip(BLOCKS, combo))
-        print(f"predicted KL {pred:.5f}  bytes {nbytes:,} ({(BUDGET - nbytes) / 1e6:.0f} MB spare)  NE {ne_t}  {desc}")
-    pred, nbytes, ne_t, combo = best[0]
-    rules, q2opt = [], {}
-    for (b, layers), (gu, dn, _, _) in zip(BLOCKS.items(), combo):
+        print(f"predicted KL {pred:.5f}  bytes {nbytes:,} ({(BUDGET - nbytes) / 1e6:.0f} MB spare)  NE {ne_t}  {describe(combo)}")
+    # the prediction is only additive, so phase 4 builds and measures several structurally different allocations
+    # (each differs from every earlier pick in at least 2 of the 11 choices) and keeps the measured best
+    picks = []
+    for pred, nbytes, ne_t, combo in best:
+        key = [ne_t] + [x for o in combo for x in o[:2]]
+        if all(sum(u != v for u, v in zip(key, k)) >= 2 for k, _ in picks):
+            picks.append((key, {"predicted_kl": pred, "bytes": nbytes, "ne": ne_t, "choice": {b: list(o[:2]) for b, o in zip(BLOCKS, combo)}}))
+        if len(picks) == n_pick:
+            break
+    out = [c for _, c in picks]
+    for c in out:
+        if budget_price(rules_of(c)) != c["bytes"]:
+            sys.exit("byte check failed: the per-block sum and the full pricing disagree")
+    (ROOT / "results/pilot/allocation-top.json").write_text(json.dumps(out, indent=1))
+    print(f"wrote {len(out)} candidates to results/pilot/allocation-top.json")
+
+
+def describe(combo) -> str:
+    return " ".join(f"{b}:{o[0]}/{o[1]}" for b, o in zip(BLOCKS, combo))
+
+
+def rules_of(c: dict) -> dict:
+    rules = []
+    for b, layers in BLOCKS.items():
         alt = "|".join(str(l) for l in layers)
+        gu, dn = c["choice"][b]
         rules += [[rf"^blk\.({alt})\.ffn_gate_up_exps\.weight$", GGML[gu]], [rf"^blk\.({alt})\.ffn_down_exps\.weight$", GGML[dn]]]
-        for l in layers:
-            kinds = [k for k, t in (("ffn_gate_up_exps", gu), ("ffn_down_exps", dn)) if t == "Q2_0O"]
-            if kinds:
-                q2opt[l] = kinds
-    out = {"predicted_kl": pred, "bytes": nbytes, "ne": ne_t, "choice": {b: [gu, dn] for b, (gu, dn, _, _) in zip(BLOCKS, combo)},
-           "q2opt": q2opt, "rules": {"default": ne_t, "rules": rules}}
-    (ROOT / "results/pilot/allocation-best.json").write_text(json.dumps(out, indent=1))
-    if abs(budget_price(out["rules"]) - nbytes) > 0:
-        sys.exit("byte check failed: the per-block sum and the full pricing disagree")
+    return {"default": c["ne"], "rules": rules}
+
+
+# where the bytes of each choice come from (identical to what llama-quantize writes with the same imatrix)
+DONOR = {("gu", "IQ3_XXS"): "pool-3bit.gguf", ("gu", "IQ2_S"): "pool-gu2s.gguf", ("gu", "IQ2_XXS"): "pool-2bit.gguf",
+         ("dn", "IQ4_NL"): "pool-3bit.gguf", ("dn", "Q2_0O"): "q2opt/L{l}.gguf"}
+
+
+def splice_args(c: dict, models: str) -> str:
+    out = []
+    for b, layers in BLOCKS.items():
+        for (kind, name), t in zip((("gu", "ffn_gate_up_exps"), ("dn", "ffn_down_exps")), c["choice"][b]):
+            for l in layers:
+                out += ["--take", f"{models}/{DONOR[(kind, t)].format(l=l)}", rf"^blk\.{l}\.{name}\.weight$"]
+    return " ".join(out)
 
 
 def budget_price(alloc: dict) -> int:
@@ -114,4 +141,7 @@ def budget_price(alloc: dict) -> int:
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) == 4 and sys.argv[1] == "--splice-args":  # --splice-args INDEX MODELS_DIR
+        print(splice_args(json.loads((ROOT / "results/pilot/allocation-top.json").read_text())[int(sys.argv[2])], sys.argv[3]))
+    else:
+        main()

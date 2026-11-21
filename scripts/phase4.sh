@@ -1,5 +1,5 @@
 #!/bin/sh
-# Pilot phase 4 (CHANGELOG.md, entry and addenda C, D): T2 traces, the allocation, the candidate and the stock IQ3_XXS
+# Pilot phase 4 (CHANGELOG.md, entry and addenda C-F): T2 traces, the allocation, the candidate and the stock IQ3_XXS
 # baseline, quality on T1 and T2 against Unsloth UD-IQ3_XXS, stability, speed. Stops before any upload. Resumes.
 set -eu
 
@@ -12,6 +12,7 @@ LIMIT=11663310784  # bytes of Unsloth's UD-IQ3_XXS
 mkdir -p "$R"
 step() { echo "[$(date '+%H:%M:%S')] $*"; }
 done_log() { [ -f "$1" ] && grep -q 'Mean *KLD' "$1"; }
+ctx() { if [ "$1" = T2 ]; then echo 2048; else echo 4096; fi; }  # T2: 40 traces, scored at 2048 for enough chunks
 
 # 1. T2 traces, frozen before any candidate exists
 [ -f "$ROOT/data/T2.txt" ] || { step "T2 traces"; $PY "$ROOT/scripts/t2-traces.py" > "$L/t2.out" 2>&1; tail -1 "$L/t2.out"; }
@@ -20,42 +21,68 @@ done_log() { [ -f "$1" ] && grep -q 'Mean *KLD' "$1"; }
 for t in T1 T2; do
     [ -f "$K/ref-$t-P3.kld" ] && continue
     step "reference logits $t"
-    "$BIN/llama-perplexity" -m "$REF" -f "$ROOT/data/$t.txt" -c 4096 -ngl 99 --override-kv "inkling2_loop.loop.count=int:3" \
+    "$BIN/llama-perplexity" -m "$REF" -f "$ROOT/data/$t.txt" -c "$(ctx "$t")" -ngl 99 --override-kv "inkling2_loop.loop.count=int:3" \
         --kl-divergence-base "$K/ref-$t-P3.kld.part" > "$L/ppl-ref-$t-P3.log" 2>&1
     mv "$K/ref-$t-P3.kld.part" "$K/ref-$t-P3.kld"
 done
 
-# 3. allocation from the S map (analysis/allocate.py), then the two builds
+# 3. allocation from the S map: 4 structurally different candidates (analysis/allocate.py), each spliced from the pools
+#    and measured on S; the measured best becomes the candidate (Addendum F). T1 and T2 stay untouched until then.
 $PY "$ROOT/analysis/maptable.py" > /dev/null
-[ -f "$R/allocation-best.json" ] || { step "allocate"; $PY "$ROOT/analysis/allocate.py" | tee "$R/allocations.txt"; }
-build() { # out ftype [tensor-type-file]
+[ -f "$R/allocation-top.json" ] || { step "allocate"; $PY "$ROOT/analysis/allocate.py" | tee "$R/allocations.txt"; }
+build() { # out ftype [extra llama-quantize args...]
     [ -f "$1" ] && return 0
-    step "quantize $(basename "$1")"
-    if [ $# -eq 3 ]; then tt="--tensor-type-file $3"; else tt=""; fi
-    # shellcheck disable=SC2086
-    "$BIN/llama-quantize" --imatrix "$M/ggml-org/imatrix.gguf" $tt "$M/Inkling-2-Mini-BF16.gguf" "$1.part" "$2" > "$L/quant-$(basename "$1" .gguf).log" 2>&1
-    mv "$1.part" "$1"
-    size=$(stat -f %z "$1")
-    echo "  $(basename "$1"): $size bytes (limit $LIMIT)"
-    [ "$size" -le "$LIMIT" ] || { echo "  over the byte limit, stopping" >&2; exit 1; }
+    out=$1 ftype=$2; shift 2
+    step "quantize $(basename "$out")"
+    "$BIN/llama-quantize" --imatrix "$M/ggml-org/imatrix.gguf" "$@" "$M/Inkling-2-Mini-BF16.gguf" "$out.part" "$ftype" > "$L/quant-$(basename "$out" .gguf).log" 2>&1
+    mv "$out.part" "$out"
 }
-$PY -c "import json,sys; a=json.load(open(sys.argv[1]))['rules']; open(sys.argv[2],'w').write(''.join(f'{r}={t.lower()}\n' for r,t in a['rules']))" \
-    "$R/allocation-best.json" "$R/allocation-best.tensor-types.txt"
-NE=$($PY -c "import json,sys; print(json.load(open(sys.argv[1]))['ne'])" "$R/allocation-best.json")
-build "$M/cand-base.gguf" "$NE" "$R/allocation-best.tensor-types.txt"
-# tensors allocated to the optimized Q2_0 encoder are built as stock Q2_0, then replaced byte for byte (Addendum E)
+jq_top() { $PY -c "import json,sys; c=json.load(open(sys.argv[1])); print(eval(sys.argv[2]))" "$R/allocation-top.json" "$1"; }
 if [ ! -f "$M/cand.gguf" ]; then
-    takes=$($PY -c "
-import json, sys
-a = json.load(open(sys.argv[1]))['q2opt']
-print(' '.join(f'--take {sys.argv[2]}/q2opt/L{l}.gguf ^blk\\\\.{l}\\\\.{k}\\\\.weight\$' for l, ks in sorted(a.items(), key=lambda x: int(x[0])) for k in ks))
-" "$R/allocation-best.json" "$M")
-    step "splice optimized Q2_0 into the candidate"
-    # shellcheck disable=SC2086
-    $PY "$ROOT/scripts/splice.py" "$M/cand-base.gguf" "$M/cand.gguf.part" $takes --verify > "$L/splice-cand.json"
-    mv "$M/cand.gguf.part" "$M/cand.gguf"
-    echo "  cand.gguf: $(stat -f %z "$M/cand.gguf") bytes (limit $LIMIT)"
-    [ "$(stat -f %z "$M/cand.gguf")" -le "$LIMIT" ] || { echo "  over the byte limit, stopping" >&2; exit 1; }
+    [ "$(jq_top "int(any(x['ne'] == 'Q6_K' for x in c))")" = 1 ] && \
+        build "$M/ne-q6k-base.gguf" Q6_K --tensor-type ffn_gate_up_exps=q8_0 --tensor-type ffn_down_exps=q8_0
+    N=$(jq_top "len(c)")
+    best="" best_kl=""
+    i=0
+    while [ "$i" -lt "$N" ]; do
+        name="sel-$i-S-P3" out="$M/sel-$i.gguf"
+        if ! done_log "$L/ppl-$name.log"; then
+            base="$REF"; [ "$(jq_top "c[$i]['ne']")" = Q6_K ] && base="$M/ne-q6k-base.gguf"
+            step "splice sel-$i"
+            # shellcheck disable=SC2046
+            $PY "$ROOT/scripts/splice.py" "$base" "$out.part" $($PY "$ROOT/analysis/allocate.py" --splice-args "$i" "$M") --verify > "$L/splice-sel-$i.json"
+            mv "$out.part" "$out"
+            size=$(stat -f %z "$out")
+            echo "  sel-$i: $size bytes (limit $LIMIT)"
+            [ "$size" -le "$LIMIT" ] || { echo "  over the byte limit, stopping" >&2; exit 1; }
+            step "perplexity $name"
+            "$BIN/llama-perplexity" -m "$out" -f "$ROOT/data/S.txt" -c 4096 --chunks 16 -ngl 99 --override-kv "inkling2_loop.loop.count=int:3" \
+                --kl-divergence-base "$K/ref-S-P3.kld" --kl-divergence > "$L/ppl-$name.log" 2>&1
+            grep -E 'Mean +KLD' "$L/ppl-$name.log" || true
+        fi
+        kl=$(grep -E 'Mean +KLD' "$L/ppl-$name.log" | awk '{print $3}')
+        # keep only the best file so far on disk (each is ~11.6 GB)
+        if [ -z "$best" ] || [ "$(echo "$kl < $best_kl" | bc -l)" = 1 ]; then
+            [ -n "$best" ] && rm -f "$M/sel-$best.gguf"
+            best=$i best_kl=$kl
+        else
+            rm -f "$out"
+        fi
+        i=$((i + 1))
+    done
+    [ -f "$M/sel-$best.gguf" ] || { echo "the best candidate file is missing (resumed after cleanup?); delete logs/ppl-sel-$best-S-P3.log and rerun" >&2; exit 1; }
+    $PY "$ROOT/analysis/maptable.py" > /dev/null
+    $PY -c "
+import csv, json, sys
+kl = {r['run']: float(r['mean_kl']) for r in csv.DictReader(open(sys.argv[1]), delimiter='\t')}
+top = json.load(open(sys.argv[2]))
+print('| candidate | predicted KL | measured KL on S | bytes | NE | choice |'); print('|---|---|---|---|---|---|')
+for i, c in enumerate(top):
+    print(f\"| sel-{i}{' (chosen)' if i == int(sys.argv[3]) else ''} | {c['predicted_kl']:.5f} | {kl[f'sel-{i}-S-P3']:.5f} | {c['bytes']:,} | {c['ne']} | {' '.join(f'{b}:{g}/{d}' for b, (g, d) in c['choice'].items())} |\")
+" "$R/kl.tsv" "$R/allocation-top.json" "$best" > "$R/selection.md"
+    cat "$R/selection.md"
+    mv "$M/sel-$best.gguf" "$M/cand.gguf"
+    rm -f "$M/ne-q6k-base.gguf"
 fi
 build "$M/uniform-IQ3_XXS.gguf" IQ3_XXS
 
@@ -65,13 +92,14 @@ for name in cand uniform-IQ3_XXS UD-IQ3_XXS; do
         log="$L/ppl-final-$name-$t-P3.log"
         done_log "$log" && continue
         step "KL $name on $t"
-        "$BIN/llama-perplexity" -m "$M/$name.gguf" -f "$ROOT/data/$t.txt" -c 4096 -ngl 99 --override-kv "inkling2_loop.loop.count=int:3" \
+        "$BIN/llama-perplexity" -m "$M/$name.gguf" -f "$ROOT/data/$t.txt" -c "$(ctx "$t")" -ngl 99 --override-kv "inkling2_loop.loop.count=int:3" \
             --kl-divergence-base "$K/ref-$t-P3.kld" --kl-divergence > "$log" 2>&1
         grep -E 'Mean +KLD|Same top p' "$log" || true
     done
 done
 $PY "$ROOT/analysis/maptable.py" > /dev/null
 $PY "$ROOT/analysis/compare.py" cand uniform-IQ3_XXS UD-IQ3_XXS | tee "$R/gate-quality.txt"
+grep -q "quality gate: PASS" "$R/gate-quality.txt" || { step "quality gate FAIL: no stability or bench runs for a loser"; exit 2; }
 
 # 5. stability: reference and candidate (thresholds in scripts/stability.py)
 for name in ref:Inkling-2-Mini-Q8_0 cand:cand; do

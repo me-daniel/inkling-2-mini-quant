@@ -2,7 +2,7 @@
 
     python scripts/t2-traces.py
 
-Starts llama-server, sends the 20 prompts of data/T2-prompts.jsonl with reasoning_effort "low", temperature 0
+Starts llama-server, sends the 40 prompts of data/T2-prompts.jsonl with reasoning_effort "low", temperature 0
 and a 2,048-token cap, and writes data/T2-raw.jsonl (full replies), data/T2.txt (reasoning and answer text of
 every reply, the scoring file for llama-perplexity) and results/t2.md (hashes, token counts, truncations).
 Must run before any release candidate is built.
@@ -75,7 +75,7 @@ def main() -> None:
     (ROOT / "results/t2.md").write_text(
         "# T2 traces\n\nWritten by `scripts/t2-traces.py`. Do not edit by hand.\n\n"
         f"- Reference: `models/Inkling-2-Mini-Q8_0.gguf` at P = 3, reasoning_effort low, temperature 0, cap 2,048 tokens\n"
-        f"- Prompts: 20 (first GSM8K train questions), completion tokens {n_tokens:,}, hit the cap {truncated}\n"
+        f"- Prompts: 40 (GSM8K train 1-20 and 51-70), completion tokens {n_tokens:,}, hit the cap {truncated}\n"
         f"- `data/T2.txt` sha256 `{h[:16]}`\n", encoding="utf-8")
     print(f"T2: {n_tokens} tokens, {truncated} truncated, sha256 {h[:16]}")
 

@@ -2,7 +2,7 @@
 
 S  = WikiText-2-raw test, chunks 1-16 of 4,096 tokens (model tokenizer)
 T1 = WikiText-2-raw test, chunks 17-32
-T2 = prompts: the first 20 GSM8K train questions (traces are generated later by the reference)
+T2 = prompts: GSM8K train questions 1-20 and 51-70 (traces are generated later by the reference; 21-50 are the stability battery)
 Also reports 13-gram overlap of S and T1 with bartowski's v6 calibration text (the imatrix source).
 """
 
@@ -54,7 +54,8 @@ def main() -> None:
             raise SystemExit(f"{name}: only {retok} tokens after re-tokenizing")
         rows.append((name, path, retok))
 
-    questions = pq.read_table(GSM8K).column("question").to_pylist()[:20]
+    qs = pq.read_table(GSM8K).column("question").to_pylist()
+    questions = qs[:20] + qs[50:70]
     t2 = OUT / "T2-prompts.jsonl"
     t2.write_text("".join(json.dumps({"id": i, "question": q}) + "\n" for i, q in enumerate(questions)), encoding="utf-8")
 
@@ -75,7 +76,7 @@ def main() -> None:
     for name, path, n in rows:
         hit, total = overlap[name]
         lines.append(f"| `data/{path.name}` | {n:,} | `{sha(path)[:16]}` | {hit:,} of {total:,} ({hit / total:.3%}) |")
-    lines.append(f"| `data/{t2.name}` | 20 prompts | `{sha(t2)[:16]}` | n/a |")
+    lines.append(f"| `data/{t2.name}` | 40 prompts | `{sha(t2)[:16]}` | n/a |")
     lines += [
         "",
         "Sources (sha256, first 16):",

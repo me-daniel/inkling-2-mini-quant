@@ -37,7 +37,8 @@ $CMAKE --build "$SRC/build" --target $TARGETS -j "$(sysctl -n hw.ncpu)" >/dev/nu
 
 TEST_OUT=$( { "$SRC/build/bin/test-llama-archs" --loop-scales -s 42; "$SRC/build/bin/test-llama-archs" --loop-slots -s 42; } 2>&1 | grep -E '^loop-(scales|slots)')
 echo "$TEST_OUT"
-[ "$(echo "$TEST_OUT" | grep -c 'OK')" -eq 6 ] || { echo "loop tests failed" >&2; exit 1; }
+# 3 scale checks + 9 slot checks; any FAIL or a missing line stops the build
+{ ! echo "$TEST_OUT" | grep -q FAIL && [ "$(echo "$TEST_OUT" | grep -c 'OK')" -eq 12 ]; } || { echo "loop tests failed" >&2; exit 1; }
 
 mkdir -p "$ROOT/results"
 {
