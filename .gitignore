@@ -55,3 +55,6 @@ data/
 # --- Pinned third-party sources (rebuilt by scripts/build-llama.sh) ---
 vendor/
 logs/
+
+# --- Write-up drafts (rendered by scripts/card.py, never uploaded from here) ---
+drafts/
