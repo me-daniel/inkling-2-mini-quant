@@ -56,3 +56,10 @@ Logged under Daniel's standing approval for the pilot. Found after G0: Unsloth's
 - **Extra map entry (S, P = 3):** all non-expert tensors at Q6_K, experts as in the Q8_0 reference, to price the bytes Unsloth saves there.
 - **Extra outcomes, measured on the M5 Pro with one binary:** prompt processing and generation speed (`llama-bench`, pp512 and tg128, 3 repetitions) and peak memory for the candidate, the same-size uniform build and `UD-IQ3_XXS`, plus the number of expert tensors each runs off Metal. Speed is reported next to quality, never instead of it.
 - **Card wording, added:** "runs fully on Metal" and measured speed figures are allowed when measured as above. The upload gate on quality (T1, T2) is unchanged.
+
+### Addendum D (2026-11-21, before any release-candidate data): gate_up-only map levels
+
+The logged 2-bit level changes gate_up (IQ2_XXS) and down (Q2_0) together, and Q2_0 has a relative weight error of about 0.52 (`results/pilot/t-blocks.tsv`), so the map cannot tell which blocks tolerate a 2-bit gate_up on its own, which is the decision the 11.66 GB budget needs (pricing with `scripts/budget.py`: all-IQ3_XXS gate_up with IQ4_NL down and Q6_K non-experts is 0.62 GB over).
+- Two more map levels per block (S, P = 3, Q8_0 reference elsewhere): gate_up IQ2_S with down IQ4_NL, and gate_up IQ2_XXS with down IQ4_NL. 10 builds.
+- Candidate gate_up types are widened to IQ2_XXS, IQ2_XS, IQ2_S, IQ3_XXS, IQ3_S and IQ4_XS (all Metal-supported).
+- For comparison only: Unsloth's `UD-IQ3_XXS` puts 2-bit gate_up in layers 0-8, 12 and 18 and IQ3_XXS elsewhere, with native NVFP4 down in layers 0-19 (read from its tensor types).
