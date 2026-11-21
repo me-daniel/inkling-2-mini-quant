@@ -1,0 +1,6 @@
+# state when the smoke test was considered (2026-11-21 23:18)
+chain7 last step: [23:15:10] perplexity mirror (P=3)
+running llama-perplexity: rss_gb=13.2 etime=03:31 model=~/GitHub/inkling-2-mini-quant/models/tmp/mirror.gguf
+UD-IQ3_XXS.gguf size_gb=11.7
+System-wide memory free percentage: 16%
+hw.memsize_gb=48

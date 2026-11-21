@@ -1,0 +1,119 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: me-daniel <63238224+me-daniel@users.noreply.github.com>
+Date: Sat, 21 Nov 2026 23:16:52 +0100
+Subject: [PATCH 9/9] tests : NVFP4 cases with every scale byte and k = 1152
+
+---
+ tests/test-backend-ops.cpp | 71 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 71 insertions(+)
+
+diff --git a/tests/test-backend-ops.cpp b/tests/test-backend-ops.cpp
+index 11bfa42a9..9c7865ff9 100644
+--- a/tests/test-backend-ops.cpp
++++ b/tests/test-backend-ops.cpp
+@@ -2496,6 +2496,13 @@ struct test_swiglu_clamp : public test_case {
+ };
+ 
+ // GGML_OP_GET_ROWS
++// byte layout of block_nvfp4 (ggml-common.h is not included here)
++struct block_nvfp4_raw {
++    uint8_t d[4];
++    uint8_t qs[32];
++};
++static_assert(sizeof(block_nvfp4_raw) == 36, "wrong nvfp4 block size");
++
+ struct test_get_rows : public test_case {
+     const ggml_type type;
+     const int n; // cols
+@@ -2569,6 +2576,12 @@ struct test_get_rows : public test_case {
+     }
+ };
+ 
++struct test_get_rows_nvfp4_raw : public test_get_rows {
++    using test_get_rows::test_get_rows;
++    std::string vars() override { return test_get_rows::vars() + ",raw=1"; }
++    void initialize_tensors(ggml_context * ctx) override;
++};
++
+ // GGML_OP_GET_ROWS on a weight also used by GGML_OP_MUL_MAT (tied embeddings)
+ // that the preceding mul_mat may have put in the SYCL reorder layout. The
+ // mul_mat runs first, so a backend that changes the weight layout in place
+@@ -6030,6 +6043,52 @@ struct test_mul_mat_id_dup : public test_mul_mat_id {
+     }
+ };
+ 
++// NVFP4 with raw bytes: every UE4M3 scale byte 0x00..0xFF (also 0x80..0xFF, which quantization never writes) and every E2M1 nibble
++static void init_tensor_nvfp4_raw(ggml_tensor * t) {
++    std::default_random_engine rng(4242);
++    std::vector<block_nvfp4_raw> data(ggml_nbytes(t)/sizeof(block_nvfp4_raw));
++    for (size_t i = 0; i < data.size(); i++) {
++        for (int s = 0; s < 4; s++) {
++            data[i].d[s] = (uint8_t) ((4*i + s)*167 + 13);
++        }
++        for (int j = 0; j < 32; j++) {
++            data[i].qs[j] = (uint8_t) (rng() & 0xFF);
++        }
++    }
++    ggml_backend_tensor_set(t, data.data(), 0, data.size()*sizeof(block_nvfp4_raw));
++}
++
++static void init_nvfp4_raw_tensors(ggml_context * ctx) {
++    for (ggml_tensor * t = ggml_get_first_tensor(ctx); t != NULL; t = ggml_get_next_tensor(ctx, t)) {
++        if (t->type == GGML_TYPE_NVFP4 && !ggml_is_view_op(t->op)) {
++            init_tensor_nvfp4_raw(t);
++        }
++    }
++}
++
++void test_get_rows_nvfp4_raw::initialize_tensors(ggml_context * ctx) {
++    test_get_rows::initialize_tensors(ctx);
++    init_nvfp4_raw_tensors(ctx);
++}
++
++struct test_mul_mat_nvfp4_raw : public test_mul_mat {
++    using test_mul_mat::test_mul_mat;
++    std::string vars() override { return test_mul_mat::vars() + ",raw=1"; }
++    void initialize_tensors(ggml_context * ctx) override {
++        test_mul_mat::initialize_tensors(ctx);
++        init_nvfp4_raw_tensors(ctx);
++    }
++};
++
++struct test_mul_mat_id_nvfp4_raw : public test_mul_mat_id {
++    using test_mul_mat_id::test_mul_mat_id;
++    std::string vars() override { return test_mul_mat_id::vars() + ",raw=1"; }
++    void initialize_tensors(ggml_context * ctx) override {
++        test_mul_mat_id::initialize_tensors(ctx);
++        init_nvfp4_raw_tensors(ctx);
++    }
++};
++
+ // FP4 W4A8 path on the MoE path (GGML_PREC_Q8 on src1 disallows 4-bit activations)
+ struct test_mul_mat_id_w4a8 : public test_mul_mat_id {
+     test_mul_mat_id_w4a8(ggml_type type_a = GGML_TYPE_NVFP4, ggml_type type_b = GGML_TYPE_F32,
+@@ -10907,6 +10966,9 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
+     }
+     // many rows of a wide table, as a per-layer embedding lookup does
+     test_cases.emplace_back(new test_get_rows(GGML_TYPE_F8_E4M3, 160, 100000, 32768, 1, 1, false));
++    // NVFP4 with every scale byte in each row (4096 values = 256 sub-blocks), bit-exact against the CPU decode
++    test_cases.emplace_back(new test_get_rows_nvfp4_raw(GGML_TYPE_NVFP4, 4096, 16, 8, 1, 1, false));
++    test_cases.emplace_back(new test_get_rows_nvfp4_raw(GGML_TYPE_NVFP4, 4096, 16, 8, 2, 1, false, true));
+     for (ggml_type type : all_types) {
+         for (int b : {1, 7}) {
+             for (bool v : {false, true}) {
+@@ -12010,6 +12072,15 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
+     test_cases.emplace_back(new test_mul_mat_id_w4a8(GGML_TYPE_NVFP4, GGML_TYPE_F32, 4, 2, true,  64, 16, 256));
+     test_cases.emplace_back(new test_mul_mat_id_w4a4(GGML_TYPE_NVFP4, GGML_TYPE_F32, 8, 2, false, 32, 32, 256));
+     test_cases.emplace_back(new test_mul_mat_id_w4a4(GGML_TYPE_NVFP4, GGML_TYPE_F32, 4, 2, true,  64, 16, 256));
++    // NVFP4 at k = 1152 (Inkling 2 Mini ffn_down_exps rows): mul_mv (n = 1), mul_mv_ext (n = 2..8), mul_mm (n > 8)
++    for (int n : {1, 3, 8, 64}) {
++        test_cases.emplace_back(new test_mul_mat(GGML_TYPE_NVFP4, GGML_TYPE_F32, 64, n, 1152, {1, 1}, {1, 1}));
++        test_cases.emplace_back(new test_mul_mat_nvfp4_raw(GGML_TYPE_NVFP4, GGML_TYPE_F32, 64, n, 1152, {1, 1}, {1, 1}));
++    }
++    for (int n : {1, 4, 64}) {
++        test_cases.emplace_back(new test_mul_mat_id(GGML_TYPE_NVFP4, GGML_TYPE_F32, 8, 4, false, 128, n, 1152));
++        test_cases.emplace_back(new test_mul_mat_id_nvfp4_raw(GGML_TYPE_NVFP4, GGML_TYPE_F32, 8, 4, false, 128, n, 1152));
++    }
+     test_cases.emplace_back(new test_mul_mat_w4a8(GGML_TYPE_MXFP4, GGML_TYPE_F32, 32, 32, 256));
+     test_cases.emplace_back(new test_mul_mat_w4a8(GGML_TYPE_MXFP4, GGML_TYPE_F32, 64, 16, 512));
+     test_cases.emplace_back(new test_mul_mat_w4a4(GGML_TYPE_MXFP4, GGML_TYPE_F32, 32, 32, 256));
