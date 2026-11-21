@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: me-daniel <63238224+me-daniel@users.noreply.github.com>
 Date: Sat, 21 Nov 2026 02:52:42 +0100
-Subject: [PATCH 3/4] model : inkling2_loop cache slots can carry their own
+Subject: [PATCH 3/7] model : inkling2_loop cache slots can carry their own
  routed experts
 
 ---
