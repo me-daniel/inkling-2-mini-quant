@@ -7,14 +7,21 @@ llama-perplexity logs (context and chunk counts) and the imatrix download metada
 recomputed with analysis/compare.py (same paired bootstrap), per-pass ratios and the Addendum F test with
 analysis/perpass_report.py. Card wording follows CHANGELOG.md (pilot entry, Addenda C, E, F). If results/pilot/gate.md
 does not say PASS, the card is a stub marked NOT FOR UPLOAD and the note carries the measurements. A PASS card needs
-the stability and bench files and is not drafted here. The output is checked for wording the CHANGELOG forbids,
-private paths and dashes; any hit exits 1 without writing.
+the stability and bench files and is not drafted here.
+
+Mac-track mode (Addendum G): when gate-quality.txt says FAIL and mac-quality.txt exists, the card is a full draft for
+review. It states the FAIL against UD-IQ3_XXS, discloses that the comparison is post hoc, and gives the seven-file table
+(bytes from the files, compare.py lines rechecked against kl.tsv, llama-bench output, off-Metal counts), the speed
+ratios, the stability battery judged by scripts/stability.py judge(), setup and provenance. The note gets the same
+table. The output is checked for wording the CHANGELOG forbids, private paths and dashes; any hit exits 1 without
+writing. The one draft line naming the reviewer is prepended to the card after that check.
 """
 
 from __future__ import annotations
 
 import ast
 import csv
+import importlib.util
 import json
 import re
 import sys
@@ -33,7 +40,8 @@ L = ROOT / "logs"
 OUT = ROOT / "drafts"
 FORBIDDEN = [r"loop-aware", r"pass-aware", r"\bfirst\b", r"\bbest\b", r"same[- ]size", r"runs fully on metal", r"\bGSQ\b",
              r"\bGPTQ\b", r"\bRCO\b", r"once per visit", r"per visit", r"dominat", r"compounds", r"loop-specific effect",
-             r"/Users/", r"private/", r"scratch/", r"Daniel", r"—", r"–", r"\bSOTA\b", r"state of the art"]
+             r"/Users/", r"private/", r"scratch/", r"Daniel", r"—", r"–", r"\bSOTA\b", r"state of the art",
+             r"\bfastest\b", r"beats unsloth", r"\bbeats? UD"]
 
 
 def text(p: Path) -> str:
@@ -177,7 +185,97 @@ def load() -> dict:
                           and v["b2_layers"][0] <= int(r["layer"]) <= v["b2_layers"][1]])
     v["t2gu_tb"] = np.mean([float(r["t"]) for r in tb if r["pool"] == "2bit" and r["kind"] == "ffn_gate_up_exps"
                             and v["b2_layers"][0] <= int(r["layer"]) <= v["b2_layers"][1]])
+    # noise: every tied draw against the one independent draw
+    v["tied"] = {(1 if c == "noise-tied" else int(c[len("noise-tied"):])): kc[c] for c in kc if c.startswith("noise-tied")}
+    v["tied_ratio"] = {d: noise.paired_ratio([x], [kc["noise-indep"]]) for d, x in sorted(v["tied"].items())}
+    assert abs(v["tied_ratio"][1]["ratio"] - v["noise"]["ratio"]) < 1e-9, "draw-1 ratio differs from noise-ratio.txt"
+    # Addendum G section 2 (deviations) and the Mac track
+    cl = text(ROOT / "CHANGELOG.md")
+    m = one(r"fixed in commit (\w+) at ([\d:]+), before the first per-pass logits at ([\d:]+); (awaiting \w+'s approval)", cl)
+    v["dev_commit"], v["dev_time"], v["dev_logits"] = m[1], m[2], m[3]
+    v["dev_open"] = "awaiting" in m[4]
+    m = one(r"### Addendum G \(([\d-]+), ~([\d:]+), after the quality gate FAILed", cl)
+    v["g_date"], v["g_time"] = m[1], m[2]
+    v["g_amend"] = one(r"\*\*Amendment \(~([\d:]+), before any download or score", cl)[1]
+    v["gq"] = cmp_file(R / "gate-quality.txt")
+    assert v["gq"]["verdict"] == v["verdict"], "gate-quality.txt and gate.md disagree"
+    v["mac"] = (R / "mac-quality.txt").exists() and v["gq"]["verdict"] == "FAIL"
+    v["pw"] = prior_work(ROOT / "reviews/2026-11-21-scoop-check.md")
+    if v["mac"]:
+        load_mac(v, runs)
     return v
+
+
+CMP = re.compile(r"^(T\d) (\S+) vs (\S+): KL ([\d.]+) vs ([\d.]+), diff ([+-][\d.]+) \[([+-][\d.]+), ([+-][\d.]+)\], "
+                 r"top-1 ([\d.]+)% vs ([\d.]+)% -> (better|not better)$", re.M)
+
+
+def cmp_file(p: Path) -> dict:
+    """Lines of analysis/compare.py output: rows keyed by (set, baseline), the baselines in order, the gate line."""
+    s = text(p)
+    rows = {(m[1], m[3]): dict(cand=m[2], kc=m[4], ko=m[5], d=m[6], lo=m[7], hi=m[8], tc=m[9], to=m[10], win=m[11] == "better")
+            for m in CMP.finditer(s)}
+    assert rows and len(rows) == len([ln for ln in s.splitlines() if " vs " in ln]), f"unparsed line in {p.name}"
+    g = re.search(r"^quality gate: (PASS|FAIL)$", s, re.M)
+    return {"rows": rows, "others": list(dict.fromkeys(o for _, o in rows)), "verdict": g[1] if g else None, "name": p.name}
+
+
+def load_mac(v: dict, runs: dict) -> None:
+    v["mq"] = cmp_file(R / "mac-quality.txt")
+    v["mc"] = cmp_file(R / "mac-context-IQ2_M.txt")
+    rows = {**v["gq"]["rows"], **v["mq"]["rows"], **v["mc"]["rows"]}
+    # every difference recomputed from kl.tsv with the same bootstrap must match the printed line
+    for (t, o), r in rows.items():
+        c, b = runs[f"final-cand-{t}-P{v['P']}"], runs[f"final-{o}-{t}-P{v['P']}"]
+        d, lo, hi = compare.paired(c["chunks"], b["chunks"])
+        assert (f"{d:+.5f}", f"{lo:+.5f}", f"{hi:+.5f}", f"{b['chunks'].mean():.5f}") == (r["d"], r["lo"], r["hi"], r["ko"]), (t, o)
+    v["mrows"] = rows
+    v["mnames"] = ["cand"] + v["gq"]["others"] + v["mq"]["others"] + v["mc"]["others"]
+    v["counted"] = v["mq"]["others"]
+    v["context"] = v["mc"]["others"]
+    revs = {m[3]: (m[1], m[2]) for m in re.finditer(r"^(\S+/\S+) sha=([0-9a-f]+) (\S+\.gguf)$", text(L / "revisions.txt"), re.M)}
+    reps = {int(x) for x in re.findall(r"llama-bench\" .* -r (\d+)", text(ROOT / "scripts/macgate.sh"))}
+    assert len(reps) == 1, "bench repetitions not unique in macgate.sh"
+    v["bench_reps"] = reps.pop()
+    v["mf"] = {}
+    for name in v["mnames"]:
+        p = ROOT / f"models/{name}.gguf"
+        ext = not p.exists()
+        p = ROOT / f"models/ext/{name}.gguf" if ext else p
+        b = text(R / f"bench-{name}.txt")
+        sp = {m[1]: (float(m[2]), m[2], m[3]) for m in re.finditer(r"\|\s*(pp512|tg128)\s*\|\s*([\d.]+) ± ([\d.]+)\s*\|", b)}
+        assert set(sp) == {"pp512", "tg128"}, name
+        f = dict(bytes=p.stat().st_size, ext=ext, sp=sp, build=one(r"^build: ([0-9a-f]+)", b, re.M)[1],
+                 off=int(one(r"expert tensors in types Metal cannot multiply: (\d+)", b)[1]))
+        assert v["head"].startswith(f["build"]), f"{name}: bench build is not the patched HEAD"
+        if ext:
+            ty = text(R / f"types-{name}.txt")
+            f["loop"] = one(r"loop\.count (\S+)", ty)[1]
+            f["mtp"] = int(one(r"^mtp tensors: (\d+)", ty, re.M)[1])
+            assert int(one(r"\(experts: (\d+) \)", ty)[1]) == f["off"], f"{name}: types and bench disagree on Metal"
+            f["repo"], f["rev"] = revs[p.resolve().name]
+            f["file"] = p.resolve().name
+        v["mf"][name] = f
+    assert v["mf"]["cand"]["bytes"] == int(v["files"]["cand"]["bytes"].replace(",", "")), "cand bytes differ from gate.md"
+    assert v["mf"]["UD-IQ3_XXS"]["bytes"] == int(v["files"]["UD-IQ3_XXS"]["bytes"].replace(",", "")), "UD bytes differ"
+    spec = importlib.util.spec_from_file_location("stability", ROOT / "scripts/stability.py")
+    stab = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(stab)
+    v["stab"] = {k: json.loads(text(R / f"stability-{k}.json")) for k in ("ref", "cand")}
+    v["judge"] = stab.judge(v["stab"]["ref"], v["stab"]["cand"])
+
+
+def prior_work(p: Path) -> dict:
+    """Links, dates and the claims quoted in the prior-work check (reviews/*scoop-check.md)."""
+    s = text(p)
+    out = {"date": one(r"^# Scoop and prior-work check, (.+)$", s, re.M)[1], "file": p.relative_to(ROOT).as_posix()}
+    for m in re.finditer(r"^\d+\. \*\*\[([\w ]+), (arXiv [\d.]+)\]\((\S+?)\), ([\w ]+)\.?\*\*", s, re.M):
+        out[m[1]] = dict(arxiv=m[2], url=m[3], date=m[4])
+    m = one(r"^\| \[(shinmegamiboson/[\w.-]+)\]\((\S+?)\) \| ([^|]+?) \|", s, re.M)
+    out["LookAtMyQuant"] = dict(repo=m[1], url=m[2], date=m[3])
+    out["lamq_quotes"] = re.findall(r"\"((?:Measured per-layer|48-visit)[^\"]+)\"", s)
+    assert len(out["lamq_quotes"]) == 2, "LookAtMyQuant quotes not found"
+    return out
 
 
 def gate_table(v: dict, label: dict) -> list[str]:
@@ -228,6 +326,137 @@ def choice(c: dict) -> str:
     return ", ".join(f"{b} {g}/{d.replace('Q2_0O', 'Q2_0 (ours)')}" for b, (g, d) in c.items())
 
 
+LABEL = {"cand": "cand (this file)", "UD-IQ3_XXS": "Unsloth UD-IQ3_XXS", "bart-IQ2_S": "bartowski IQ2_S",
+         "atomic-AD-IQ2_S": "AtomicChat AD-IQ2_S", "apex-I-Nano": "mudler APEX-I-Nano", "bart-IQ2_M": "bartowski IQ2_M"}
+
+
+def mac_label(v: dict, k: str, card: bool = False) -> str:
+    if k == "cand":
+        return LABEL[k] if card else "cand"
+    if k == "uniform-IQ3_XXS":
+        return "stock IQ3_XXS (smaller)" if v["mf"][k]["bytes"] < v["mf"]["UD-IQ3_XXS"]["bytes"] else "stock IQ3_XXS (larger)"
+    return LABEL[k]
+
+
+def mac_table(v: dict, card: bool = False) -> list[str]:
+    """Addendum G comparison: all seven files, numbers from the files, compare.py lines and llama-bench output."""
+    limit = v["mf"]["UD-IQ3_XXS"]["bytes"]
+    out = ["| File | Bytes | Size limit | Off-Metal expert tensors | KL T1 | KL T2 | cand minus file, T1 [95% CI] | "
+           "cand minus file, T2 [95% CI] | Top-1 T1 / T2 | pp512 t/s | tg128 t/s |", "|---|" + "---|" * 10]
+    c1, c2 = (next(r for (t, _), r in v["mrows"].items() if t == s) for s in ("T1", "T2"))
+    for k in v["mnames"]:
+        f = v["mf"][k]
+        flag = ("sets the limit" if f["bytes"] == limit else "under" if f["bytes"] < limit else
+                "over, context only" if k in v["context"] else "over")
+        if k == "cand":
+            kl1, kl2, d1, d2, top = c1["kc"], c2["kc"], "n/a", "n/a", f"{c1['tc']}% / {c2['tc']}%"
+        else:
+            r1, r2 = v["mrows"][("T1", k)], v["mrows"][("T2", k)]
+            kl1, kl2, top = r1["ko"], r2["ko"], f"{r1['to']}% / {r2['to']}%"
+            d1, d2 = (f"{r['d']} [{r['lo']}, {r['hi']}]" for r in (r1, r2))
+        sp = " | ".join(f"{f['sp'][t][1]} ± {f['sp'][t][2]}" for t in ("pp512", "tg128"))
+        out.append(f"| {mac_label(v, k, card)} | {n(f['bytes'])} | {flag} | {f['off']} | {kl1} | {kl2} | {d1} | {d2} | {top} | {sp} |")
+    return out
+
+
+def mac_facts(v: dict) -> dict:
+    mf = v["mf"]
+    allm = [k for k in v["mnames"] if mf[k]["off"] == 0]
+    sp = {t: [mf[k]["sp"][t][0] for k in allm] for t in ("pp512", "tg128")}
+    ud = mf["UD-IQ3_XXS"]["sp"]
+    rank = {t: 1 + sum(x > mf["cand"]["sp"][t][0] for x in sp[t]) for t in sp}
+    return dict(allm=allm, sp=sp, rank=rank, spread={t: max(x) / min(x) for t, x in sp.items()},
+                vs_ud={t: (mf["cand"]["sp"][t][0] / ud[t][0], min(sp[t]) / ud[t][0], max(sp[t]) / ud[t][0]) for t in sp},
+                counted_ok=[k for k in v["counted"] if mf[k]["off"] == 0],
+                n_under=sum(mf[k]["bytes"] < mf["UD-IQ3_XXS"]["bytes"] for k in v["counted"]))
+
+
+def speed_par(v: dict) -> list[str]:
+    f, mf = mac_facts(v), v["mf"]
+    ud = mf["UD-IQ3_XXS"]
+    (pc, plo, phi), (tc, tlo, thi) = f["vs_ud"]["pp512"], f["vs_ud"]["tg128"]
+    return [f"The {len(f['allm'])} files with all expert tensors in Metal-supported types run at about the same speed as "
+            f"each other. Their pp512 lies between {min(f['sp']['pp512']):.2f} and {max(f['sp']['pp512']):.2f} t/s "
+            f"(largest over smallest {f['spread']['pp512']:.2f}), and their tg128 between {min(f['sp']['tg128']):.2f} and "
+            f"{max(f['sp']['tg128']):.2f} t/s ({f['spread']['tg128']:.2f}). Among them the candidate ranks "
+            f"{f['rank']['pp512']} of {len(f['allm'])} on pp512 and {f['rank']['tg128']} of {len(f['allm'])} on tg128.",
+            "",
+            f"The speed difference is against UD-IQ3_XXS only. Its {ud['off']} NVFP4 expert tensors run off Metal, and it "
+            f"measured {ud['sp']['pp512'][1]} t/s pp512 and {ud['sp']['tg128'][1]} t/s tg128. The candidate is {pc:.2f} "
+            f"times as fast on pp512 and {tc:.2f} times as fast on tg128. For the all-Metal files the ratios to UD-IQ3_XXS "
+            f"run from {plo:.2f} to {phi:.2f} (pp512) and {tlo:.2f} to {thi:.2f} (tg128). This would change if the Metal "
+            "backend gained NVFP4 matrix multiplies.",
+            "",
+            f"Measured with `llama-bench -ngl 99 -p 512 -n 128 -r {v['bench_reps']}` at each file's default loop count, one "
+            f"binary for all files (build `{ud['build']}` as printed by llama-bench, the patched HEAD below). The ± is "
+            f"llama-bench's standard deviation over the {v['bench_reps']} repetitions. Machine: {v['machine']}. Engine: "
+            f"llama.cpp `{v['base'][:7]}` ({v['tag']}) plus {len(v['patches'])} patches "
+            f"({', '.join(p[:4] for p, _ in v['patches'])}, listed under Provenance). Peak memory was not recorded."]
+
+
+def stability_lines(v: dict) -> list[str]:
+    j, s = v["judge"], v["stab"]
+    ok = sum(c["pass"] for c in j["checks"])
+    out = ["| Check | Q8_0 reference | Candidate | Rule | Result |", "|---|---|---|---|---|"]
+    fmt = lambda x: ("yes" if x else "no") if isinstance(x, bool) else (f"{x:.4f}" if isinstance(x, float) else str(x))
+    out += [f"| {c['name']} | {fmt(c['ref'])} | {fmt(c['cand'])} | {c['rule']} | {'pass' if c['pass'] else 'FAIL'} |"
+            for c in j["checks"]]
+    lc = s["cand"]["long_context"]["prompt_tokens"]
+    assert lc == s["ref"]["long_context"]["prompt_tokens"]
+    return out + ["", f"**Stability verdict: {'PASS' if j['pass'] else 'FAIL'}** ({ok} of {len(j['checks'])} checks, "
+                      "thresholds fixed in `scripts/stability.py` before any candidate existed, applied by its `judge` "
+                      f"function). The long prompt has {n(lc)} tokens. {s['cand']['gsm8k']['n']} GSM8K items are a smoke "
+                      "test, not an accuracy estimate. Both runs use llama-server's chat endpoint at P = 3."]
+
+
+def ext_revisions(v: dict) -> list[str]:
+    out = ["| File | Repo | File name | Revision | loop.count | MTP tensors |", "|---|---|---|---|---|---|"]
+    out += [f"| {mac_label(v, k)} | `{f['repo']}` | `{f['file']}` | `{f['rev']}` | {f['loop']} | {f['mtp']} |"
+            for k, f in v["mf"].items() if f["ext"]]
+    return out
+
+
+def mac_rule(v: dict) -> str:
+    f = mac_facts(v)
+    return (f"The Addendum G rule needs the candidate to have lower KL than each of the {len(v['counted'])} comparators under the "
+            f"limit ({', '.join(mac_label(v, k) for k in v['counted'])}) on both T1 and T2, with the 95% CI of the "
+            f"difference below 0 and top-1 not worse (`analysis/compare.py`), and each comparator must have all expert "
+            f"tensors in Metal-supported types. {len(f['counted_ok'])} of {len(v['counted'])} are confirmed from their "
+            f"tensor types. The result in `{v['mq']['name']}` is **{v['mq']['verdict']}**.")
+
+
+def prior_section(v: dict) -> list[str]:
+    pw = v["pw"]
+    mark = "**[link: reopen before publishing]**"
+    desc = {"LoopQ": "Post-training quantization of weights and activations for looped transformers. It names recursive "
+                     "error accumulation as one source of degradation.",
+            "Feedback Exposure": "Integer quantization of a recurrent-depth model (Huginn). Hessians summed over "
+                                 "recurrence steps beat one-step Hessians. It perturbs by component, always on all steps. It "
+                                 "has no condition where the weights differ on one step only, no MoE and no GGUF.",
+            "Tilted Bowl": "Tests the accumulation account across several model families. A fixed rounding error does "
+                           "not accumulate when the loop settles. It contrasts fixed with fresh noise and runs the last "
+                           "loops at higher weight precision, so pass-specific weight precision is already published.",
+            "Loopy": "Rankings of candidate low-bit representations change with recurrent depth, so it selects the shared "
+                     "representation by final loss at the deployment depth.",
+            "LoopQuant": "Allocates activation precision per loop from Shapley-style marginals, with a pairwise term that "
+                         "flags stronger-than-additive degradation. That is a per-loop additivity analysis, on activations."}
+    out = ["## Prior work", "",
+           f"From the prior-work check of {pw['date']} (`{pw['file']}`). Every link below was opened then and must be "
+           "reopened and found live before this note is published.", ""]
+    for k, d in desc.items():
+        p = pw[k]
+        out.append(f"- **{k}** ({p['arxiv']}, {p['date']}), [{p['url']}]({p['url']}) {mark}. {d}")
+    lq = pw["LookAtMyQuant"]
+    out += [f"- **LookAtMyQuant** (`{lq['repo']}`, created {lq['date']}), [{lq['url']}]({lq['url']}) {mark}. A Mini "
+            f"quantization whose card says it \"{pw['lamq_quotes'][0]}\" and then ran QAT with "
+            f"\"{pw['lamq_quotes'][1]}\". The card shows no table by visit, no single-pass intervention, no additivity "
+            "test and no control without weight sharing.", "",
+            "Our per-pass test differs from these in design. It applies the same quantized expert block on one pass "
+            "only, compares the sum of single-pass changes with the all-pass change, and sets that against a layer split "
+            "that shares no weights.", ""]
+    return out
+
+
 def render(v: dict) -> tuple[str, str]:
     ud_bytes = int(v["files"]["UD-IQ3_XXS"]["bytes"].replace(",", ""))
     stock_key = next(k for k in v["files"] if k.startswith("stock IQ3_XXS"))
@@ -252,6 +481,10 @@ def render(v: dict) -> tuple[str, str]:
     tests = {k: pr.apart(v["pp"], v["ls"], "fisher", k) for k in ("r", "norm_ratio")}
     licensed = all(d and p for d, p in tests.values())
     licensed_head = all(d and p for d, p in (pr.apart(v["pp"], v["ls"], "head_euclid", k) for k in ("r", "norm_ratio")))
+    licensed_full = all(d and p for d, p in (pr.apart(v["pp"], v["ls"], "full_euclid", k) for k in ("r", "norm_ratio")))
+    fv = v["pp"]["full_euclid"]
+    tk = [float(x.mean()) for x in v["tied"].values()]
+    tr_lo, tr_hi = min(t["ratio"] for t in v["tied_ratio"].values()), max(t["ratio"] for t in v["tied_ratio"].values())
     closer = pp["r"] < ls["r"] and abs(pp["norm_ratio"] - 1) < abs(ls["norm_ratio"] - 1)
     rung = {k: pr.apart(v["pp"], v["b3"], "fisher", k) for k in ("r", "norm_ratio")}
     rung_moved = all(d and p for d, p in rung.values())
@@ -260,6 +493,7 @@ def render(v: dict) -> tuple[str, str]:
     ls_sum = v["kl2"]["ls67"] + v["kl2"]["ls89"] + v["kl2"]["ls1011"]
     b3_sum = v["kl2"]["3b-p1"] + v["kl2"]["3b-p2"] + v["kl2"]["3b-p3"]
     all_kl = float(kl[("all", "pp-base")])
+    kl_drop = all_kl / v["kl2"]["3b-all"]
     lo, hi = v["noise"]["ci95"]
     b2a, b2b = v["b2_layers"]
 
@@ -279,7 +513,11 @@ def render(v: dict) -> tuple[str, str]:
          f"and {ud[1]['worse']} of {ud[1]['n']} T2 chunks.",
          f"- It beats {stock}, {n(stock_bytes)} bytes, on both sets, by {st[0]['d']:+.5f} on T1 and "
          f"{st[1]['d']:+.5f} on T2 (both CIs below zero).",
-         "- Under our pre-registered rule a failed gate means no model is released. This note is the result.",
+         "- Under our pre-registered rule a failed gate means no model is released on that gate. The FAIL stands.",
+         *([f"- After the FAIL we registered a narrower comparison (Addendum G, post hoc): files under the limit with all "
+            f"expert tensors in Metal-supported types. Against all {len(v['counted'])} of them the candidate has lower KL "
+            f"on T1 and T2, CI below zero. That rule gives {v['mq']['verdict']}. A card for this narrower claim is "
+            "drafted for review, not published."] if v["mac"] else []),
          f"- Per-pass test on block B2 at the 2-bit level: the change from all three passes is not the sum of the "
          f"single-pass changes (Fisher r = {pp['r']:.3f}). A layer-split control with no weight sharing gives "
          f"r = {ls['r']:.3f}. " + ("The CIs for r and for the norm ratio do not overlap, and on these two statistics the pass split is closer to "
@@ -345,11 +583,13 @@ def render(v: dict) -> tuple[str, str]:
            f"go against the candidate and are larger ({ud[0]['d']:+.5f} on T1, {ud[1]['d']:+.5f} on T2)."
            if all(g["d"] > 0 and g["d"] >= float(v["teacher_margin"]) for g in ud) else
            "- Teacher check: required by the rule but not run. The gate cannot be read until it is."),
-          "- Stability battery and speed (`llama-bench`): " + ("run." if v["stability_run"] and v["bench_run"] else
-                                                                 "not run under the protocol, which skips them after a quality FAIL."
-                                                                 + (f" {len(v['explore_bench'])} off-protocol `llama-bench` runs were made "
-                                                                    "after the FAIL; their figures are not reported here."
-                                                                    if v["explore_bench"] else "")),
+          "- Stability battery and speed (`llama-bench`): " + (
+              "skipped by the original protocol after a quality FAIL, then run by script as registered steps under "
+              "Addendum G (section below)." if v["mac"] and v["stability_run"] and v["bench_run"] else
+              "run." if v["stability_run"] and v["bench_run"] else
+              "not run under the protocol, which skips them after a quality FAIL.")
+          + (f" {len(v['explore_bench'])} off-protocol `llama-bench` runs were made by hand after the FAIL; their "
+             "figures are not reported." if v["explore_bench"] else ""),
           "", "Expert tensors in types the pinned Metal backend cannot multiply, read from each file's tensor types:", "",
           "| Build | Bytes | Expert tensor types | Off-Metal expert tensors |", "|---|---|---|---|"]
     for k, r in v["files"].items():
@@ -357,8 +597,20 @@ def render(v: dict) -> tuple[str, str]:
         N.append(f"| {name} | {r['bytes']} | {r['expert tensor types']} | {v['metal'][k]} |")
     N += ["", "UD-IQ3_XXS keeps the release's NVFP4 down projections in "
           f"{v['metal']['UD-IQ3_XXS']} expert tensors. The tensor count says where those multiplies cannot run. It is "
-          "not a speed measurement, and we report no speed figures.", "",
-          "## Our Q2_0 encoder", "",
+          "not a speed measurement. " + ("Speed is measured and reported under Addendum G below." if v["mac"] else
+                                         "We report no speed figures."), ""]
+    if v["mac"]:
+        N += [f"## Addendum G: Mac track (T1, T2, P = {v['P']})", "",
+              f"Registered on {v['g_date']} at about {v['g_time']}, after the gate above had failed and before any of "
+              f"these numbers existed. Two of the files were added by an amendment at about {v['g_amend']}, before any "
+              "download or score. This comparison is post hoc. It does not change the FAIL.", "",
+              mac_rule(v), "",
+              "Bytes are read from each file. The off-Metal count is read from each file's tensor types. Differences are "
+              "candidate minus file, so negative values favour the candidate. Speed is llama-bench mean ± standard "
+              "deviation.", ""]
+        N += mac_table(v) + [""] + speed_par(v) + ["", "Stability battery of the candidate against the Q8_0 reference:", ""]
+        N += stability_lines(v) + ["", "Outside files:", ""] + ext_revisions(v) + [""]
+    N += ["## Our Q2_0 encoder", "",
           "llama.cpp's reference Q2_0 encoder sets the block scale from the largest weight, so one level goes unused, "
           "and it ignores the importance matrix. We wrote an imatrix-weighted Q2_0 encoding (our encoder). It "
           "searches signed scales over all four levels and refits each block's scale by weighted least squares. The "
@@ -380,14 +632,17 @@ def render(v: dict) -> tuple[str, str]:
         N.append(f"| pass {c_[1]} only | {float(kl[(c_, 'pp-base')]):.5f} | {float(kl[(c_, 'ref-S-P3')]):.5f} |"
                  if c_ != "all" else f"| all three passes | {all_kl:.5f} | {float(kl[(c_, 'ref-S-P3')]):.5f} |")
     N += ["", "We compare d_all, the change in log-probabilities from all three passes, with the sum of the three "
-          "single-pass changes. Norms are Fisher-weighted. r = ||d_all - sum_k d_k|| / ||d_all||.", "",
-          "| Statistic | Pass split, 2-bit | Layer split, 2-bit (control) | Pass split, 3-bit |", "|---|---|---|---|"]
+          "single-pass changes. Norms are Fisher-weighted except in the last column, which uses centred Euclidean over "
+          "the full vocabulary with the floored entries kept as written (the sensitivity check of Addendum G section 2). "
+          "r = ||d_all - sum_k d_k|| / ||d_all||.", "",
+          "| Statistic | Pass split, 2-bit | Layer split, 2-bit (control) | Pass split, 3-bit | Pass split, 2-bit, full "
+          "vocabulary |", "|---|---|---|---|---|"]
     for k, name in (("r", "r"), ("norm_ratio", "||d_all|| / ||sum_k d_k||"), ("sq_over_sum", "||d_all||^2 / sum_k ||d_k||^2"),
                     ("cos_12", "cos(d1, d2)"), ("cos_23", "cos(d2, d3)"), ("cos_13", "cos(d1, d3)")):
-        N.append(f"| {name} | {ci(pp, k)} | {ci(ls, k)} | {ci(b3, k)} |")
+        N.append(f"| {name} | {ci(pp, k)} | {ci(ls, k)} | {ci(b3, k)} | {ci(fv, k)} |")
     N.append(f"| KL all / sum of parts | {kr['ratio']:.3f} [{kr['ci95'][0]:.3f}, {kr['ci95'][1]:.3f}] | "
              f"{v['kl2']['all'] / ls_sum if 'all' in v['kl2'] else all_kl / ls_sum:.3f} (point only) | "
-             f"{v['kl2']['3b-all'] / b3_sum:.3f} (point only) |")
+             f"{v['kl2']['3b-all'] / b3_sum:.3f} (point only) | n/a (KL has no norm) |")
     N += ["", f"- The layer split puts the 2-bit block on layers {', '.join(v['ls_pairs'][:-1])} or {v['ls_pairs'][-1]} only, on all passes. Its three "
           "parts share no weights, so it shows how far from additive any three-way split of B2 is.",
           f"- The 3-bit rung changes gate_up only (IQ3_XXS). In `t-blocks.tsv`, which uses a different base from the "
@@ -398,7 +653,9 @@ def render(v: dict) -> tuple[str, str]:
           "What the controls allow, by the rule written in the change log before the controls ran (r and the norm "
           "ratio must both differ beyond both 95% CIs). We apply it under the Fisher norm, which was fixed in code "
           "before the per-pass logits existed. The head Euclidean substitute "
-          + ("gives the same verdict." if licensed_head == licensed else "gives a different verdict."), ""]
+          + ("gives the same verdict" if licensed_head == licensed else "gives a different verdict")
+          + (", and so does the full-vocabulary form against the layer split's full-vocabulary values."
+             if licensed_full == licensed else ". The full-vocabulary form gives a different verdict."), ""]
     if licensed:
         N += ["- At the 2-bit level on B2, splitting the change across passes on shared weights gives a different r "
               "and norm ratio than splitting it across layer pairs. "
@@ -411,22 +668,36 @@ def render(v: dict) -> tuple[str, str]:
           "They say nothing about B3 or other levels.",
           "- " + ("The 3-bit r and norm ratio differ from the 2-bit values beyond both CIs, so these statistics depend "
                   "on the level." if rung_moved else "The 3-bit values are not shown to differ from the 2-bit ones."),
-          "", "Gaussian noise of the same relative error as the 2-bit level, on B2:", "",
-          f"- The same draw on all three passes gave KL {v['noise']['kl_tied']:.5f}. Different draws per pass gave "
-          f"{v['noise']['kl_indep']:.5f}. Ratio {v['noise']['ratio']:.3f} [{lo:.3f}, {hi:.3f}].",
-          "- Each condition is one draw per pass, so tying is confounded with which draws sit on passes 2 and 3. The "
-          "CI covers chunk sampling only.", "",
+          f"- At the 3-bit rung the all-pass KL against the base is {v['kl2']['3b-all']:.5f}, about {kl_drop:.1f} times "
+          f"lower than the {all_kl:.5f} at 2 bits. Fisher r there is {b3['r']:.3f}, against {pp['r']:.3f} at 2 bits. So "
+          "the residual does not shrink in proportion to the amplitude.",
+          "", "Gaussian noise of the same relative error as the 2-bit level, on B2. A tied condition puts one draw on "
+          f"all three passes; there are {len(v['tied'])} tied draws. The independent condition puts draws 1, 2 and 3 "
+          "on passes 1, 2 and 3, and it still has one draw. KL against the base, and each tied draw over the independent one (paired bootstrap over chunks):", "",
+          "| Condition | KL vs base | Tied / independent [95% CI] |", "|---|---|---|"]
+    N += [f"| tied, draw {d} | {float(x.mean()):.5f} | {t['ratio']:.3f} [{t['ci95'][0]:.3f}, {t['ci95'][1]:.3f}] |"
+          for (d, x), t in zip(sorted(v["tied"].items()), (v["tied_ratio"][d] for d in sorted(v["tied"])))]
+    N += [f"| independent | {v['noise']['kl_indep']:.5f} | n/a |", "",
+          f"- Tied over independent runs from {tr_lo:.3f} to {tr_hi:.3f} across the {len(v['tied'])} tied draws. The tied "
+          f"KLs span {min(tk):.5f} to {max(tk):.5f}.",
+          "- All ratios share the one independent draw, so the draw effect on the independent side is not measured. "
+          "Each CI covers chunk sampling only.", "",
           f"Three analysis choices differ from the registered plan: the Fisher norm as primary, a {v['head_nats']}-nat head for the "
           "Euclidean substitute, and a pooled ratio of sums instead of a per-token ratio. They were fixed in code "
-          "before the per-pass logits existed. They still need a dated entry in the change log.", "",
+          f"in commit `{v['dev_commit']}` at {v['dev_time']}. The per-pass logits came at {v['dev_logits']}. They "
+          "now have a dated entry in the change log, Addendum G section 2"
+          + (", awaiting approval." if v["dev_open"] else "."), "",
           "The per-pass test is a scientific result, not the reason for the release allocation. The block map measures "
-          "looped blocks with all passes tied.", "",
-          "## Limits", "",
+          "looped blocks with all passes tied.", ""]
+    N += prior_section(v)
+    N += ["## Limits", "",
           "- This is an exploratory pilot. None of it is confirmatory evidence.",
           "- One reference, one importance matrix, one machine, one engine commit.",
           f"- T2 has {v['ctx']['T2'][0]} chunks, so its bootstrap is coarse.",
           "- KL to a reference is not task quality. We report no task scores.",
-          "- The per-pass test covers block B2 at two levels. B3 was not perturbed per pass.", ""]
+          "- The per-pass test covers block B2 at two levels. B3 was not perturbed per pass.",
+          *(["- The Mac-track comparison was registered after the gate failed. It is post hoc. Its speed figures hold "
+             "for one machine and one engine commit."] if v["mac"] else []), ""]
 
     # ---------------- card ----------------
     cand_types = v["files"]["cand"]["expert tensor types"]
@@ -448,7 +719,70 @@ def render(v: dict) -> tuple[str, str]:
     C += gate_table(v, label)
     C += ["", "Stability and speed were not run under the protocol, which skips them after a quality FAIL.", "",
           "## Setup", ""] + setup(v) + ["", "Engine and files:", ""] + provenance(v) + [""]
+    if v["mac"]:
+        C = mac_card(v, label, cand_bytes, ud_bytes, ud, s, cand_ours)
     return "\n".join(N) + "\n", "\n".join(C) + "\n"
+
+
+DRAFT_LINE = "> DRAFT for Daniel's review. Not uploaded. Delete this line before any upload."
+
+
+def mac_card(v: dict, label: dict, cand_bytes: int, ud_bytes: int, ud: list, s: dict, cand_ours: bool) -> list[str]:
+    """Full card for the Addendum G Mac track (gate FAIL against UD-IQ3_XXS, Mac rule PASS). The draft line is added
+    in main() after the wording scan."""
+    f = mac_facts(v)
+    udf = v["mf"]["UD-IQ3_XXS"]
+    nv = one(r"ffn_down_exps NVFP4 x(\d+)", v["files"]["UD-IQ3_XXS"]["expert tensor types"])[1]
+    cand_down = one(r"ffn_down_exps (\w+) x(\d+)", v["files"]["cand"]["expert tensor types"])
+    assert int(nv) == udf["off"], "NVFP4 count in gate.md differs from the bench file"
+    C = ["---", f"base_model: {v['model']}", "tags:", "- gguf", "- llama.cpp", "- exploratory", "---", "",
+         "# Inkling 2 Mini GGUF, block-wise allocation, all expert tensors in Metal-supported types (exploratory)", "",
+         f"## Pre-registered gate against UD-IQ3_XXS: {v['verdict']}", "",
+         f"This file ({n(cand_bytes)} bytes) has higher KL to the reference than Unsloth UD-IQ3_XXS ({n(ud_bytes)} bytes) "
+         f"on both held-out sets. On T1 the difference is {ud[0]['d']:+.5f} [{ud[0]['lo']:+.5f}, {ud[0]['hi']:+.5f}], "
+         f"and this file is worse on {ud[0]['worse']} of {ud[0]['n']} chunks. On T2 it is {ud[1]['d']:+.5f} "
+         f"[{ud[1]['lo']:+.5f}, {ud[1]['hi']:+.5f}], worse on {ud[1]['worse']} of {ud[1]['n']} chunks. Under the "
+         "pre-registered rule this is a FAIL, and it stands.", "",
+         f"Why. UD-IQ3_XXS keeps the release's native NVFP4 down projections in {nv} expert tensors. The pinned Metal "
+         f"backend cannot multiply NVFP4, so on Apple Silicon those {nv} tensors run on the CPU. This file stores every "
+         f"expert down projection as {cand_down[1]} ({cand_down[2]} tensors), a type Metal can multiply, and pays for it "
+         "in KL.", ""]
+    C += gate_table(v, label)
+    C += ["", "## What this card claims instead (post hoc)", "",
+          f"After the FAIL we registered a narrower comparison in the change log (Addendum G, {v['g_date']}, about "
+          f"{v['g_time']}), before any of its numbers existed. Two of the files were added by an amendment at about "
+          f"{v['g_amend']}, before any download or score. The comparison is post hoc and is disclosed as such. It does "
+          "not change the FAIL above.", "",
+          mac_rule(v), "",
+          "## Comparison", "",
+          f"KL against the Q8_0 reference at P = {v['P']}. T1 is {v['ctx']['T1'][0]} chunks of {n(v['ctx']['T1'][1])} "
+          f"tokens, T2 is {v['ctx']['T2'][0]} chunks of {n(v['ctx']['T2'][1])} tokens. Differences are this file minus "
+          "the other file, so negative values favour this file. Bytes are read from each file. The size limit is "
+          f"UD-IQ3_XXS's {n(ud_bytes)} bytes. bartowski IQ2_M is over it and is shown for context only.", ""]
+    C += mac_table(v, card=True)
+    for k in v["context"]:
+        r1, r2 = v["mrows"][("T1", k)], v["mrows"][("T2", k)]
+        won = all(r["win"] for r in (r1, r2))
+        C += ["", f"{mac_label(v, k)} is over the limit and shown for context. It has "
+                  + ("higher" if won else "not shown to have higher") + f" KL than this file on both sets ({r1['d']} "
+                  f"[{r1['lo']}, {r1['hi']}] on T1, {r2['d']} [{r2['lo']}, {r2['hi']}] on T2)."]
+    C += ["",
+          "## Speed", ""] + speed_par(v)
+    C += ["", "## Stability", "",
+          "The registered stability battery, run on this file and on the Q8_0 reference with the same server settings.", ""]
+    C += stability_lines(v)
+    C += ["", "## File", "",
+          f"- {n(cand_bytes)} bytes. Expert tensor types: {v['files']['cand']['expert tensor types']}. Non-expert "
+          f"tensors: {s['ne']}.",
+          f"- Block-wise allocation chosen from a measured {len(v['blocks'])}-block table at P = {v['P']}. Allocation "
+          f"(gate_up / down): {choice(s['choice'])}.",
+          f"- {'Uses' if cand_ours else 'Uses no tensors from'} our imatrix-weighted Q2_0 encoding (our encoder).",
+          f"- Expert tensors in types the pinned Metal backend cannot multiply: {v['mf']['cand']['off']}.",
+          "- The per-pass result did not shape the allocation. The block map behind it measures looped blocks with all "
+          "passes tied.", "",
+          "## Setup", ""] + setup(v) + ["", "## Provenance", ""] + provenance(v)
+    C += ["", "Outside files in the comparison:", ""] + ext_revisions(v) + [""]
+    return C
 
 
 def check(name: str, s: str) -> list[str]:
@@ -465,10 +799,14 @@ def main() -> None:
     if bad:
         print("\n".join(bad), file=sys.stderr)
         raise SystemExit(1)
+    if v["mac"]:
+        card = DRAFT_LINE + "\n\n" + card  # the only line outside the scan; it names the reviewer
     OUT.mkdir(exist_ok=True)
     (OUT / "note.md").write_text(note, encoding="utf-8")
     (OUT / "MODEL_CARD.md").write_text(card, encoding="utf-8")
-    print(f"wrote drafts/note.md ({len(note.split())} words), drafts/MODEL_CARD.md (stub, not for upload)")
+    kind = (f"Mac-track card, Addendum G rule {v['mq']['verdict']}, stability {'PASS' if v['judge']['pass'] else 'FAIL'}"
+            if v["mac"] else "stub, not for upload")
+    print(f"wrote drafts/note.md ({len(note.split())} words), drafts/MODEL_CARD.md ({kind})")
 
 
 if __name__ == "__main__":

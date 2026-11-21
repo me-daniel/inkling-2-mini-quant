@@ -69,6 +69,40 @@ def repeat_run(text: str) -> int:
     return best
 
 
+def judge(ref: dict, cand: dict, th: dict = THRESHOLDS) -> dict:
+    """Applies the docstring thresholds to two stability-*.json results (reference, candidate).
+
+    Returns {"checks": [{"name", "ref", "cand", "rule", "pass"}, ...], "pass": all checks pass}. The two runs must
+    cover the same battery (same GSM8K item count, generation count, tool prompts and languages)."""
+    for k, size in (("gsm8k", lambda d: d["n"]), ("long_generations", len), ("tool_calls", lambda d: d["n"]),
+                    ("other_languages", len)):
+        if size(ref[k]) != size(cand[k]):
+            raise ValueError(f"{k}: the two runs cover different batteries")
+    g_ref, g_cand = ref["gsm8k"], cand["gsm8k"]
+    d4 = min(g["distinct4"] for g in cand["long_generations"])
+    rr = max(g["repeat_run"] for g in cand["long_generations"])
+    langs = sum(x["ok"] for x in cand["other_languages"])
+    checks = [
+        ("lowest distinct 4-gram ratio over the long generations", min(g["distinct4"] for g in ref["long_generations"]), d4,
+         f"no generation below {th['distinct4_min']:.2f}", d4 >= th["distinct4_min"]),
+        ("longest repeated-line run over the long generations", max(g["repeat_run"] for g in ref["long_generations"]), rr,
+         f"no generation above {th['repeat_run_max']}", rr <= th["repeat_run_max"]),
+        ("planted fact found in the long prompt", ref["long_context"]["found"], cand["long_context"]["found"],
+         "found if the reference finds it", cand["long_context"]["found"] or not ref["long_context"]["found"]),
+        ("valid tool calls", f"{ref['tool_calls']['valid']} of {ref['tool_calls']['n']}",
+         f"{cand['tool_calls']['valid']} of {cand['tool_calls']['n']}", f"at most {th['tool_drop_max']} fewer",
+         cand["tool_calls"]["valid"] >= ref["tool_calls"]["valid"] - th["tool_drop_max"]),
+        ("non-English replies that pass", f"{sum(x['ok'] for x in ref['other_languages'])} of {len(ref['other_languages'])}",
+         f"{langs} of {len(cand['other_languages'])}", "all pass", langs == len(cand["other_languages"])),
+        ("GSM8K correct", f"{g_ref['correct']} of {g_ref['n']}", f"{g_cand['correct']} of {g_cand['n']}",
+         f"at most {th['gsm8k_drop_max']} below", g_cand["correct"] >= g_ref["correct"] - th["gsm8k_drop_max"]),
+        ("GSM8K replies that hit the cap", g_ref["capped"], g_cand["capped"], f"at most {th['cap_rise_max']} more",
+         g_cand["capped"] <= g_ref["capped"] + th["cap_rise_max"]),
+    ]
+    out = [dict(name=n, ref=r, cand=c, rule=rule, **{"pass": bool(ok)}) for n, r, c, rule, ok in checks]
+    return {"checks": out, "pass": all(c["pass"] for c in out)}
+
+
 def main() -> None:
     name, model = sys.argv[1], sys.argv[2]
     log = open(ROOT / f"logs/stability-{name}.log", "w")

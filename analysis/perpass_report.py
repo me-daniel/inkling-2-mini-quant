@@ -283,8 +283,8 @@ def main() -> None:
               "column (entries within 10 nats of the base's top) is a head-restricted substitute for it. The "
               "full-vocabulary column, where present, keeps the floored entries as written. Three choices deviate "
               "from CHANGELOG.md: the Fisher primary norm, the 10-nat head, and a pooled ratio of sums instead of run 4's "
-              "per-token ratio. They were fixed in code before the first per-pass logits existed but are not yet "
-              "recorded in CHANGELOG.md (`reviews/2026-11-21-audit-perpass-opus.md`, finding 3).", ""]
+              "per-token ratio. They were fixed in code before the first per-pass logits existed and are recorded "
+              "in CHANGELOG.md, Addendum G section 2, awaiting approval (`reviews/2026-11-21-audit-perpass-opus.md`, finding 3).", ""]
     lines += stats_table(res)
     rc = res["fisher"]["r_chunks"]
     lines += ["", f"Fisher r per chunk: min {min(rc):.3f}, median {float(np.median(rc)):.3f}, max {max(rc):.3f} "
@@ -304,9 +304,11 @@ def main() -> None:
     if "noise-tied" in kc:
         ta = noise.paired_ratio([kc["noise-tied"]], [kc["all"]])
         lines.append(f"KL tied / KL all (2-bit): {ta['ratio']:.3f} [{ta['ci95'][0]:.3f}, {ta['ci95'][1]:.3f}].")
+    tied = [k for k in ("noise-tied", "noise-tied2", "noise-tied3") if k in kc]
     lines += ["", "Each condition is one draw per pass, so tying is confounded with which draws sit on passes 2 and 3. "
-              "The CI covers chunk sampling only. Not yet run: noise-tied with draws 2 and 3 (two splices and two "
-              "llama-perplexity runs); the spread of the three tied KLs bounds the draw effect.", "",
+              "The CI covers chunk sampling only. Tied draws scored (Addendum G): "
+              + ", ".join(f"{k} KL {kc[k].mean():.5f}" for k in tied)
+              + f". The independent condition has one draw (KL {kc['noise-indep'].mean():.5f}).", "",
               "Addendum A also predicts independent ~ sum of single-pass effects. This prediction is not tested: no "
               "Gaussian single-pass condition was run, and the 2-bit single passes cannot stand in for one (registered "
               "prediction, point 7).", ""]

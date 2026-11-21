@@ -44,7 +44,7 @@ Three additivity comparators, all against the sum of the single passes: KL all /
 
 From `results/pilot/perpass-residual.json` (`analysis/per_pass.py`). d_k = logp(pass k only) - logp(base), R = d_all - sum_k d_k, pooled over all scored tokens as a ratio of sums. Point estimate [95% percentile bootstrap over chunks].
 
-Fisher is the primary norm. The registered prediction asks for centred Euclidean over the full vocabulary. That form cannot be computed faithfully from these files: the writer floors every value more than 16 nats below the top, and the floored entries hold the floor, not the model's log-probs. The head Euclidean column (entries within 10 nats of the base's top) is a head-restricted substitute for it. The full-vocabulary column, where present, keeps the floored entries as written. Three choices deviate from CHANGELOG.md: the Fisher primary norm, the 10-nat head, and a pooled ratio of sums instead of run 4's per-token ratio. They were fixed in code before the first per-pass logits existed but are not yet recorded in CHANGELOG.md (`reviews/2026-11-21-audit-perpass-opus.md`, finding 3).
+Fisher is the primary norm. The registered prediction asks for centred Euclidean over the full vocabulary. That form cannot be computed faithfully from these files: the writer floors every value more than 16 nats below the top, and the floored entries hold the floor, not the model's log-probs. The head Euclidean column (entries within 10 nats of the base's top) is a head-restricted substitute for it. The full-vocabulary column, where present, keeps the floored entries as written. Three choices deviate from CHANGELOG.md: the Fisher primary norm, the 10-nat head, and a pooled ratio of sums instead of run 4's per-token ratio. They were fixed in code before the first per-pass logits existed and are recorded in CHANGELOG.md, Addendum G section 2, awaiting approval (`reviews/2026-11-21-audit-perpass-opus.md`, finding 3).
 
 | Statistic | Fisher | head Euclidean (substitute) | full vocabulary (floor included) |
 |---|---|---|---|
@@ -73,7 +73,7 @@ Relative l2 error per expert tensor, mean over experts, from `results/pilot/nois
 From `results/pilot/noise-ratio.txt` (`analysis/noise.py`): KL tied 0.06353, independent 0.05311, ratio 1.196 [1.169, 1.225] (paired bootstrap over chunks).
 KL tied / KL all (2-bit): 1.025 [0.997, 1.056].
 
-Each condition is one draw per pass, so tying is confounded with which draws sit on passes 2 and 3. The CI covers chunk sampling only. Not yet run: noise-tied with draws 2 and 3 (two splices and two llama-perplexity runs); the spread of the three tied KLs bounds the draw effect.
+Each condition is one draw per pass, so tying is confounded with which draws sit on passes 2 and 3. The CI covers chunk sampling only. Tied draws scored (Addendum G): noise-tied KL 0.06353, noise-tied2 KL 0.06488, noise-tied3 KL 0.06493. The independent condition has one draw (KL 0.05311).
 
 Addendum A also predicts independent ~ sum of single-pass effects. This prediction is not tested: no Gaussian single-pass condition was run, and the 2-bit single passes cannot stand in for one (registered prediction, point 7).
 
