@@ -92,4 +92,30 @@ Every change to H1 to H5, metrics or gates goes into `CHANGELOG.md` with a date 
 
 ## 7. Opus 5.5 (xhigh)
 
-Pending. To be added when it returns, with any point that changes sections 1 to 6.
+Opus agrees with sections 1 and 2 on every point: per-pass causal test at P = 3 as rank 1, H1 curve shape not identifiable (KLD ≈ ½·eᵀFe), b12600, Unsloth's seven domains, imatrix pooling, the 52.7 GB logits, no GSQ, LittleBit-2 or QTIP, stay narrow. It independently found the `ffn_down` fallback (1.4), so two of four reviewers caught it.
+
+New points, each checked where marked:
+
+7.1 **Message ablation.** Quantize pass k but feed pass k + 1 the native cross-pass message. That separates error injection from transmission between passes. Read `tanh(gain)` and `tanh(forget)` from the weights for free. Adds the "travels via message or routing" half of the contribution.
+
+7.2 **Three-cell design with B1 as the matched control.** B1 is computed once and consumed P times (restart), B2/B3 are computed P times, B4 once and consumed once. B1 has 6 NVFP4 layers like B2/B3, so it is a better control than B4 (2 layers) or B5 (MXFP8). Define the H1 outcomes in logit space: once means e_all ≈ e_last, per visit means e_all ≈ Σe_k, compound means ‖e_all‖ > ‖Σe_k‖.
+
+7.3 **H4 is near-trivially true as stated.** With only B2 quantized, the layer-6 router input in pass 1 is error-free, so Jaccard starts at 1. Replace with route-lock mediation: force the reference top-8 and measure the share of ΔKLD removed.
+
+7.4 **The 9.14 GB budget may not fit with the fallback** (Est.). Experts are about 24.5B parameters. With non-experts at Q8_0 and down projections forced to IQ4_NL, IQ2_XXS gate_up gives about 2.9 bpw and about 10.4 GB in total. Block-32 down types are required, and B5 has to go well below 4 bits. Recompute before freezing H3's budgets.
+
+7.5 **Nested E2M1 is a diagnostic only.** A 2-bit subset with E4M3 scales per 16 values costs 2.5 bpw, more than IQ2_XXS at about 2.06, and has no kernel. Use it to fill a 2 × 2 grid {native E2M1 grid, new grid} × {4 bits, ≤ 3 bits}, which separates grid change from re-rounding (Q4_K on RTN NVFP4 is double rounding).
+
+7.6 **Reference and non-expert tensors.** The Q8_0 floor (KLD 0.0030, ggml-org; 0.0033 on AtomicChat's corpus, checked) is about a third of UD-Q4_K_XL's KLD. Keep non-experts at BF16 or copy Unsloth's types from `gguf-dump`, not Q8_0 by default. Measure three floors once: Q8_0, engine (MLX or transformers vs llama.cpp), activation numerics.
+
+7.7 **G0 replacement for "± 15%".** Reproduce Unsloth's ratios on our own data instead: Q2_K_XL/IQ3_XXS = 2.21 and IQ3_XXS/Q4_K_XL = 2.51, ± 15%.
+
+7.8 **Scoop timing.** AtomicChat's card already guesses "rounding adds up over the 48 layer passes of the loop; we have not tested it" (checked). Opus puts a public varloop KLD-at-P = 1 to 6 post at 30% within 2 days and 60% within 6 weeks (Est.). Move the public note to about 14 Dec with the P = 3 per-pass result and the timestamped pre-registration.
+
+7.9 **Smaller items.** MTP reads visit indices tied to P = 3: disable MTP at P ≠ 3. The `modelopt` vs `inkling2` clash broke SGLang on Inkling-2-Small; `hf_quant_config.json` is authoritative (SGLang #50583, closed, checked). Calibration data must be disjoint from evaluation; ggml-org's imatrix used bartowski v6, so do not evaluate on v6. AUP: ship the notice with any GGUF, add a 100-prompt refusal check. P = 5 costs about 1.4× P = 3 per token. Continuous batching makes T = 1 non-deterministic.
+
+7.10 **Per-pass instrument options.** gguf-py dequantization injected into a Python graph (transformers PR branch or the MLX fork), gated on reproducing llama.cpp reference logits to KLD < 0.005 within a week; or a llama.cpp C++ patch that loads a second weight set for pass k.
+
+**Changes to section 5.** Item 2 gains the message ablation and the B1 control. Item 7 replaces H4 with route-lock mediation. Item 3 gains the budget recomputation (7.4). Item 5 gains the disjoint-calibration rule. The public note moves to about 14 Dec.
+
+**Opus-only claims not checked:** the forecast percentages, Tier-1 MDEs, and the 10 to 50 GPU-h Tier-1 estimate (a fourth estimate, below Fable's).
