@@ -34,3 +34,17 @@ The pre-registration is version 1 of 20 November 2026 (private page, to be mirro
 **Card wording.** May say: "block-wise allocation chosen from a measured 5-block table at P = 3", exact bytes, tokens, reference and commit, "exploratory". May not say: "loop-aware", "pass-aware", "first", "best", any task-quality claim, any comparison with numbers on other repos' cards, any causal claim about the loop from the pass sweep. The per-pass result may be reported only as "on these documents, at P = 3, changing B2's experts on pass k produced this measured logit change".
 
 **Publication.** Uploads and any public note need Daniel's explicit go at the time.
+
+### Addendum A (2026-11-21, approved by Daniel): linearity-theorem analysis
+
+Exploratory, same status as the entry above. Based on the linearity theorem of Malinovskii et al. (arXiv 2411.17525).
+- For every block b and level, compute the relative l2 error t_b = sum ||W_q - W||^2 / sum ||W||^2 over the block's routed-expert weights, with W the Q8_0 reference weights, dequantized from the GGUF files. Also report a variant weighted by per-expert routing counts from the imatrix.
+- Fit alpha_b = dKL_b / t_b on S from the block map. Report the linear prediction sum_b alpha_b t_b against the measured KL of the release candidate (and of any mixed build measured).
+- Per-pass test: two more conditions on block B2, perturbed with Gaussian noise of the same relative l2 error as the 2-bit level: tied (the same draw on all three passes) and independent (a different draw per pass). Seeds fixed in the script before running. Prediction under the theorem's additivity: independent ~ sum of single-pass effects; tied larger if the cross-pass terms are positive.
+- The release allocation may use dynamic programming over alpha_b t_b under the byte budget, written by Daniel.
+
+### Addendum B (2026-11-21, approved by Daniel): base of the per-pass test
+
+The per-pass and noise conditions (run 4 and Addendum A) use our IQ4_NL build as the base instead of the Q8_0 reference: on a Q8_0 base, "pass 1 only" needs Q8_0 copies of layers 6-11 for passes 2 and 3 (about 36-41 GB), above the memory limit. Block B2's 2-bit tensors come from the 2-bit pool; all other tensors stay as in the IQ4_NL build. The outcome (residual ratio) is computed relative to the IQ4_NL base at P = 3; KL of every condition against the Q8_0 reference at P = 3 is also reported.
+
+**Operating limits (approved 21 Nov):** single runs up to 32 GB of memory, one heavy run at a time; up to 350 GB of disk in `models/`; about 14-18 h of unattended Mac runs; up to 10 light and 3 heavy support-model calls; no extra downloads; no GCP. Uploads and public posts still need Daniel's go at the time, private repository first.
