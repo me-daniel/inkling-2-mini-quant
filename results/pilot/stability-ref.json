@@ -1,5 +1,5 @@
 {
- "model": "~/GitHub/inkling-2-mini-quant/models/Inkling-2-Mini-Q8_0.gguf",
+ "model": "models/Inkling-2-Mini-Q8_0.gguf",
  "thresholds": {
   "distinct4_min": 0.3,
   "repeat_run_max": 5,

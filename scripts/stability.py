@@ -109,7 +109,8 @@ def main() -> None:
     server = subprocess.Popen([str(BIN / "llama-server"), "-m", model, "-ngl", "99", "-c", "24576", "-np", "1",
                                "--port", str(PORT), "--override-kv", "inkling2_loop.loop.count=int:3"],
                               stdout=log, stderr=subprocess.STDOUT)
-    out = {"model": model, "thresholds": THRESHOLDS}
+    # repo-relative, so result files carry no home path
+    out = {"model": str(Path(model).resolve().relative_to(ROOT)) if Path(model).resolve().is_relative_to(ROOT) else Path(model).name, "thresholds": THRESHOLDS}
     try:
         for _ in range(900):
             try:

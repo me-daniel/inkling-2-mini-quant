@@ -22,6 +22,8 @@ def load() -> dict[str, dict]:
 
 
 def paired(a: np.ndarray, b: np.ndarray, n_boot: int = 10000, seed: int = 0) -> tuple[float, float, float]:
+    if a.shape != b.shape:
+        raise ValueError(f"paired runs need the same chunks: {a.shape} vs {b.shape}")
     d = a - b
     idx = np.random.default_rng(seed).integers(0, d.size, size=(n_boot, d.size))
     boots = d[idx].mean(axis=1)

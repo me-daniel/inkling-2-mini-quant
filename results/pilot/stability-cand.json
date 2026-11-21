@@ -1,5 +1,5 @@
 {
- "model": "~/GitHub/inkling-2-mini-quant/models/cand.gguf",
+ "model": "models/cand.gguf",
  "thresholds": {
   "distinct4_min": 0.3,
   "repeat_run_max": 5,

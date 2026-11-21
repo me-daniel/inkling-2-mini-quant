@@ -1,7 +1,8 @@
 """Collects every llama-perplexity KL log in logs/ into results/pilot/kl.tsv (one row per run, per-chunk values).
 
 The chunk lines of a KL log hold running means; every chunk scores the same number of positions, so the mean of
-chunk k is k * m_k - (k - 1) * m_(k-1). Also records the wall time of each run (for the pass-count check).
+chunk k is k * m_k - (k - 1) * m_(k-1). Every chunk line must parse (checked against 'computing over N chunks').
+The seconds column is nan: llama-perplexity logs carry no total time (wall time is in the chain logs).
 """
 
 from __future__ import annotations
@@ -10,7 +11,8 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-CHUNK = re.compile(r"^\s*(\d+)\s+[\d.]+\s+±\s+[\d.]+\s+-?[\d.]+\s+±\s+[\d.]+\s+([\d.]+)\s+±\s+[\d.]+\s+[\d.]+\s+±\s+[\d.]+\s+%\s+([\d.]+)\s+±")
+NUM = r"-?(?:[\d.]+|nan|inf)"  # llama-perplexity prints nan for an undefined SE (e.g. chunks 1-2 of identical runs)
+CHUNK = re.compile(rf"^\s*(\d+)\s+{NUM}\s+±\s+{NUM}\s+{NUM}\s+±\s+{NUM}\s+([\d.]+)\s+±\s+{NUM}\s+{NUM}\s+±\s+{NUM}\s+%\s+([\d.]+)\s+±")
 
 
 def parse(log: Path) -> dict | None:
@@ -19,6 +21,11 @@ def parse(log: Path) -> dict | None:
     if not mean:
         return None
     running = [(int(m.group(1)), float(m.group(2)), float(m.group(3))) for m in map(CHUNK.match, text.splitlines()) if m]
+    # the telescoping below needs every chunk; a skipped line would silently shift the next chunk's value
+    n = re.search(r"computing over (\d+) chunks", text)
+    want = list(range(1, int(n.group(1)) + 1)) if n else list(range(1, len(running) + 1))
+    if [k for k, _, _ in running] != want:
+        raise ValueError(f"{log.name}: chunk lines {[k for k, _, _ in running]} != 1..{len(want)}")
     per_chunk, prev = [], 0.0
     for k, m, _ in running:
         per_chunk.append(k * m - (k - 1) * prev)

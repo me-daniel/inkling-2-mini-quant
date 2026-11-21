@@ -52,6 +52,36 @@ def main(top: int = 8, n_pick: int = 4) -> None:
     kl = measured()
     el, rest_q8, rest_q6 = tensor_table()
 
+    options = block_options(kl, el)
+    if any(not o for o in options.values()):
+        sys.exit(f"map incomplete: {[b for b, o in options.items() if not o]}")
+
+    ne = {"Q8_0": (0.0, rest_q8)}
+    if kl.get("map-NE-Q6K-S-P3") is not None:
+        ne["Q6_K"] = (kl["map-NE-Q6K-S-P3"], rest_q6)
+    best = []
+    for combo in itertools.product(*options.values()):
+        kl_exp = sum(o[2] for o in combo)
+        by_exp = sum(o[3] for o in combo)
+        for ne_t, (ne_kl, ne_bytes) in ne.items():
+            if by_exp + ne_bytes <= BUDGET:
+                best.append((kl_exp + ne_kl, by_exp + ne_bytes, ne_t, combo))
+    best.sort(key=lambda r: r[0])
+    for pred, nbytes, ne_t, combo in best[:top]:
+        print(f"predicted KL {pred:.5f}  bytes {nbytes:,} ({(BUDGET - nbytes) / 1e6:.0f} MB spare)  NE {ne_t}  {describe(combo)}")
+    # the prediction is only additive, so phase 4 builds and measures several structurally different allocations
+    # (each differs from every earlier pick in at least 2 of the 11 choices) and keeps the measured best
+    out = diverse_picks(best, n_pick)
+    for c in out:
+        if budget_price(rules_of(c)) != c["bytes"]:
+            sys.exit("byte check failed: the per-block sum and the full pricing disagree")
+    (ROOT / "results/pilot/allocation-top.json").write_text(json.dumps(out, indent=1))
+    print(f"wrote {len(out)} candidates to results/pilot/allocation-top.json")
+
+
+def block_options(kl: dict, el: dict) -> dict:
+    """Per block, every (gate_up, down) choice with its predicted KL and bytes. Additive per projection (Addendum E):
+    KL(3bit) + [gate_up change] + [down change], each change from the map level that differs in that projection only."""
     def m(b: str, lvl: str) -> float | None:
         return kl.get(f"map-{b}-{lvl}-S-P3")
 
@@ -68,24 +98,12 @@ def main(top: int = 8, n_pick: int = 4) -> None:
                 nbytes = sum(budget.tensor_bytes(el[(l, "gu")], budget.Q[GGML[gu]]) + budget.tensor_bytes(el[(l, "dn")], budget.Q[GGML[dn]]) for l in layers)
                 opts.append((gu, dn, base + dgu + ddn, nbytes))
         options[b] = opts
-    if any(not o for o in options.values()):
-        sys.exit(f"map incomplete: {[b for b, o in options.items() if not o]}")
+    return options
 
-    ne = {"Q8_0": (0.0, rest_q8)}
-    if m("NE", "Q6K") is not None:
-        ne["Q6_K"] = (m("NE", "Q6K"), rest_q6)
-    best = []
-    for combo in itertools.product(*options.values()):
-        kl_exp = sum(o[2] for o in combo)
-        by_exp = sum(o[3] for o in combo)
-        for ne_t, (ne_kl, ne_bytes) in ne.items():
-            if by_exp + ne_bytes <= BUDGET:
-                best.append((kl_exp + ne_kl, by_exp + ne_bytes, ne_t, combo))
-    best.sort(key=lambda r: r[0])
-    for pred, nbytes, ne_t, combo in best[:top]:
-        print(f"predicted KL {pred:.5f}  bytes {nbytes:,} ({(BUDGET - nbytes) / 1e6:.0f} MB spare)  NE {ne_t}  {describe(combo)}")
-    # the prediction is only additive, so phase 4 builds and measures several structurally different allocations
-    # (each differs from every earlier pick in at least 2 of the 11 choices) and keeps the measured best
+
+def diverse_picks(best: list, n_pick: int) -> list[dict]:
+    """Walks the predicted ranking and keeps allocations that differ from every earlier pick in at least 2 of the
+    11 choices (NE type plus gate_up and down per block)."""
     picks = []
     for pred, nbytes, ne_t, combo in best:
         key = [ne_t] + [x for o in combo for x in o[:2]]
@@ -93,12 +111,7 @@ def main(top: int = 8, n_pick: int = 4) -> None:
             picks.append((key, {"predicted_kl": pred, "bytes": nbytes, "ne": ne_t, "choice": {b: list(o[:2]) for b, o in zip(BLOCKS, combo)}}))
         if len(picks) == n_pick:
             break
-    out = [c for _, c in picks]
-    for c in out:
-        if budget_price(rules_of(c)) != c["bytes"]:
-            sys.exit("byte check failed: the per-block sum and the full pricing disagree")
-    (ROOT / "results/pilot/allocation-top.json").write_text(json.dumps(out, indent=1))
-    print(f"wrote {len(out)} candidates to results/pilot/allocation-top.json")
+    return [c for _, c in picks]
 
 
 def describe(combo) -> str:
