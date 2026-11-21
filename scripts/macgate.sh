@@ -11,7 +11,7 @@ BIN="$ROOT/vendor/llama.cpp/build/bin"
 M="$ROOT/models"; L="$ROOT/logs"; K="$M/logits"; T="$M/tmp"; R="$ROOT/results/pilot"; E="$M/ext"
 PY="$ROOT/.venv/bin/python -I"
 B2='^blk\.(6|7|8|9|10|11)\.ffn_(gate_up|down)_exps\.weight$'
-EXT="bart-IQ2_S atomic-AD-IQ2_S apex-I-Nano bart-IQ2_M isvalorum-NanoPlus prithiv-Q2_K"
+EXT="bart-IQ2_S atomic-AD-IQ2_S apex-I-Nano bart-IQ2_M isvalorum-NanoPlus prithiv-Q2_K bart-Q2_K"
 mkdir -p "$T"
 step() { echo "[$(date '+%H:%M:%S')] $*"; }
 done_log() { [ -f "$1" ] && grep -q 'Mean *KLD' "$1"; }
@@ -38,6 +38,8 @@ done
 
 # 3
 for name in $EXT; do
+    # already scored (the file may be deleted for disk since): skip without waiting for it
+    if [ -f "$R/types-$name.txt" ] && done_log "$L/ppl-final-$name-T1-P3.log" && done_log "$L/ppl-final-$name-T2-P3.log"; then continue; fi
     while [ ! -e "$E/$name.gguf" ]; do sleep 60; done
     [ -f "$R/types-$name.txt" ] || $PY "$ROOT/scripts/gguf-types.py" "$E/$name.gguf" > "$R/types-$name.txt"
     for t in T1 T2; do
@@ -52,9 +54,11 @@ $PY "$ROOT/analysis/maptable.py" > /dev/null
 # shellcheck disable=SC2086
 $PY "$ROOT/analysis/compare.py" cand bart-IQ2_S atomic-AD-IQ2_S apex-I-Nano isvalorum-NanoPlus prithiv-Q2_K | tee "$R/mac-quality.txt"
 $PY "$ROOT/analysis/compare.py" cand bart-IQ2_M | grep -v 'quality gate' > "$R/mac-context-IQ2_M.txt"
+# Addendum H6: every all-Metal file under 12 GB we scored
+$PY "$ROOT/analysis/compare.py" cand bart-IQ2_S atomic-AD-IQ2_S apex-I-Nano isvalorum-NanoPlus prithiv-Q2_K bart-IQ2_M bart-Q2_K | tee "$R/under12-quality.txt"
 
-# 4
-for name in cand uniform-IQ3_XXS UD-IQ3_XXS $EXT; do
+# 4 (only with BENCH=1, on an idle machine)
+[ "${BENCH:-0}" = 1 ] && for name in cand uniform-IQ3_XXS UD-IQ3_XXS $EXT; do
     [ -f "$R/bench-$name.txt" ] && continue
     f="$M/$name.gguf"; [ -e "$f" ] || f="$E/$name.gguf"
     step "bench $name"
