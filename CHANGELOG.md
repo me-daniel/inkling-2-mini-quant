@@ -63,3 +63,11 @@ The logged 2-bit level changes gate_up (IQ2_XXS) and down (Q2_0) together, and Q
 - Two more map levels per block (S, P = 3, Q8_0 reference elsewhere): gate_up IQ2_S with down IQ4_NL, and gate_up IQ2_XXS with down IQ4_NL. 10 builds.
 - Candidate gate_up types are widened to IQ2_XXS, IQ2_XS, IQ2_S, IQ3_XXS, IQ3_S and IQ4_XS (all Metal-supported).
 - For comparison only: Unsloth's `UD-IQ3_XXS` puts 2-bit gate_up in layers 0-8, 12 and 18 and IQ3_XXS elsewhere, with native NVFP4 down in layers 0-19 (read from its tensor types).
+
+### Addendum E (2026-11-21, before any release-candidate data): imatrix-weighted Q2_0 encoder
+
+Found by an Astra-high report (`reviews/2026-11-21-daslab-gpt-6.2-astra.md`) and confirmed in source: llama.cpp's Q2_0 reference encoder sets the scale to max|w|, so the level 2d is never used, and it ignores the imatrix. `scripts/q2opt.py` searches signed scales on all four levels, refits each block's scale by imatrix-weighted least squares and keeps the stock encoding as a candidate. On layer 0 the relative weight error falls from 0.515 to 0.135 (down) and 0.516 to 0.130 (gate_up); the format, kernels and bytes are unchanged (Q2_0 runs on Metal).
+- Two more map levels per block (S, P = 3, Q8_0 reference elsewhere): gate_up IQ3_XXS with optimized-Q2_0 down ("dnq2o"), and optimized Q2_0 for both projections ("q2o"). 10 builds.
+- The allocator becomes additive per projection within a block: cost(gate_up, down) = KL(3bit) + [gate_up change] + [down change], each change taken from the map level that differs from 3bit in that projection only. Its prediction is checked on the release candidate as before.
+- The candidate may use optimized-Q2_0 tensors (type Q2_0), spliced byte for byte into the llama-quantize build.
+- Card wording, added: "imatrix-weighted Q2_0 encoding (our encoder)". Not allowed: any claim of GSQ, GPTQ or RCO.
