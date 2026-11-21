@@ -1,0 +1,37 @@
+You are writing an independent technical report for a one-person research project. Today is 21 Nov 2026. Research the live web (arXiv, IST-DASLab GitHub repos and Hugging Face org, llama.cpp and transformers PRs) and trust it over memory. Never invent a paper, repo, number or link; label claims V (authors about their own work), I (independent), Est. (your estimate) or Verify (not confirmed). Number every point. Be blunt and concrete. 1,500-2,500 words.
+
+## Project state (as of 05:20 on 21 Nov)
+- Model: Inkling 2 Mini (Thinking Machines, released 20 Nov 2026): looped MoE, 26.4B total / 3.4B active, 24 stored layers, layers 6-17 run 3 times per token (each pass restarts from layer 5's output and gets rank-64 gated messages from the previous pass), 128 experts top-8. Experts ship as NVFP4 (layers 0-19) and MXFP8 (20-23); no BF16 master exists. Expert down projections are 1,152 wide (not a multiple of 256, so 256-block GGUF types like K-quants and IQ2/IQ3 cannot be used there; block-32/64 types Q2_0, Q4_0, IQ4_NL can).
+- Tooling: llama.cpp b12600 pinned with 7 local patches (upstream scale fix #32704, per-pass expert slots so one loop pass can use different weights, a converter speedup), a byte-exact GGUF splicer, a byte-budget calculator, gguf-py (dequantizes all GGUF types; quantizes only Q8_0, Q4_0/1, Q5_0/1, Q2_0, TQ, BF16, MXFP4), ggml-org's imatrix (computed at 3 passes, pooled over passes, per-expert counts). transformers support for the model is an open, unmerged PR (#51050); MLX support is a draft PR.
+- Hardware: MacBook Pro M5 Pro, 48 GB unified memory (GPU wired limit 40 GB), 638 GB free disk; an RTX 3080 Ti laptop with 16 GB; GCP credits (50-200 GPU-h, each spend needs approval; H100/H200 only as 8-GPU nodes; a 1x RTX PRO 6000 96 GB G4 instance exists).
+- Measured so far (KL against a Q8_0 reference, 16 chunks x 4,096 tokens of WikiText-2 test, P = 3): Q8_0 run-to-run 0 exactly; whole-model IQ4_NL 0.0162. Per 6-layer block, others at Q8_0: layers 0-5 at 2-bit (IQ2_XXS gate_up + Q2_0 down) 0.0279, at 3-bit (IQ3_XXS gate_up + IQ4_NL down) 0.0053; layers 6-11 (looped) 0.0624 and 0.0082. Relative l2 weight error: IQ2_XXS gate_up 0.12, Q2_0 down 0.52 (llama.cpp's Q2_0 ignores the imatrix), IQ3_XXS gate_up 0.035, IQ4_NL down 0.005.
+- Competitor: Unsloth's UD-IQ3_XXS (11,663,310,784 bytes) now runs on official llama.cpp with #32704. It keeps the down projections of layers 0-19 as native NVFP4 (lossless, 4.5 bpw; verified equal to the release weights), puts IQ2_S/IQ2_XS/IQ2_XXS gate_up in layers 0-8, 12, 18 and IQ3_XXS elsewhere, non-experts Q4_K-Q8_0. The pinned Metal backend cannot multiply NVFP4, so on Macs those down projections run on the CPU.
+- Our pilot plan for the next hours: block map and gate_up-only levels, a per-pass causal test of quantization error (2-bit on pass 1 only / 2 only / 3 only / all, plus tied vs independent Gaussian noise to test DASLab's linearity theorem, arXiv 2411.17525, under weight sharing), then an 11.66 GB "Metal-only" candidate allocated by dynamic programming over measured block KLs, compared head-to-head with UD-IQ3_XXS on held-out text, with speed measured. Upload only if it wins.
+
+## Statement to analyse (written by the project's assistant earlier today)
+<<<
+What would be needed or when would it be useful to actually use DASLab's popular quantization?
+
+It becomes worth it once our question shifts from where the error comes from to the best possible model at a given size. Right now three things block it.
+
+What's needed for DASLab's methods
+- GSQ (their strongest 2-3-bit scalar quantizer, which can refine GGUF K-quants):
+  - A working PyTorch forward pass for Inkling 2 Mini. That means transformers PR #51050 merged, or patched, which is about 1-2 weeks of their own estimates.
+  - A per-model wrapper. GSQ expects standard HF architectures, and the loop with per-pass messages isn't one.
+  - GPUs: they list 4xH200 for a 30B MoE. On GCP, H100/H200 only come as 8-GPU nodes at about $51-53/h, so roughly $200-500 per run. The reviewers estimated 3-5 weeks and 30-80 GPU-h.
+  - Export back to GGUF. GSQ refines K-quants, which can't use the 1,152-wide down projections, so the down projections would need separate handling.
+- GSQ-RCO (GSQ plus their exact-budget allocator): everything above, plus gradients through the full looped forward pass. That's 4-8 weeks and 100-250+ GPU-h.
+- HIGGS quantization (Hadamard rotations with MSE-optimal grids): kernels in the runtime. llama.cpp and MLX don't have them, so it's only usable as an offline accuracy experiment.
+- MR-GPTQ, MoESQ, QuTLASS: NVIDIA Blackwell FP4 kernels. Useless for GGUF or Mac deployment.
+
+When it would be useful
+1. For the release model, after the pilot. If our Metal-only candidate loses to Unsloth on quality, or only ties, GSQ is the most plausible way to win at the same size. That's because it fixes the rounding itself, not just the bit allocation.
+2. When the tooling unblocks. Once the transformers PR merges, the PyTorch path opens and the cost drops to roughly the GPU time.
+3. For the thesis, as an H3 baseline. RCO optimizes the real loss through the looped forward pass, so it's implicitly pass-aware. Comparing our pass-aware allocation against RCO would show whether understanding the loop beats brute-force optimization. That comparison also speaks DASLab's language.
+4. If DASLab publishes GSQ-RCO GGUFs of Mini themselves. The reviewers gave that about a 35% chance within 2-6 weeks. Then it costs nothing and becomes the strongest external baseline.
+>>>
+
+## Your tasks
+A. Check every factual claim in the statement against current sources (GSQ requirements and its GGUF K-quant refinement, GSQ-RCO, RCO, HIGGS and its linearity theorem, MR-GPTQ, MoESQ, QuTLASS, any newer IST-DASLab work up to today, their Hugging Face GGUF releases, whether they have touched Inkling or looped models). Mark each claim correct, partly correct or wrong, with the source. Point out anything important the statement misses.
+B. The real question: how could this project quickly build something DASLab-like for a special release, within 1-3 days, on the hardware above and with llama.cpp/GGUF as the deployment target (Metal-only types preferred)? Consider at least: (1) GPTQ/OBS-style rounding of the expert weights from layer-wise Hessians captured through llama.cpp (what capture is needed: full X^T X per expert vs the imatrix diagonal; memory and disk for 128 experts x 2304^2; whether the visit-summed Hessian of Feedback Exposure, arXiv 2609.30820, applies), and whether the result can be written into existing GGUF types without new kernels (which formats allow choosing the rounded values freely: Q4_0, IQ4_NL, Q2_0, K-quants, IQ2/IQ3 codebooks); (2) GSQ-style refinement of GGUF codes restricted to what is feasible without a PyTorch model forward; (3) the linearity-theorem allocator, made pass-aware, versus RCO; (4) an imatrix-aware Q2_0 or better block-64 2-bit encoder for the 1,152-wide down projections; (5) using native NVFP4 values (E2M1 grid subsets reusing E4M3 scales) as a lossless or near-lossless path that also runs on Metal (e.g. re-encoding into MXFP4 or IQ4_NL with chosen codes); (6) anything else you find. For each: what it adds, exact steps, runtime on an M5 Pro or a G4, the main risk, and whether it would let the model credibly beat UD-IQ3_XXS at equal bytes.
+C. A ranked recommendation: the one approach to build first for a release in 48 hours, the follow-up for the thesis, and what must not be claimed.
