@@ -13,6 +13,11 @@ PY="$ROOT/.venv/bin/python -I"
 B2='^blk\.(6|7|8|9|10|11)\.ffn_(gate_up|down)_exps\.weight$'
 EXT="bart-IQ2_S atomic-AD-IQ2_S apex-I-Nano bart-IQ2_M isvalorum-NanoPlus prithiv-Q2_K bart-Q2_K"
 mkdir -p "$T"
+# shared with the sibling repo on this Mac: one heavy GPU run at a time (lock holds the owner's name)
+GLOCK="$HOME/GitHub/.gpu.lock"
+gpu_take() { while [ -f "$GLOCK" ] && [ "$(cat "$GLOCK" 2>/dev/null)" != "inkling-2-mini-quant" ]; do sleep 30; done; echo inkling-2-mini-quant > "$GLOCK"; }
+gpu_give() { [ "$(cat "$GLOCK" 2>/dev/null)" = "inkling-2-mini-quant" ] && rm -f "$GLOCK"; return 0; }
+trap gpu_give EXIT
 step() { echo "[$(date '+%H:%M:%S')] $*"; }
 # one heavy GPU run at a time: wait while another chain holds the lock
 while [ -f "$ROOT/logs/gpu.lock" ]; do sleep 30; done
@@ -25,8 +30,10 @@ for d in 2 3; do
     step "splice noise-tied$d"
     $PY "$ROOT/scripts/splice.py" "$M/Inkling-2-Mini-IQ4_NL.gguf" "$T/pp-noise-tied$d.gguf" --take "$M/noise-$d.gguf" "$B2" --verify > "$L/splice-pp-noise-tied$d.json"
     step "logits noise-tied$d"
+    gpu_take
     "$BIN/llama-perplexity" -m "$T/pp-noise-tied$d.gguf" -f "$ROOT/data/S.txt" -c 4096 --chunks 16 -ngl 99 \
         --override-kv "inkling2_loop.loop.count=int:3" --kl-divergence-base "$kld.part" > "$L/ppl-pp-noise-tied$d.log" 2>&1
+    gpu_give
     mv "$kld.part" "$kld"; rm -f "$T/pp-noise-tied$d.gguf"
 done
 grep -q '^noise-tied3	' "$R/perpass-kl.tsv" || { step "per-pass KL table"; sh "$ROOT/scripts/perpass-kl.sh" > /dev/null; }
@@ -47,8 +54,10 @@ for name in $EXT; do
     for t in T1 T2; do
         log="$L/ppl-final-$name-$t-P3.log"; done_log "$log" && continue
         step "KL $name on $t"
+        gpu_take
         "$BIN/llama-perplexity" -m "$E/$name.gguf" -f "$ROOT/data/$t.txt" -c "$(ctx "$t")" -ngl 99 --override-kv "inkling2_loop.loop.count=int:3" \
             --kl-divergence-base "$K/ref-$t-P3.kld" --kl-divergence > "$log" 2>&1
+    gpu_give
         grep -E 'Mean +KLD|Same top p' "$log" || true
     done
 done

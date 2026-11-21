@@ -20,6 +20,11 @@ L2="6 7 8 9 10 11"; L3="12 13 14 15 16 17"
 KL="$R/perpass3-kl.tsv"
 mkdir -p "$T" "$K"
 
+# shared with the sibling repo on this Mac: one heavy GPU run at a time (lock holds the owner's name)
+GLOCK="$HOME/GitHub/.gpu.lock"
+gpu_take() { while [ -f "$GLOCK" ] && [ "$(cat "$GLOCK" 2>/dev/null)" != "inkling-2-mini-quant" ]; do sleep 30; done; echo inkling-2-mini-quant > "$GLOCK"; }
+gpu_give() { [ "$(cat "$GLOCK" 2>/dev/null)" = "inkling-2-mini-quant" ] && rm -f "$GLOCK"; return 0; }
+trap gpu_give EXIT
 step() { echo "[$(date '+%H:%M:%S')] $*"; }
 # slots DONOR PASS LAYERS: --slot args putting DONOR's experts of each layer into that layer's cache slot for PASS
 slots() { for l in $3; do printf ' --slot %s %s %s' "$1" "$l" $((24 + ($2 - 2) * 12 + l - 6)); done; }
@@ -33,8 +38,10 @@ run() { # cond splice-args...
     # shellcheck disable=SC2086
     $PY "$ROOT/scripts/splice.py" "$BASE" "$T/pp-$cond.gguf" "$@" --verify > "$L/splice-pp-$cond.json"
     step "logits $cond"
+    gpu_take
     "$BIN/llama-perplexity" -m "$T/pp-$cond.gguf" -f "$ROOT/data/S.txt" -c 4096 --chunks 16 -ngl 99 \
         --override-kv "inkling2_loop.loop.count=int:3" --kl-divergence-base "$kld.part" > "$L/ppl-pp-$cond.log" 2>&1
+    gpu_give
     mv "$kld.part" "$kld"
     rm -f "$T/pp-$cond.gguf"
 }
