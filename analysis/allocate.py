@@ -11,9 +11,7 @@ from __future__ import annotations
 import csv
 import itertools
 import json
-import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -36,10 +34,26 @@ def rules(choice: dict[str, str], ne: str) -> dict:
     return {"default": ne, "rules": out}
 
 
+sys.path.insert(0, str(ROOT / "scripts"))
+import budget  # noqa: E402
+
+_TENSORS: list | None = None
+
+
 def price(alloc: dict) -> int:
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
-        json.dump(alloc, f)
-    return int(subprocess.run([sys.executable, "-I", str(ROOT / "scripts/budget.py"), f.name], capture_output=True, text=True, check=True).stdout)
+    """Same arithmetic as scripts/budget.py, on a tensor list read once."""
+    global _TENSORS
+    if _TENSORS is None:
+        _TENSORS = [(t.name, int(t.n_elements), t.tensor_type, int(t.n_bytes)) for t in budget.gguf.GGUFReader(budget.REF).tensors]
+    rules = [(budget.re.compile(rx), budget.Q[t.upper()]) for rx, t in alloc["rules"]]
+    default = budget.Q[alloc["default"].upper()]
+    total = 0
+    for name, n, qtype, nbytes in _TENSORS:
+        if qtype in (budget.Q.F32, budget.Q.F16, budget.Q.BF16):
+            total += nbytes
+            continue
+        total += budget.tensor_bytes(n, next((q for rx, q in rules if rx.search(name)), default))
+    return total
 
 
 def main(top: int = 8) -> None:
