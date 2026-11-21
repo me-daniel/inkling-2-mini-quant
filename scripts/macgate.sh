@@ -11,7 +11,7 @@ BIN="$ROOT/vendor/llama.cpp/build/bin"
 M="$ROOT/models"; L="$ROOT/logs"; K="$M/logits"; T="$M/tmp"; R="$ROOT/results/pilot"; E="$M/ext"
 PY="$ROOT/.venv/bin/python -I"
 B2='^blk\.(6|7|8|9|10|11)\.ffn_(gate_up|down)_exps\.weight$'
-EXT="bart-IQ2_S atomic-AD-IQ2_S apex-I-Nano bart-IQ2_M"
+EXT="bart-IQ2_S atomic-AD-IQ2_S apex-I-Nano bart-IQ2_M isvalorum-NanoPlus prithiv-Q2_K"
 mkdir -p "$T"
 step() { echo "[$(date '+%H:%M:%S')] $*"; }
 done_log() { [ -f "$1" ] && grep -q 'Mean *KLD' "$1"; }
@@ -50,7 +50,7 @@ for name in $EXT; do
 done
 $PY "$ROOT/analysis/maptable.py" > /dev/null
 # shellcheck disable=SC2086
-$PY "$ROOT/analysis/compare.py" cand bart-IQ2_S atomic-AD-IQ2_S apex-I-Nano | tee "$R/mac-quality.txt"
+$PY "$ROOT/analysis/compare.py" cand bart-IQ2_S atomic-AD-IQ2_S apex-I-Nano isvalorum-NanoPlus prithiv-Q2_K | tee "$R/mac-quality.txt"
 $PY "$ROOT/analysis/compare.py" cand bart-IQ2_M | grep -v 'quality gate' > "$R/mac-context-IQ2_M.txt"
 
 # 4

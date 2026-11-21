@@ -16,5 +16,7 @@ bart-IQ2_S bartowski/thinkingmachines_Inkling-2-Mini-GGUF thinkingmachines_Inkli
 atomic-AD-IQ2_S AtomicChat/Inkling-2-Mini-GGUF Inkling-2-Mini-AD-IQ2_S.gguf
 apex-I-Nano mudler/Inkling-2-Mini-APEX-GGUF Inkling-2-Mini-APEX-I-Nano.gguf
 bart-IQ2_M bartowski/thinkingmachines_Inkling-2-Mini-GGUF thinkingmachines_Inkling-2-Mini-IQ2_M.gguf
+isvalorum-NanoPlus IsValorum/Inkling-2-Mini-APEX-I-NanoPlus-V2.1-GGUF Inkling-2-Mini-APEX-I-NanoPlus-V2.1.gguf
+prithiv-Q2_K prithivMLmods/Inkling-2-Mini-GGUF Inkling-2-Mini.Q2_K.gguf
 LIST
 echo "[$(date '+%H:%M:%S')] fetch done"
