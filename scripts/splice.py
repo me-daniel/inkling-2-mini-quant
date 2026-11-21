@@ -1,11 +1,13 @@
 """Builds a GGUF from a base file, taking selected tensors byte for byte from donor files.
 
-    python scripts/splice.py BASE OUT [--take DONOR REGEX ...] [--slot DONOR PHYS SLOT ...] [--verify]
+    python scripts/splice.py BASE OUT [--take DONOR REGEX ...] [--add DONOR REGEX ...] [--slot DONOR PHYS SLOT ...] [--verify]
 
 The header and metadata are copied verbatim from BASE, so nothing is re-encoded. A tensor whose name matches
 a --take regex (first match wins) comes from that donor with its own type; logical shapes must agree. Each
 tensor-info record is copied verbatim from the tensor's source except its data offset. With no options the
-output is byte-identical to BASE. --slot appends the donor's routed experts of layer PHYS (and their .scale,
+output is byte-identical to BASE. --add appends, byte for byte and in donor order, every donor tensor whose name
+matches REGEX; each must be absent from BASE and from earlier appends (e.g. the per-expert .scale tensors that
+native NVFP4 experts need, which --take cannot bring in). --slot appends the donor's routed experts of layer PHYS (and their .scale,
 if any) under the name of inkling2_loop cache slot SLOT, which then uses them in that pass only (patch 0003).
 --verify re-reads OUT and compares every tensor with its source.
 """
@@ -44,6 +46,7 @@ def main() -> None:
     ap.add_argument("base")
     ap.add_argument("out")
     ap.add_argument("--take", nargs=2, action="append", default=[], metavar=("DONOR", "REGEX"))
+    ap.add_argument("--add", nargs=2, action="append", default=[], metavar=("DONOR", "REGEX"))
     ap.add_argument("--slot", nargs=3, action="append", default=[], metavar=("DONOR", "PHYS", "SLOT"))
     ap.add_argument("--verify", action="store_true")
     args = ap.parse_args()
@@ -67,6 +70,18 @@ def main() -> None:
         plan.append((src, src_path, None))
 
     base_names = {t.name for t in base.tensors}
+    out_names = set(base_names)
+    for path, rx in args.add:
+        pat = re.compile(rx)
+        hits = [t for t in gguf.GGUFReader(path).tensors if pat.search(t.name)]
+        if not hits:
+            sys.exit(f"--add: {rx} matches no tensor in {path}")
+        for t in hits:
+            if t.name in out_names:
+                sys.exit(f"--add: {t.name} from {path} already exists")
+            out_names.add(t.name)
+            plan.append((t, path, None))
+
     for path, phys, slot in args.slot:
         names = {t.name: t for t in gguf.GGUFReader(path).tensors}
         for suffix in SLOT_TENSORS:
@@ -75,8 +90,9 @@ def main() -> None:
                 if suffix.endswith(".weight"):
                     sys.exit(f"--slot: {src_name} missing in {path}")
                 continue
-            if dst_name in base_names or any(n == dst_name for _, _, n in plan):
+            if dst_name in out_names:
                 sys.exit(f"--slot: {dst_name} already exists")
+            out_names.add(dst_name)
             plan.append((names[src_name], path, dst_name))
 
     align_field = base.fields.get(gguf.Keys.General.ALIGNMENT)
@@ -101,10 +117,10 @@ def main() -> None:
             f.write(b"\0" * pad(src.n_bytes, align))
 
     counts: dict[str, int] = {}
-    for _, p, name in plan:
-        key = p if name is None else f"{p} (as slot tensors)"
+    for i, (_, p, name) in enumerate(plan):
+        key = f"{p} (as slot tensors)" if name is not None else f"{p} (added)" if i >= len(base.tensors) else p
         counts[key] = counts.get(key, 0) + 1
-    manifest = {"base": args.base, "take": args.take, "slot": args.slot, "tensors_from": counts}
+    manifest = {"base": args.base, "take": args.take, "add": args.add, "slot": args.slot, "tensors_from": counts}
 
     if args.verify:
         out = gguf.GGUFReader(args.out)

@@ -1,0 +1,300 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 886" width="1200" height="886" role="img" aria-labelledby="t d" font-family="'Red Hat Text', Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif">
+  <title id="t">The per-pass test on Inkling 2 Mini: physical layers, cache slots and the five conditions</title>
+  <desc id="d">Layers 0 to 5 run once, layers 6 to 17 run on three passes, layers 18 to 23 run once. Pass 1 uses slots 6 to 17, pass 2 slots 24 to 35, pass 3 slots 36 to 47. Block B2, layers 6 to 11, is set to 2 bits on pass 1 only, pass 2 only, pass 3 only, or all three passes.</desc>
+
+  <!-- own background panel, so the image reads on light and dark pages -->
+  <rect x="1" y="1" width="1198" height="884" rx="22" fill="#ffffff" stroke="#d9deea" stroke-width="2"/>
+
+  <text x="40" y="56" font-size="28" fill="#0b1020" font-weight="700">The per-pass test</text>
+  <text x="40" y="84" font-size="16" fill="#4a5470">Inkling 2 Mini at P = 3. One block of expert weights goes to 2 bits on one pass, or on all three.</text>
+
+  <!-- 1. order of the layer visits -->
+  <text x="40" y="128" font-size="13" fill="#4a5470" font-weight="700" letter-spacing="1.6">1  WHAT RUNS</text>
+  <rect x="230" y="108" width="108" height="30" rx="15" fill="#9fb0dc"/>
+  <text x="284" y="128" font-size="14" fill="#0b1020" font-weight="700" text-anchor="middle">layers 0-5</text>
+  <path d="M343 123 H353" stroke="#4a5470" stroke-width="2"/>
+  <path d="M352 117.5 L361 123 L352 128.5 z" fill="#4a5470"/>
+  <rect x="366" y="108" width="118" height="30" rx="15" fill="#e0115f"/>
+  <text x="425" y="128" font-size="14" fill="#ffffff" font-weight="700" text-anchor="middle">6-17, pass 1</text>
+  <path d="M489 123 H499" stroke="#4a5470" stroke-width="2"/>
+  <path d="M498 117.5 L507 123 L498 128.5 z" fill="#4a5470"/>
+  <rect x="512" y="108" width="118" height="30" rx="15" fill="#e0115f"/>
+  <text x="571" y="128" font-size="14" fill="#ffffff" font-weight="700" text-anchor="middle">6-17, pass 2</text>
+  <path d="M635 123 H645" stroke="#4a5470" stroke-width="2"/>
+  <path d="M644 117.5 L653 123 L644 128.5 z" fill="#4a5470"/>
+  <rect x="658" y="108" width="118" height="30" rx="15" fill="#e0115f"/>
+  <text x="717" y="128" font-size="14" fill="#ffffff" font-weight="700" text-anchor="middle">6-17, pass 3</text>
+  <path d="M781 123 H791" stroke="#4a5470" stroke-width="2"/>
+  <path d="M790 117.5 L799 123 L790 128.5 z" fill="#4a5470"/>
+  <rect x="804" y="108" width="118" height="30" rx="15" fill="#9fb0dc"/>
+  <text x="863" y="128" font-size="14" fill="#0b1020" font-weight="700" text-anchor="middle">layers 18-23</text>
+  <text x="940" y="128" font-size="14" fill="#4a5470">48 layer visits, 24 layers</text>
+  <text x="230" y="160" font-size="13.5" fill="#4a5470">Passes 2 and 3 start again from the output of layer 5 and read the previous pass through the loop-control tensors.</text>
+
+  <!-- 2. physical layers and cache slots -->
+  <text x="40" y="208" font-size="13" fill="#4a5470" font-weight="700" letter-spacing="1.6">2  LAYERS AND SLOTS</text>
+  <path d="M231 238 v-6 H453 v6" fill="none" stroke="#4a5470" stroke-width="1.5"/>
+  <text x="342" y="225" font-size="13.5" fill="#4a5470" text-anchor="middle">B1, layers 0-5</text>
+  <path d="M469 238 v-6 H691 v6" fill="none" stroke="#e0115f" stroke-width="2.5"/>
+  <text x="580" y="225" font-size="13.5" fill="#b80d4d" font-weight="700" text-anchor="middle">B2, layers 6-11, tested</text>
+  <path d="M697 238 v-6 H919 v6" fill="none" stroke="#4a5470" stroke-width="1.5"/>
+  <text x="808" y="225" font-size="13.5" fill="#4a5470" text-anchor="middle">B3, layers 12-17</text>
+  <path d="M935 238 v-6 H1005 v6" fill="none" stroke="#4a5470" stroke-width="1.5"/>
+  <text x="970" y="225" font-size="13.5" fill="#4a5470" text-anchor="middle">B4</text>
+  <path d="M1011 238 v-6 H1157 v6" fill="none" stroke="#4a5470" stroke-width="1.5"/>
+  <text x="1084" y="225" font-size="13.5" fill="#4a5470" text-anchor="middle">B5, layers 20-23</text>
+  <text x="40" y="258" font-size="14.5" fill="#0b1020" font-weight="700">physical layer</text>
+  <text x="40" y="275" font-size="12.5" fill="#4a5470">tensors blk.0 to blk.23</text>
+  <rect x="230" y="244" width="34" height="30" rx="5" fill="#9fb0dc"/>
+  <text x="247" y="264" font-size="14" fill="#0b1020" font-weight="700" text-anchor="middle">0</text>
+  <rect x="268" y="244" width="34" height="30" rx="5" fill="#9fb0dc"/>
+  <text x="285" y="264" font-size="14" fill="#0b1020" font-weight="700" text-anchor="middle">1</text>
+  <rect x="306" y="244" width="34" height="30" rx="5" fill="#9fb0dc"/>
+  <text x="323" y="264" font-size="14" fill="#0b1020" font-weight="700" text-anchor="middle">2</text>
+  <rect x="344" y="244" width="34" height="30" rx="5" fill="#9fb0dc"/>
+  <text x="361" y="264" font-size="14" fill="#0b1020" font-weight="700" text-anchor="middle">3</text>
+  <rect x="382" y="244" width="34" height="30" rx="5" fill="#9fb0dc"/>
+  <text x="399" y="264" font-size="14" fill="#0b1020" font-weight="700" text-anchor="middle">4</text>
+  <rect x="420" y="244" width="34" height="30" rx="5" fill="#9fb0dc"/>
+  <text x="437" y="264" font-size="14" fill="#0b1020" font-weight="700" text-anchor="middle">5</text>
+  <rect x="468" y="244" width="34" height="30" rx="5" fill="#e0115f"/>
+  <text x="485" y="264" font-size="14" fill="#ffffff" font-weight="700" text-anchor="middle">6</text>
+  <rect x="506" y="244" width="34" height="30" rx="5" fill="#e0115f"/>
+  <text x="523" y="264" font-size="14" fill="#ffffff" font-weight="700" text-anchor="middle">7</text>
+  <rect x="544" y="244" width="34" height="30" rx="5" fill="#e0115f"/>
+  <text x="561" y="264" font-size="14" fill="#ffffff" font-weight="700" text-anchor="middle">8</text>
+  <rect x="582" y="244" width="34" height="30" rx="5" fill="#e0115f"/>
+  <text x="599" y="264" font-size="14" fill="#ffffff" font-weight="700" text-anchor="middle">9</text>
+  <rect x="620" y="244" width="34" height="30" rx="5" fill="#e0115f"/>
+  <text x="637" y="264" font-size="14" fill="#ffffff" font-weight="700" text-anchor="middle">10</text>
+  <rect x="658" y="244" width="34" height="30" rx="5" fill="#e0115f"/>
+  <text x="675" y="264" font-size="14" fill="#ffffff" font-weight="700" text-anchor="middle">11</text>
+  <rect x="696" y="244" width="34" height="30" rx="5" fill="#e0115f"/>
+  <text x="713" y="264" font-size="14" fill="#ffffff" font-weight="700" text-anchor="middle">12</text>
+  <rect x="734" y="244" width="34" height="30" rx="5" fill="#e0115f"/>
+  <text x="751" y="264" font-size="14" fill="#ffffff" font-weight="700" text-anchor="middle">13</text>
+  <rect x="772" y="244" width="34" height="30" rx="5" fill="#e0115f"/>
+  <text x="789" y="264" font-size="14" fill="#ffffff" font-weight="700" text-anchor="middle">14</text>
+  <rect x="810" y="244" width="34" height="30" rx="5" fill="#e0115f"/>
+  <text x="827" y="264" font-size="14" fill="#ffffff" font-weight="700" text-anchor="middle">15</text>
+  <rect x="848" y="244" width="34" height="30" rx="5" fill="#e0115f"/>
+  <text x="865" y="264" font-size="14" fill="#ffffff" font-weight="700" text-anchor="middle">16</text>
+  <rect x="886" y="244" width="34" height="30" rx="5" fill="#e0115f"/>
+  <text x="903" y="264" font-size="14" fill="#ffffff" font-weight="700" text-anchor="middle">17</text>
+  <rect x="934" y="244" width="34" height="30" rx="5" fill="#9fb0dc"/>
+  <text x="951" y="264" font-size="14" fill="#0b1020" font-weight="700" text-anchor="middle">18</text>
+  <rect x="972" y="244" width="34" height="30" rx="5" fill="#9fb0dc"/>
+  <text x="989" y="264" font-size="14" fill="#0b1020" font-weight="700" text-anchor="middle">19</text>
+  <rect x="1010" y="244" width="34" height="30" rx="5" fill="#9fb0dc"/>
+  <text x="1027" y="264" font-size="14" fill="#0b1020" font-weight="700" text-anchor="middle">20</text>
+  <rect x="1048" y="244" width="34" height="30" rx="5" fill="#9fb0dc"/>
+  <text x="1065" y="264" font-size="14" fill="#0b1020" font-weight="700" text-anchor="middle">21</text>
+  <rect x="1086" y="244" width="34" height="30" rx="5" fill="#9fb0dc"/>
+  <text x="1103" y="264" font-size="14" fill="#0b1020" font-weight="700" text-anchor="middle">22</text>
+  <rect x="1124" y="244" width="34" height="30" rx="5" fill="#9fb0dc"/>
+  <text x="1141" y="264" font-size="14" fill="#0b1020" font-weight="700" text-anchor="middle">23</text>
+  <rect x="460" y="290" width="468" height="120" rx="10" fill="#f3f5fb"/>
+  <text x="40" y="318" font-size="14.5" fill="#0b1020" font-weight="700">cache slot</text>
+  <text x="40" y="335" font-size="12.5" fill="#4a5470">one for each visit of a core layer</text>
+  <text x="448" y="319" font-size="13.5" fill="#4a5470" text-anchor="end">pass 1, slot = layer</text>
+  <rect x="468" y="300" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="485" y="319" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">6</text>
+  <rect x="506" y="300" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="523" y="319" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">7</text>
+  <rect x="544" y="300" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="561" y="319" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">8</text>
+  <rect x="582" y="300" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="599" y="319" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">9</text>
+  <rect x="620" y="300" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="637" y="319" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">10</text>
+  <rect x="658" y="300" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="675" y="319" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">11</text>
+  <rect x="696" y="300" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="713" y="319" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">12</text>
+  <rect x="734" y="300" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="751" y="319" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">13</text>
+  <rect x="772" y="300" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="789" y="319" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">14</text>
+  <rect x="810" y="300" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="827" y="319" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">15</text>
+  <rect x="848" y="300" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="865" y="319" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">16</text>
+  <rect x="886" y="300" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="903" y="319" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">17</text>
+  <text x="448" y="355" font-size="13.5" fill="#4a5470" text-anchor="end">pass 2, slots 24-35</text>
+  <rect x="468" y="336" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="485" y="355" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">24</text>
+  <rect x="506" y="336" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="523" y="355" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">25</text>
+  <rect x="544" y="336" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="561" y="355" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">26</text>
+  <rect x="582" y="336" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="599" y="355" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">27</text>
+  <rect x="620" y="336" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="637" y="355" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">28</text>
+  <rect x="658" y="336" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="675" y="355" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">29</text>
+  <rect x="696" y="336" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="713" y="355" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">30</text>
+  <rect x="734" y="336" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="751" y="355" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">31</text>
+  <rect x="772" y="336" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="789" y="355" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">32</text>
+  <rect x="810" y="336" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="827" y="355" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">33</text>
+  <rect x="848" y="336" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="865" y="355" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">34</text>
+  <rect x="886" y="336" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="903" y="355" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">35</text>
+  <text x="448" y="391" font-size="13.5" fill="#4a5470" text-anchor="end">pass 3, slots 36-47</text>
+  <rect x="468" y="372" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="485" y="391" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">36</text>
+  <rect x="506" y="372" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="523" y="391" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">37</text>
+  <rect x="544" y="372" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="561" y="391" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">38</text>
+  <rect x="582" y="372" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="599" y="391" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">39</text>
+  <rect x="620" y="372" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="637" y="391" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">40</text>
+  <rect x="658" y="372" width="34" height="28" rx="5" fill="#e0115f"/>
+  <text x="675" y="391" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">41</text>
+  <rect x="696" y="372" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="713" y="391" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">42</text>
+  <rect x="734" y="372" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="751" y="391" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">43</text>
+  <rect x="772" y="372" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="789" y="391" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">44</text>
+  <rect x="810" y="372" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="827" y="391" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">45</text>
+  <rect x="848" y="372" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="865" y="391" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">46</text>
+  <rect x="886" y="372" width="34" height="28" rx="5" fill="#e0115f" fill-opacity="0.55"/>
+  <text x="903" y="391" font-size="13.5" fill="#ffffff" font-weight="700" text-anchor="middle">47</text>
+  <text x="946" y="312" font-size="13" fill="#4a5470">pass p = 2 or 3,</text>
+  <text x="946" y="329" font-size="13" fill="#4a5470">core layer l:</text>
+  <text x="946" y="357" font-size="13" fill="#0b1020" font-weight="700" font-family="'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" xml:space="preserve">slot = 24</text>
+  <text x="946" y="375" font-size="13" fill="#0b1020" font-weight="700" font-family="'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" xml:space="preserve">  + (p - 2) * 12</text>
+  <text x="946" y="393" font-size="13" fill="#0b1020" font-weight="700" font-family="'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" xml:space="preserve">  + (l - 6)</text>
+  <text x="230" y="428" font-size="13.5" fill="#4a5470">A slot shares the weights of its physical layer and keeps its own KV state. With our patch a slot can carry</text>
+  <text x="230" y="446" font-size="13.5" fill="#4a5470">its own expert tensors, so one pass can run on different expert weights. Strong fill marks B2.</text>
+
+  <!-- 3. the five conditions -->
+  <text x="40" y="494" font-size="13" fill="#4a5470" font-weight="700" letter-spacing="1.6">3  THE CONDITIONS ON B2</text>
+  <text x="309.5" y="510" font-size="14.5" fill="#0b1020" font-weight="700" text-anchor="middle">pass 1</text>
+  <text x="309.5" y="527" font-size="12.5" fill="#4a5470" text-anchor="middle">layers 6-11</text>
+  <text x="496.5" y="510" font-size="14.5" fill="#0b1020" font-weight="700" text-anchor="middle">pass 2</text>
+  <text x="496.5" y="527" font-size="12.5" fill="#4a5470" text-anchor="middle">layers 6-11</text>
+  <text x="683.5" y="510" font-size="14.5" fill="#0b1020" font-weight="700" text-anchor="middle">pass 3</text>
+  <text x="683.5" y="527" font-size="12.5" fill="#4a5470" text-anchor="middle">layers 6-11</text>
+  <text x="793" y="527" font-size="12.5" fill="#4a5470">how the file is built (base: our IQ4_NL build)</text>
+  <text x="40" y="556" font-size="15" fill="#0b1020" font-weight="700">base</text>
+  <rect x="230.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="257.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="284.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="311.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="338.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="365.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="417.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="444.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="471.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="498.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="525.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="552.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="604.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="631.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="658.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="685.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="712.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="739.75" y="536.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <text x="793" y="556" font-size="13" fill="#4a5470">no change</text>
+  <text x="40" y="600" font-size="15" fill="#0b1020" font-weight="700">pass 1 only</text>
+  <rect x="230" y="580" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="257" y="580" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="284" y="580" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="311" y="580" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="338" y="580" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="365" y="580" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="417.75" y="580.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="444.75" y="580.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="471.75" y="580.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="498.75" y="580.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="525.75" y="580.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="552.75" y="580.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="604.75" y="580.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="631.75" y="580.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="658.75" y="580.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="685.75" y="580.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="712.75" y="580.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="739.75" y="580.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <text x="793" y="591.5" font-size="13" fill="#4a5470">blk.6-11 from the 2-bit pool,</text>
+  <text x="793" y="608.5" font-size="13" fill="#4a5470">slots 24-29 and 36-41 carry IQ4_NL copies</text>
+  <text x="40" y="644" font-size="15" fill="#0b1020" font-weight="700">pass 2 only</text>
+  <rect x="230.75" y="624.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="257.75" y="624.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="284.75" y="624.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="311.75" y="624.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="338.75" y="624.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="365.75" y="624.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="417" y="624" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="444" y="624" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="471" y="624" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="498" y="624" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="525" y="624" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="552" y="624" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="604.75" y="624.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="631.75" y="624.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="658.75" y="624.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="685.75" y="624.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="712.75" y="624.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="739.75" y="624.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <text x="793" y="644" font-size="13" fill="#4a5470">slots 24-29 carry 2-bit copies of blk.6-11</text>
+  <text x="40" y="688" font-size="15" fill="#0b1020" font-weight="700">pass 3 only</text>
+  <rect x="230.75" y="668.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="257.75" y="668.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="284.75" y="668.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="311.75" y="668.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="338.75" y="668.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="365.75" y="668.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="417.75" y="668.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="444.75" y="668.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="471.75" y="668.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="498.75" y="668.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="525.75" y="668.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="552.75" y="668.75" width="22.5" height="28.5" rx="4" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <rect x="604" y="668" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="631" y="668" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="658" y="668" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="685" y="668" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="712" y="668" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="739" y="668" width="24" height="30" rx="4" fill="#e0115f"/>
+  <text x="793" y="688" font-size="13" fill="#4a5470">slots 36-41 carry 2-bit copies of blk.6-11</text>
+  <text x="40" y="732" font-size="15" fill="#0b1020" font-weight="700">all three passes</text>
+  <rect x="230" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="257" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="284" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="311" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="338" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="365" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="417" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="444" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="471" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="498" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="525" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="552" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="604" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="631" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="658" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="685" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="712" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <rect x="739" y="712" width="24" height="30" rx="4" fill="#e0115f"/>
+  <text x="793" y="732" font-size="13" fill="#4a5470">blk.6-11 from the 2-bit pool, no slot tensors</text>
+  <rect x="230" y="762" width="16" height="16" rx="3" fill="#e0115f"/>
+  <text x="254" y="775" font-size="13" fill="#4a5470">2-bit level: IQ2_XXS gate_up, stock Q2_0 down</text>
+  <rect x="580.75" y="762.75" width="14.5" height="14.5" rx="3" fill="#f3f5fb" stroke="#9fb0dc" stroke-width="1.5"/>
+  <text x="604" y="775" font-size="13" fill="#4a5470">base weights (IQ4_NL build)</text>
+  <rect x="40" y="798" width="1120" height="64" rx="12" fill="#f3f5fb"/>
+  <text x="60" y="825" font-size="15" fill="#0b1020" font-weight="700">Outcome</text>
+  <text x="136" y="825" font-size="15" fill="#0b1020">d<tspan font-size="11" dy="4">k</tspan><tspan dy="-4"> is the change in log-probabilities against the base when pass k is at 2 bits. We compare d</tspan><tspan font-size="11" dy="4">all</tspan><tspan dy="-4"> with d</tspan><tspan font-size="11" dy="4">1</tspan><tspan dy="-4"> + d</tspan><tspan font-size="11" dy="4">2</tspan><tspan dy="-4"> + d</tspan><tspan font-size="11" dy="4">3</tspan><tspan dy="-4">.</tspan></text>
+  <text x="136" y="847" font-size="13.5" fill="#4a5470">Control: the same block split by layer pair (6-7, 8-9, 10-11) on all passes. Those three parts share no weights.</text>
+</svg>

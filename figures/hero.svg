@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" width="1200" height="500" role="img" aria-labelledby="t d" font-family="'Red Hat Text', Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif">
+  <title id="t">Counting passes: quantization error in the looped core of Inkling 2 Mini</title>
+  <desc id="d">Inkling 2 Mini has 24 layers. Layers 6 to 17 run three times on the same expert weights. A block quantized to 2 bits is stored once and used on all three passes. The question is whether its error counts once per pass.</desc>
+  <defs>
+    <!-- 2-bit weights: dark magenta with a light diagonal hatch -->
+    <pattern id="q" width="8" height="8" patternUnits="userSpaceOnUse">
+      <rect width="8" height="8" fill="#b80d4d"/>
+      <path d="M-2 2 L2 -2 M0 8 L8 0 M6 10 L10 6" stroke="#ffffff" stroke-opacity="0.28" stroke-width="2.4"/>
+    </pattern>
+  </defs>
+
+  <!-- own background panel, so the image reads on light and dark pages -->
+  <rect x="1" y="1" width="1198" height="498" rx="22" fill="#ffffff" stroke="#d9deea" stroke-width="2"/>
+
+  <!-- heading -->
+  <text x="50" y="58" font-size="15" fill="#4a5470" font-weight="700" letter-spacing="2.2">INKLING 2 MINI  ·  EXPLORATORY PILOT</text>
+  <text x="50" y="108" font-size="46" fill="#0b1020" font-weight="700">Counting passes</text>
+  <text x="50" y="143" font-size="20" fill="#4a5470">24 layers. Layers 6 to 17 run three times on the same expert weights.</text>
+
+  <!-- the loop: layers 6 to 17 run three times -->
+  <path d="M848 220 V204 a14 14 0 0 0 -14 -14 H367 a14 14 0 0 0 -14 14 V212" fill="none" stroke="#e0115f" stroke-width="3" stroke-linecap="round"/>
+  <path d="M345 209 L353 221 L361 209 z" fill="#e0115f"/>
+  <rect x="478.5" y="174" width="244" height="32" rx="16" fill="#e0115f"/>
+  <text x="600.5" y="196" font-size="17" fill="#ffffff" font-weight="700" text-anchor="middle">layers 6 to 17, run 3 times</text>
+  <text x="182.5" y="214" font-size="16" fill="#4a5470" text-anchor="middle">layers 0 to 5, run once</text>
+  <text x="1018.5" y="214" font-size="16" fill="#4a5470" text-anchor="middle">layers 18 to 23, run once</text>
+
+  <!-- the 24 layers in the file; layers 6 to 11 carry the 2-bit block -->
+  <rect x="50" y="226" width="40" height="44" rx="7" fill="#9fb0dc"/>
+  <text x="70" y="255" font-size="17" fill="#0b1020" font-weight="700" text-anchor="middle">0</text>
+  <rect x="95" y="226" width="40" height="44" rx="7" fill="#9fb0dc"/>
+  <text x="115" y="255" font-size="17" fill="#0b1020" font-weight="700" text-anchor="middle">1</text>
+  <rect x="140" y="226" width="40" height="44" rx="7" fill="#9fb0dc"/>
+  <text x="160" y="255" font-size="17" fill="#0b1020" font-weight="700" text-anchor="middle">2</text>
+  <rect x="185" y="226" width="40" height="44" rx="7" fill="#9fb0dc"/>
+  <text x="205" y="255" font-size="17" fill="#0b1020" font-weight="700" text-anchor="middle">3</text>
+  <rect x="230" y="226" width="40" height="44" rx="7" fill="#9fb0dc"/>
+  <text x="250" y="255" font-size="17" fill="#0b1020" font-weight="700" text-anchor="middle">4</text>
+  <rect x="275" y="226" width="40" height="44" rx="7" fill="#9fb0dc"/>
+  <text x="295" y="255" font-size="17" fill="#0b1020" font-weight="700" text-anchor="middle">5</text>
+  <rect x="333" y="226" width="40" height="44" rx="7" fill="url(#q)"/>
+  <text x="353" y="255" font-size="17" fill="#ffffff" font-weight="700" text-anchor="middle">6</text>
+  <rect x="378" y="226" width="40" height="44" rx="7" fill="url(#q)"/>
+  <text x="398" y="255" font-size="17" fill="#ffffff" font-weight="700" text-anchor="middle">7</text>
+  <rect x="423" y="226" width="40" height="44" rx="7" fill="url(#q)"/>
+  <text x="443" y="255" font-size="17" fill="#ffffff" font-weight="700" text-anchor="middle">8</text>
+  <rect x="468" y="226" width="40" height="44" rx="7" fill="url(#q)"/>
+  <text x="488" y="255" font-size="17" fill="#ffffff" font-weight="700" text-anchor="middle">9</text>
+  <rect x="513" y="226" width="40" height="44" rx="7" fill="url(#q)"/>
+  <text x="533" y="255" font-size="17" fill="#ffffff" font-weight="700" text-anchor="middle">10</text>
+  <rect x="558" y="226" width="40" height="44" rx="7" fill="url(#q)"/>
+  <text x="578" y="255" font-size="17" fill="#ffffff" font-weight="700" text-anchor="middle">11</text>
+  <rect x="603" y="226" width="40" height="44" rx="7" fill="#e0115f"/>
+  <text x="623" y="255" font-size="17" fill="#ffffff" font-weight="700" text-anchor="middle">12</text>
+  <rect x="648" y="226" width="40" height="44" rx="7" fill="#e0115f"/>
+  <text x="668" y="255" font-size="17" fill="#ffffff" font-weight="700" text-anchor="middle">13</text>
+  <rect x="693" y="226" width="40" height="44" rx="7" fill="#e0115f"/>
+  <text x="713" y="255" font-size="17" fill="#ffffff" font-weight="700" text-anchor="middle">14</text>
+  <rect x="738" y="226" width="40" height="44" rx="7" fill="#e0115f"/>
+  <text x="758" y="255" font-size="17" fill="#ffffff" font-weight="700" text-anchor="middle">15</text>
+  <rect x="783" y="226" width="40" height="44" rx="7" fill="#e0115f"/>
+  <text x="803" y="255" font-size="17" fill="#ffffff" font-weight="700" text-anchor="middle">16</text>
+  <rect x="828" y="226" width="40" height="44" rx="7" fill="#e0115f"/>
+  <text x="848" y="255" font-size="17" fill="#ffffff" font-weight="700" text-anchor="middle">17</text>
+  <rect x="886" y="226" width="40" height="44" rx="7" fill="#9fb0dc"/>
+  <text x="906" y="255" font-size="17" fill="#0b1020" font-weight="700" text-anchor="middle">18</text>
+  <rect x="931" y="226" width="40" height="44" rx="7" fill="#9fb0dc"/>
+  <text x="951" y="255" font-size="17" fill="#0b1020" font-weight="700" text-anchor="middle">19</text>
+  <rect x="976" y="226" width="40" height="44" rx="7" fill="#9fb0dc"/>
+  <text x="996" y="255" font-size="17" fill="#0b1020" font-weight="700" text-anchor="middle">20</text>
+  <rect x="1021" y="226" width="40" height="44" rx="7" fill="#9fb0dc"/>
+  <text x="1041" y="255" font-size="17" fill="#0b1020" font-weight="700" text-anchor="middle">21</text>
+  <rect x="1066" y="226" width="40" height="44" rx="7" fill="#9fb0dc"/>
+  <text x="1086" y="255" font-size="17" fill="#0b1020" font-weight="700" text-anchor="middle">22</text>
+  <rect x="1111" y="226" width="40" height="44" rx="7" fill="#9fb0dc"/>
+  <text x="1131" y="255" font-size="17" fill="#0b1020" font-weight="700" text-anchor="middle">23</text>
+
+  <!-- what runs: the same weights on pass 1, 2 and 3 -->
+  <rect x="323" y="286" width="555" height="104" rx="12" fill="#f3f5fb"/>
+  <text x="309" y="315" font-size="16" fill="#4a5470" text-anchor="end">pass 1</text>
+  <rect x="333" y="300" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="378" y="300" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="423" y="300" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="468" y="300" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="513" y="300" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="558" y="300" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="603" y="300" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <rect x="648" y="300" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <rect x="693" y="300" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <rect x="738" y="300" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <rect x="783" y="300" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <rect x="828" y="300" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <text x="309" y="343" font-size="16" fill="#4a5470" text-anchor="end">pass 2</text>
+  <rect x="333" y="328" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="378" y="328" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="423" y="328" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="468" y="328" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="513" y="328" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="558" y="328" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="603" y="328" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <rect x="648" y="328" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <rect x="693" y="328" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <rect x="738" y="328" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <rect x="783" y="328" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <rect x="828" y="328" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <text x="309" y="371" font-size="16" fill="#4a5470" text-anchor="end">pass 3</text>
+  <rect x="333" y="356" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="378" y="356" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="423" y="356" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="468" y="356" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="513" y="356" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="558" y="356" width="40" height="20" rx="5" fill="url(#q)"/>
+  <rect x="603" y="356" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <rect x="648" y="356" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <rect x="693" y="356" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <rect x="738" y="356" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <rect x="783" y="356" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <rect x="828" y="356" width="40" height="20" rx="5" fill="#e0115f" fill-opacity="0.22"/>
+  <rect x="896" y="308" width="26" height="20" rx="5" fill="url(#q)"/>
+  <text x="932" y="324" font-size="17" fill="#0b1020" font-weight="700">2-bit block</text>
+  <text x="896" y="352" font-size="16" fill="#4a5470">stored once in the file,</text>
+  <text x="896" y="373" font-size="16" fill="#4a5470">used on all three passes</text>
+
+  <!-- the question -->
+  <text x="50" y="433" font-size="29" fill="#0b1020" font-weight="700">Does quantization error count once per pass?</text>
+  <text x="50" y="464" font-size="17" fill="#4a5470">We put the 2-bit block on one pass at a time, then on all three. Do the parts add up?</text>
+  <rect x="850" y="408" width="34" height="34" rx="6" fill="#e0115f" fill-opacity="1"/>
+  <text x="867" y="431" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">1</text>
+  <text x="896" y="432" font-size="22" fill="#4a5470" font-weight="700" text-anchor="middle">+</text>
+  <rect x="908" y="408" width="34" height="34" rx="6" fill="#e0115f" fill-opacity="0.7"/>
+  <text x="925" y="431" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">2</text>
+  <text x="954" y="432" font-size="22" fill="#4a5470" font-weight="700" text-anchor="middle">+</text>
+  <rect x="966" y="408" width="34" height="34" rx="6" fill="#e0115f" fill-opacity="0.45"/>
+  <text x="983" y="431" font-size="16" fill="#0b1020" font-weight="700" text-anchor="middle">3</text>
+  <text x="1028" y="433" font-size="24" fill="#0b1020" font-weight="700" text-anchor="middle">= ?</text>
+  <rect x="1058" y="408" width="84" height="34" rx="6" fill="#b80d4d"/>
+  <text x="1100" y="431" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">1 + 2 + 3</text>
+  <text x="925" y="464" font-size="14" fill="#4a5470" text-anchor="middle">one pass at a time</text>
+  <text x="1100" y="464" font-size="14" fill="#4a5470" text-anchor="middle">all in one run</text>
+</svg>

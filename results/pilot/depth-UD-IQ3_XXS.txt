@@ -1,0 +1,10 @@
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| inkling2_loop ?B IQ3_XXS - 3.0625 bpw |  10.85 GiB |    26.07 B | MTL,BLAS   |       5 |           pp512 |         75.68 ± 0.23 |
+| inkling2_loop ?B IQ3_XXS - 3.0625 bpw |  10.85 GiB |    26.07 B | MTL,BLAS   |       5 |           tg128 |         11.57 ± 0.02 |
+| inkling2_loop ?B IQ3_XXS - 3.0625 bpw |  10.85 GiB |    26.07 B | MTL,BLAS   |       5 |   pp512 @ d4096 |         67.19 ± 0.33 |
+| inkling2_loop ?B IQ3_XXS - 3.0625 bpw |  10.85 GiB |    26.07 B | MTL,BLAS   |       5 |   tg128 @ d4096 |         12.46 ± 1.53 |
+| inkling2_loop ?B IQ3_XXS - 3.0625 bpw |  10.85 GiB |    26.07 B | MTL,BLAS   |       5 |  pp512 @ d16384 |         58.05 ± 0.29 |
+| inkling2_loop ?B IQ3_XXS - 3.0625 bpw |  10.85 GiB |    26.07 B | MTL,BLAS   |       5 |  tg128 @ d16384 |         12.25 ± 0.05 |
+
+build: 9f5b9d6 (8)
