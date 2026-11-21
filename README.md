@@ -5,7 +5,7 @@
 Inkling 2 Mini is a mixture-of-experts model with a loop. Layers 6 to 17 run three times on the same expert weights. This repository measures what that loop does to quantization error. It holds the llama.cpp patches, the run scripts, the analysis code and the result files of an exploratory pilot. The GGUF that came out of the pilot is not in this repository. It is linked below.
 
 - Full write-up: [docs/report.md](docs/report.md)
-- Model on Hugging Face: [Me-Daniel/Inkling-2-Mini-Metal-GGUF](https://huggingface.co/Me-Daniel/Inkling-2-Mini-Metal-GGUF) (private for now)
+- Model on Hugging Face: [Me-Daniel/Inkling-2-Mini-Metal-GGUF](https://huggingface.co/Me-Daniel/Inkling-2-Mini-Metal-GGUF)
 
 ## Results
 
@@ -111,4 +111,4 @@ The Python environment is a `uv venv .venv` with llama.cpp's `requirements-conve
 
 This is an exploratory pilot for a master's thesis, "Counting Passes", run on 21 November 2026. None of it is confirmatory evidence. It uses one reference, one importance matrix, one machine and one engine commit, and KL to a reference is not task quality.
 
-The hypotheses, data splits and gates were written down before the data they govern. That pre-registration lives in a change log that is private for now. A public mirror will follow.
+The hypotheses, data splits and gates were written down before the data they govern. That pre-registration lives in [CHANGELOG.md](CHANGELOG.md), with every later change as a dated addendum.

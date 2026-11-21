@@ -79,7 +79,7 @@ The runs, in order:
 5. **Selection** on S, then the **release gate** on T1 and T2.
 6. **Mac comparison**, registered after the gate failed.
 
-Variants are built by copying tensors byte for byte between pre-quantized files (`scripts/splice.py`). The hypotheses, data splits, stop rules and the gate were written down before the data they govern. That pre-registration lives in a change log that is private for now. A public mirror will follow. Where this report cites an addendum, it means a dated entry in that change log.
+Variants are built by copying tensors byte for byte between pre-quantized files (`scripts/splice.py`). The hypotheses, data splits, stop rules and the gate were written down before the data they govern. The change log with every dated addendum is public: [CHANGELOG.md](../CHANGELOG.md). Where this report cites an addendum, it means a dated entry in that change log.
 
 ## Results
 

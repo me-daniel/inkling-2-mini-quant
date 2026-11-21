@@ -40,7 +40,7 @@ L = ROOT / "logs"
 OUT = ROOT / "drafts"
 FORBIDDEN = [r"loop-aware", r"pass-aware", r"\bfirst\b", r"\bbest\b", r"same[- ]size", r"runs fully on metal", r"\bGSQ\b",
              r"\bGPTQ\b", r"\bRCO\b", r"once per visit", r"per visit", r"dominat", r"compounds", r"loop-specific effect",
-             r"/Users/", r"private/", r"scratch/", r"Daniel", r"—", r"–", r"\bSOTA\b", r"state of the art",
+             r"/Users/", r"private/", r"scratch/", r"(?<!me-)Daniel", r"—", r"–", r"\bSOTA\b", r"state of the art",
              r"\bfastest\b", r"beats unsloth", r"\bbeats? UD"]
 
 
@@ -922,7 +922,8 @@ def lean_card(v: dict, cand_bytes: int) -> list[str]:
          "- Each pass costs about the same, and all three together cost more than the sum of the single passes.",
          "- Splitting the same block by layer instead of by pass gives a measurably different residual (the intervals "
          "don't overlap). Which way that points depends on the statistic, so we don't classify the error yet.",
-         "- Full write-up with every figure and table: [REPORT.md](REPORT.md).", "",
+         "- Full write-up with every figure and table: [REPORT.md](REPORT.md). Code, data rules and logs: "
+         "[GitHub](https://github.com/me-daniel/inkling-2-mini-quant).", "",
          "## Limits", "",
          "- KL measures how closely a file matches the reference model's outputs. Task quality needs its own test.",
          "- One machine, one llama.cpp build and one importance matrix.",
@@ -934,7 +935,8 @@ def lean_card(v: dict, cand_bytes: int) -> list[str]:
          f"- Measurement build: llama.cpp `{v['base'][:7]}` ({v['tag']}) with {len(v['patches'])} patches. The file runs "
          "without them.",
          "- Numbers: computed by scripts from the run logs. Full tables, settings and file revisions are in "
-         "[DETAILS.md](DETAILS.md).", ""]
+         "[DETAILS.md](DETAILS.md). Code, the pre-registration and its dated changes are on "
+         "[GitHub](https://github.com/me-daniel/inkling-2-mini-quant).", ""]
     return C
 
 
@@ -958,8 +960,8 @@ def mac_card(v: dict, label: dict, cand_bytes: int, ud_bytes: int, ud: list, s: 
          f"on both held-out sets. On T1 the difference is {ud[0]['d']:+.5f} [{ud[0]['lo']:+.5f}, {ud[0]['hi']:+.5f}], "
          f"and this file is worse on {ud[0]['worse']} of {ud[0]['n']} chunks. On T2 it is {ud[1]['d']:+.5f} "
          f"[{ud[1]['lo']:+.5f}, {ud[1]['hi']:+.5f}], worse on {ud[1]['worse']} of {ud[1]['n']} chunks. Under the "
-         "pre-registered rule this is a FAIL, and it stands. The rule is in our change log, which is private for now. "
-         "A public mirror will follow.", "",
+         "pre-registered rule this is a FAIL, and it stands. The rule and every later change are in our public "
+         "[change log](https://github.com/me-daniel/inkling-2-mini-quant/blob/main/CHANGELOG.md).", "",
          f"Why. UD-IQ3_XXS keeps the release's native NVFP4 down projections in {nv} expert tensors. The pinned Metal "
          f"backend cannot multiply NVFP4, so on Apple Silicon those {nv} tensors run on the CPU. This file stores every "
          f"expert down projection as {cand_down[1]} ({cand_down[2]} tensors), a type Metal can multiply, and pays for it "
