@@ -42,7 +42,21 @@ build() { # out ftype [tensor-type-file]
 $PY -c "import json,sys; a=json.load(open(sys.argv[1]))['rules']; open(sys.argv[2],'w').write(''.join(f'{r}={t.lower()}\n' for r,t in a['rules']))" \
     "$R/allocation-best.json" "$R/allocation-best.tensor-types.txt"
 NE=$($PY -c "import json,sys; print(json.load(open(sys.argv[1]))['ne'])" "$R/allocation-best.json")
-build "$M/cand.gguf" "$NE" "$R/allocation-best.tensor-types.txt"
+build "$M/cand-base.gguf" "$NE" "$R/allocation-best.tensor-types.txt"
+# tensors allocated to the optimized Q2_0 encoder are built as stock Q2_0, then replaced byte for byte (Addendum E)
+if [ ! -f "$M/cand.gguf" ]; then
+    takes=$($PY -c "
+import json, sys
+a = json.load(open(sys.argv[1]))['q2opt']
+print(' '.join(f'--take {sys.argv[2]}/q2opt/L{l}.gguf ^blk\\\\.{l}\\\\.{k}\\\\.weight\$' for l, ks in sorted(a.items(), key=lambda x: int(x[0])) for k in ks))
+" "$R/allocation-best.json" "$M")
+    step "splice optimized Q2_0 into the candidate"
+    # shellcheck disable=SC2086
+    $PY "$ROOT/scripts/splice.py" "$M/cand-base.gguf" "$M/cand.gguf.part" $takes --verify > "$L/splice-cand.json"
+    mv "$M/cand.gguf.part" "$M/cand.gguf"
+    echo "  cand.gguf: $(stat -f %z "$M/cand.gguf") bytes (limit $LIMIT)"
+    [ "$(stat -f %z "$M/cand.gguf")" -le "$LIMIT" ] || { echo "  over the byte limit, stopping" >&2; exit 1; }
+fi
 build "$M/uniform-IQ3_XXS.gguf" IQ3_XXS
 
 # 4. quality on T1 and T2 at P = 3
