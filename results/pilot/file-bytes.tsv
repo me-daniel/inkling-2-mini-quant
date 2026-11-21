@@ -1,0 +1,9 @@
+name	bytes	source
+UD-IQ3_XXS	11663310784	stat
+apex-I-Nano	11339857152	hf:mudler/Inkling-2-Mini-APEX-GGUF@d85a580
+atomic-AD-IQ2_S	11556882400	hf:AtomicChat/Inkling-2-Mini-GGUF@5c1759f
+bart-IQ2_M	11942949952	hf:bartowski/thinkingmachines_Inkling-2-Mini-GGUF@76d5702
+bart-IQ2_S	11068886080	hf:bartowski/thinkingmachines_Inkling-2-Mini-GGUF@76d5702
+cand	11514054944	stat
+isvalorum-NanoPlus	10981551648	hf:IsValorum/Inkling-2-Mini-APEX-I-NanoPlus-V2.1-GGUF@2431e9d
+uniform-IQ3_XXS	11747211680	gate.md

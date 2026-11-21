@@ -104,6 +104,8 @@ def read_files(src: Path) -> dict[str, dict]:
     """Every file with a T1 score: KL on T1 and T2, speed, size as llama-bench reports it, tensors off Metal."""
     kl = read_kl(src)
     files = {}
+    fb = src / "file-bytes.tsv"
+    sizes = {r[0]: int(r[1]) for r in (l.split("\t") for l in fb.read_text().splitlines()[1:])} if fb.exists() else {}
     for run in kl:
         m = re.fullmatch(r"final-(.+)-T1-P3", run)
         if not m:
@@ -112,13 +114,8 @@ def read_files(src: Path) -> dict[str, dict]:
         f = {"T1": kl[run], "T2": kl.get(f"final-{k}-T2-P3"), "bench": None}
         if (src / f"bench-{k}.txt").exists():
             f["bench"] = read_bench(src / f"bench-{k}.txt")
-        # file size in GB (10^9 bytes), from the file itself, as on the model card
-        for p in (ROOT / f"models/{k}.gguf", ROOT / f"models/ext/{k}.gguf"):
-            if p.exists():
-                f["gb"] = p.stat().st_size / 1e9
-                break
-        else:
-            f["gb"] = None
+        # file size in GB (10^9 bytes), as on the model card, from results/pilot/file-bytes.tsv
+        f["gb"] = sizes[k] / 1e9 if k in sizes else None
         files[k] = f
     limit = files[REF]["bench"]["gib"] if REF in files and files[REF]["bench"] else None
     for f in files.values():

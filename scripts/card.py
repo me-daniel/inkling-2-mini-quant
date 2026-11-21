@@ -238,14 +238,16 @@ def load_mac(v: dict, runs: dict) -> None:
     assert len(reps) == 1, "bench repetitions not unique in macgate.sh"
     v["bench_reps"] = reps.pop()
     v["mf"] = {}
+    sizes = {r[0]: int(r[1]) for r in (l.split("\t") for l in text(R / "file-bytes.tsv").splitlines()[1:])}
+    spec_fb = importlib.util.spec_from_file_location("file_bytes", ROOT / "scripts/file-bytes.py")
+    fb = importlib.util.module_from_spec(spec_fb)
+    spec_fb.loader.exec_module(fb)
     for name in v["mnames"]:
-        p = ROOT / f"models/{name}.gguf"
-        ext = not p.exists()
-        p = ROOT / f"models/ext/{name}.gguf" if ext else p
+        ext = name in fb.EXT  # outside files: sizes from file-bytes.tsv, the files themselves may be deleted
         b = text(R / f"bench-{name}.txt")
         sp = {m[1]: (float(m[2]), m[2], m[3]) for m in re.finditer(r"\|\s*(pp512|tg128)\s*\|\s*([\d.]+) ± ([\d.]+)\s*\|", b)}
         assert set(sp) == {"pp512", "tg128"}, name
-        f = dict(bytes=p.stat().st_size, ext=ext, sp=sp, build=one(r"^build: ([0-9a-f]+)", b, re.M)[1],
+        f = dict(bytes=sizes[name], ext=ext, sp=sp, build=one(r"^build: ([0-9a-f]+)", b, re.M)[1],
                  off=int(one(r"expert tensors in types Metal cannot multiply: (\d+)", b)[1]))
         assert v["head"].startswith(f["build"]), f"{name}: bench build is not the patched HEAD"
         if ext:
@@ -253,8 +255,8 @@ def load_mac(v: dict, runs: dict) -> None:
             f["loop"] = one(r"loop\.count (\S+)", ty)[1]
             f["mtp"] = int(one(r"^mtp tensors: (\d+)", ty, re.M)[1])
             assert int(one(r"\(experts: (\d+) \)", ty)[1]) == f["off"], f"{name}: types and bench disagree on Metal"
-            f["repo"], f["rev"] = revs[p.resolve().name]
-            f["file"] = p.resolve().name
+            f["repo"], f["rev"] = revs[fb.EXT[name]]
+            f["file"] = fb.EXT[name]
         v["mf"][name] = f
     assert v["mf"]["cand"]["bytes"] == int(v["files"]["cand"]["bytes"].replace(",", "")), "cand bytes differ from gate.md"
     assert v["mf"]["UD-IQ3_XXS"]["bytes"] == int(v["files"]["UD-IQ3_XXS"]["bytes"].replace(",", "")), "UD bytes differ"
