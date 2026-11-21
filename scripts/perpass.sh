@@ -61,14 +61,5 @@ run noise-indep --take "$M/noise-1.gguf" "$B2" $(slots "$M/noise-2.gguf" 2) $(sl
 }
 
 step "KL per chunk"
-{
-    printf 'cond\tagainst\tmean_kl\tper_chunk\n'
-    for c in base noop p1 p2 p3 all allslots noise-tied noise-indep; do
-        for ref in pp-base ref-S-P3; do
-            out=$($PY "$ROOT/scripts/kldfile.py" "$K/$ref.kld" "$K/pp-$c.kld")
-            printf '%s\t%s\t%s\t%s\n' "$c" "$ref" "$(echo "$out" | tail -1 | cut -d' ' -f3)" "$(echo "$out" | head -1 | tr ' ' ',')"
-        done
-    done
-} > "$ROOT/results/pilot/perpass-kl.tsv"
-cat "$ROOT/results/pilot/perpass-kl.tsv" | cut -f1-3
+sh "$ROOT/scripts/perpass-kl.sh"
 step "done"
