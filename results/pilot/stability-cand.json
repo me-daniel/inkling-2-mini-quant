@@ -1,0 +1,97 @@
+{
+ "model": "~/GitHub/inkling-2-mini-quant/models/cand.gguf",
+ "thresholds": {
+  "distinct4_min": 0.3,
+  "repeat_run_max": 5,
+  "tool_drop_max": 1,
+  "gsm8k_drop_max": 4,
+  "cap_rise_max": 2
+ },
+ "gsm8k": {
+  "n": 30,
+  "correct": 30,
+  "capped": 0
+ },
+ "long_generations": [
+  {
+   "seed": 1,
+   "tokens": 2000,
+   "distinct4": 0.9902,
+   "repeat_run": 1
+  },
+  {
+   "seed": 2,
+   "tokens": 2000,
+   "distinct4": 0.9875,
+   "repeat_run": 1
+  },
+  {
+   "seed": 3,
+   "tokens": 2000,
+   "distinct4": 0.9875,
+   "repeat_run": 1
+  },
+  {
+   "seed": 4,
+   "tokens": 2000,
+   "distinct4": 0.9992,
+   "repeat_run": 1
+  },
+  {
+   "seed": 5,
+   "tokens": 2000,
+   "distinct4": 0.9984,
+   "repeat_run": 1
+  },
+  {
+   "seed": 6,
+   "tokens": 2000,
+   "distinct4": 0.9953,
+   "repeat_run": 1
+  },
+  {
+   "seed": 7,
+   "tokens": 2000,
+   "distinct4": 0.9902,
+   "repeat_run": 1
+  },
+  {
+   "seed": 8,
+   "tokens": 2000,
+   "distinct4": 0.9869,
+   "repeat_run": 1
+  },
+  {
+   "seed": 9,
+   "tokens": 2000,
+   "distinct4": 0.997,
+   "repeat_run": 1
+  },
+  {
+   "seed": 10,
+   "tokens": 2000,
+   "distinct4": 0.9924,
+   "repeat_run": 1
+  }
+ ],
+ "long_context": {
+  "prompt_tokens": 16359,
+  "found": true
+ },
+ "tool_calls": {
+  "n": 5,
+  "valid": 5
+ },
+ "other_languages": [
+  {
+   "chars": 261,
+   "letter_share": 0.843,
+   "ok": true
+  },
+  {
+   "chars": 284,
+   "letter_share": 0.806,
+   "ok": true
+  }
+ ]
+}

@@ -1,0 +1,7 @@
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| inkling2_loop ?B IQ2_S - 2.5 bpw |  10.30 GiB |    26.07 B | MTL,BLAS   |       5 |           pp512 |        235.21 ± 4.03 |
+| inkling2_loop ?B IQ2_S - 2.5 bpw |  10.30 GiB |    26.07 B | MTL,BLAS   |       5 |           tg128 |         18.61 ± 0.18 |
+
+build: 9f5b9d6 (8)
+expert tensors in types Metal cannot multiply: 0

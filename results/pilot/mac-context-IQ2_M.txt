@@ -1,0 +1,2 @@
+T1 cand vs bart-IQ2_M: KL 0.02686 vs 0.03396, diff -0.00710 [-0.00827, -0.00614], top-1 93.14% vs 92.39% -> better
+T2 cand vs bart-IQ2_M: KL 0.01942 vs 0.02671, diff -0.00729 [-0.00973, -0.00536], top-1 95.29% vs 94.76% -> better

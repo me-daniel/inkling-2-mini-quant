@@ -46,32 +46,20 @@ From `results/pilot/perpass-residual.json` (`analysis/per_pass.py`). d_k = logp(
 
 Fisher is the primary norm. The registered prediction asks for centred Euclidean over the full vocabulary. That form cannot be computed faithfully from these files: the writer floors every value more than 16 nats below the top, and the floored entries hold the floor, not the model's log-probs. The head Euclidean column (entries within 10 nats of the base's top) is a head-restricted substitute for it. The full-vocabulary column, where present, keeps the floored entries as written. Three choices deviate from CHANGELOG.md: the Fisher primary norm, the 10-nat head, and a pooled ratio of sums instead of run 4's per-token ratio. They were fixed in code before the first per-pass logits existed but are not yet recorded in CHANGELOG.md (`reviews/2026-11-21-audit-perpass-opus.md`, finding 3).
 
-| Statistic | Fisher | head Euclidean (substitute) |
-|---|---|---|
-| r = ||R|| / ||all|| | 0.675 [0.657, 0.693] | 0.740 [0.717, 0.762] |
-| norm ratio ||all|| / ||sum_k d_k|| | 0.841 [0.829, 0.855] | 0.805 [0.790, 0.821] |
-| ||d1|| / ||d3|| | 1.103 [1.059, 1.148] | 0.976 [0.942, 1.008] |
-| ||d2|| / ||d3|| | 1.122 [1.082, 1.166] | 0.999 [0.971, 1.026] |
-| ||d3|| / ||all|| | 0.514 [0.504, 0.525] | 0.584 [0.570, 0.596] |
-| cos(d1, d2) | 0.320 [0.296, 0.341] | 0.319 [0.301, 0.337] |
-| cos(d2, d3) | 0.347 [0.331, 0.360] | 0.333 [0.321, 0.346] |
-| cos(d1, d3) | 0.134 [0.120, 0.147] | 0.152 [0.137, 0.166] |
-| visit multiplier ||all||^2 / mean_k ||d_k||^2 | 3.264 [3.193, 3.350] | 2.986 [2.904, 3.080] |
-| ||all||^2 / sum_k ||d_k||^2 | 1.088 [1.064, 1.117] | 0.995 [0.968, 1.027] |
+| Statistic | Fisher | head Euclidean (substitute) | full vocabulary (floor included) |
+|---|---|---|---|
+| r = ||R|| / ||all|| | 0.675 [0.657, 0.693] | 0.740 [0.717, 0.762] | 0.706 [0.687, 0.725] |
+| norm ratio ||all|| / ||sum_k d_k|| | 0.841 [0.829, 0.855] | 0.805 [0.790, 0.821] | 0.876 [0.864, 0.887] |
+| ||d1|| / ||d3|| | 1.103 [1.059, 1.148] | 0.976 [0.942, 1.008] | 0.956 [0.923, 0.991] |
+| ||d2|| / ||d3|| | 1.122 [1.082, 1.166] | 0.999 [0.971, 1.026] | 1.015 [0.988, 1.042] |
+| ||d3|| / ||all|| | 0.514 [0.504, 0.525] | 0.584 [0.570, 0.596] | 0.519 [0.506, 0.532] |
+| cos(d1, d2) | 0.320 [0.296, 0.341] | 0.319 [0.301, 0.337] | 0.355 [0.334, 0.376] |
+| cos(d2, d3) | 0.347 [0.331, 0.360] | 0.333 [0.321, 0.346] | 0.402 [0.385, 0.421] |
+| cos(d1, d3) | 0.134 [0.120, 0.147] | 0.152 [0.137, 0.166] | 0.205 [0.189, 0.222] |
+| visit multiplier ||all||^2 / mean_k ||d_k||^2 | 3.264 [3.193, 3.350] | 2.986 [2.904, 3.080] | 3.784 [3.656, 3.913] |
+| ||all||^2 / sum_k ||d_k||^2 | 1.088 [1.064, 1.117] | 0.995 [0.968, 1.027] | 1.261 [1.219, 1.304] |
 
 Fisher r per chunk: min 0.592, median 0.669, max 0.746 (16 chunks).
-
-Norm sensitivity on chunks 0 and 1 only, from `reviews/2026-11-21-audit-perpass-opus/audit_check.json` (the audit's CPU reread of the raw logits; no CI). A 16-chunk full-vocabulary column needs a CPU rerun of `analysis/per_pass.py` on the stored logits.
-
-| Norm | r (c0, c1) | norm ratio (c0, c1) | p1/p3 (c0, c1) | p2/p3 (c0, c1) |
-|---|---|---|---|---|
-| Fisher | 0.622, 0.668 | 0.856, 0.899 | 1.019, 0.907 | 1.057, 0.990 |
-| full vocabulary (floor included) | 0.672, 0.709 | 0.892, 0.873 | 0.915, 0.844 | 0.985, 0.929 |
-| head 5 nats | 0.664, 0.669 | 0.836, 0.853 | 0.980, 0.870 | 1.027, 0.923 |
-| head 10 nats (reported) | 0.697, 0.719 | 0.820, 0.823 | 0.907, 0.837 | 0.979, 0.875 |
-| head 14 nats | 0.722, 0.745 | 0.812, 0.813 | 0.887, 0.832 | 0.954, 0.866 |
-
-The head is unweighted. On these chunks a token's 10-nat head holds 1 to 6796 entries (median 154, 136), so tokens with flat distributions weigh more in the head norm than in the Fisher norm.
 
 ## Tied against independent noise (Addendum A)
 
@@ -108,6 +96,7 @@ Pass ordering by measure. The registration predicts ||d3|| > ||d2|| > ||d1||, i.
 | KL (chunk means) | 1.185 [1.096, 1.278], CI above 1 | 1.247 [1.169, 1.335], CI above 1 |
 | Fisher | 1.103 [1.059, 1.148], CI above 1 | 1.122 [1.082, 1.166], CI above 1 |
 | head Euclidean (substitute) | 0.976 [0.942, 1.008], CI contains 1 | 0.999 [0.971, 1.026], CI contains 1 |
+| full vocabulary (floor included) | 0.956 [0.923, 0.991], CI below 1 | 1.015 [0.988, 1.042], CI contains 1 |
 
 ## Layer-split control
 
@@ -132,6 +121,8 @@ Residual statistics from `results/pilot/layersplit-residual.json` (95% bootstrap
 - Fisher norm_ratio: pass split 0.841, this split 0.759; CIs do not overlap.
 - head Euclidean (substitute) r: pass split 0.740, this split 0.893; CIs do not overlap.
 - head Euclidean (substitute) norm_ratio: pass split 0.805, this split 0.735; CIs do not overlap.
+- full vocabulary (floor included) r: pass split 0.706, this split 0.821; CIs do not overlap.
+- full vocabulary (floor included) norm_ratio: pass split 0.876, this split 0.799; CIs do not overlap.
 
 | Condition | KL vs base |
 |---|---|
@@ -164,6 +155,8 @@ Residual statistics from `results/pilot/perpass3bit-residual.json` (95% bootstra
 - Fisher norm_ratio: 2-bit 0.841, 3-bit 0.788; CIs do not overlap.
 - head Euclidean (substitute) r: 2-bit 0.740, 3-bit 0.851; CIs do not overlap.
 - head Euclidean (substitute) norm_ratio: 2-bit 0.805, 3-bit 0.741; CIs do not overlap.
+- full vocabulary (floor included) r: 2-bit 0.706, 3-bit 0.878; CIs do not overlap.
+- full vocabulary (floor included) norm_ratio: 2-bit 0.876, 3-bit 0.732; CIs do not overlap.
 
 | Condition | KL vs base |
 |---|---|

@@ -1,0 +1,15 @@
+arch inkling2_loop  loop.count 3  tensor bytes 11,056,908,288
+mtp tensors: 0
+tensors in types Metal cannot multiply: 0 (experts: 0 )
+   4.586 GB  IQ4_NL   ffn_down_exps.weight
+   3.732 GB  IQ2_XS   ffn_gate_up_exps.weight
+   1.088 GB  IQ2_S    ffn_gate_up_exps.weight
+   0.492 GB  Q8_0     output.weight
+   0.492 GB  Q8_0     token_embd.weight
+   0.214 GB  Q5_K     other
+   0.192 GB  Q6_K     other
+   0.155 GB  F32      other
+   0.105 GB  Q8_0     other
+   0.000 GB  F32      output_norm.weight
+   0.000 GB  F32      output_res_query.weight
+   0.000 GB  F32      token_embd_norm.weight
