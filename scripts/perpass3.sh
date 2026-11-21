@@ -31,6 +31,7 @@ run() { # cond splice-args...
     grep -q "^$cond	" "$KL" 2>/dev/null && return 0  # already scored and deleted
     step "splice $cond"
     if [ "${DRY:-0}" = 1 ]; then echo "  splice.py BASE OUT $*"; return 0; fi
+    mem_wait
     # shellcheck disable=SC2086
     $PY "$ROOT/scripts/splice.py" "$BASE" "$T/pp-$cond.gguf" "$@" --verify > "$L/splice-pp-$cond.json"
     step "logits $cond"

@@ -13,3 +13,5 @@ gpu_take() {
 }
 gpu_give() { [ "$(cut -d' ' -f1 "$GLOCK" 2>/dev/null)" = "$$" ] && rm -f "$GLOCK"; return 0; }
 trap gpu_give EXIT
+# CPU- or IO-heavy steps outside the GPU lock (splices, quantize) wait for at least 30% free memory, as the sibling does
+mem_wait() { while :; do f=$(memory_pressure 2>/dev/null | sed -n 's/.*free percentage: \([0-9]*\)%.*/\1/p'); [ "${f:-100}" -ge 30 ] && return 0; sleep 30; done; }
