@@ -1,0 +1,5 @@
+T1 cand vs uniform-IQ3_XXS: KL 0.02686 vs 0.05421, diff -0.02735 [-0.02938, -0.02537], top-1 93.14% vs 90.32% -> better
+T1 cand vs UD-IQ3_XXS: KL 0.02686 vs 0.01939, diff +0.00747 [+0.00654, +0.00845], top-1 93.14% vs 94.42% -> not better
+T2 cand vs uniform-IQ3_XXS: KL 0.01942 vs 0.04622, diff -0.02680 [-0.02912, -0.02407], top-1 95.29% vs 92.67% -> better
+T2 cand vs UD-IQ3_XXS: KL 0.01942 vs 0.01361, diff +0.00581 [+0.00513, +0.00673], top-1 95.29% vs 95.95% -> not better
+quality gate: FAIL

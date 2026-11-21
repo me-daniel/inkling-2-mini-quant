@@ -1,0 +1,1 @@
+parity: pp-noop == pp-base and pp-allslots == pp-all, byte-identical (cmp, 2026-11-21 07:49)

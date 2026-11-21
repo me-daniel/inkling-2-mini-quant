@@ -1,0 +1,31 @@
+{
+ "chunk": 0,
+ "ref-S-P3->pp-base": {
+  "kldfile": 0.014974507808556286,
+  "llama_proxy": 0.015012787046571137
+ },
+ "pp-base->pp-p1": {
+  "kldfile": 0.014695645582744353,
+  "llama_proxy": 0.014720364920966093
+ },
+ "pp-base->pp-p2": {
+  "kldfile": 0.016570109537807926,
+  "llama_proxy": 0.01662226213915477
+ },
+ "pp-base->pp-p3": {
+  "kldfile": 0.014898553793439724,
+  "llama_proxy": 0.014942350865900669
+ },
+ "pp-base->pp-all": {
+  "kldfile": 0.05522292901053429,
+  "llama_proxy": 0.05555892879879497
+ },
+ "pp-base->pp-noise-tied": {
+  "kldfile": 0.06484127894173332,
+  "llama_proxy": 0.06525286620570815
+ },
+ "pp-base->pp-noise-indep": {
+  "kldfile": 0.04943579824747319,
+  "llama_proxy": 0.04973522739857653
+ }
+}

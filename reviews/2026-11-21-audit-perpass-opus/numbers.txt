@@ -1,0 +1,58 @@
+[KL ratios, perpass-kl.tsv, paired bootstrap over chunks, seed 0]
+  all/sum 1.135 [1.112, 1.162]
+  all/mean 3.406 [3.335, 3.485]
+  p1/p3 1.185 [1.096, 1.278]
+  p2/p3 1.247 [1.169, 1.335]
+  tied/all-2bit 1.025 [0.997, 1.056]
+  leave-one-chunk-out all/sum 1.127-1.140, tied/indep 1.189-1.201
+[perpass-residual.json]
+  fisher: cos(all, sum) 0.823; r if all were parallel to the sum 0.189; ||all||^2 / sum_k ||d_k||^2 1.088
+    pass1_over_pass3 1.103 [1.059, 1.148]
+    pass2_over_pass3 1.122 [1.082, 1.166]
+  head_euclid: cos(all, sum) 0.803; r if all were parallel to the sum 0.242; ||all||^2 / sum_k ||d_k||^2 0.995
+    pass1_over_pass3 0.976 [0.942, 1.008]
+    pass2_over_pass3 0.999 [0.971, 1.026]
+  Fisher r_chunks: report's 'median' sorted[8] = 0.669, true median 0.669
+[estimators] Q8_0 -> IQ4_NL: llama-perplexity (kl.tsv) 0.016192, kldfile (perpass-kl.tsv) 0.016060; chunk 0: 0.015080 vs 0.014975
+  chunk 0 ref-S-P3->pp-base: kldfile 0.014975, proxy 0.015013, shift +0.26%
+  chunk 0 pp-base->pp-p1: kldfile 0.014696, proxy 0.014720, shift +0.17%
+  chunk 0 pp-base->pp-p2: kldfile 0.016570, proxy 0.016622, shift +0.31%
+  chunk 0 pp-base->pp-p3: kldfile 0.014899, proxy 0.014942, shift +0.29%
+  chunk 0 pp-base->pp-all: kldfile 0.055223, proxy 0.055559, shift +0.61%
+  chunk 0 pp-base->pp-noise-tied: kldfile 0.064841, proxy 0.065253, shift +0.63%
+  chunk 0 pp-base->pp-noise-indep: kldfile 0.049436, proxy 0.049735, shift +0.61%
+  chunk 0 kldfile: all/sum 1.1962, tied/indep 1.3116
+  chunk 0 llama_proxy: all/sum 1.2004, tied/indep 1.3120
+[audit_check.json, chunks 0 and 1]
+  chunk 0: n_rows 2047; stored Fisher r 0.622, recomputed 0.6220; stored head r 0.6967, recomputed 0.6967
+    KL recomputed p1 0.014696, p2 0.016570, p3 0.014899, all 0.055223 | table p1 0.014696, p2 0.016570, p3 0.014899, all 0.055223
+    floor: base mass on floored entries 0.0120, rows with clipping 1.000; max Fisher share of entries floored in S only 0.00069
+    Fisher r all entries 0.6220, clean entries only 0.6215
+    half Fisher / KL p1 1.032, p2 0.985, p3 0.981, all 0.958
+    per-token Fisher r median 0.617 (p90 1.164); top 1% tokens hold 0.130 of residual energy
+    head-10 entries per token: min 1, median 154, max 4890
+    fisher      r 0.622  norm ratio 0.856  p1/p3 1.019  p2/p3 1.057
+    full_euclid r 0.672  norm ratio 0.892  p1/p3 0.915  p2/p3 0.985
+    head5       r 0.664  norm ratio 0.836  p1/p3 0.980  p2/p3 1.027
+    head10      r 0.697  norm ratio 0.820  p1/p3 0.907  p2/p3 0.979
+    head14      r 0.722  norm ratio 0.812  p1/p3 0.887  p2/p3 0.954
+  chunk 1: n_rows 2047; stored Fisher r 0.6683, recomputed 0.6683; stored head r 0.7194, recomputed 0.7194
+    KL recomputed p1 0.015625, p2 0.019005, p3 0.019374, all 0.068419 | table p1 0.015625, p2 0.019005, p3 0.019374, all 0.068419
+    floor: base mass on floored entries 0.0131, rows with clipping 1.000; max Fisher share of entries floored in S only 0.00025
+    Fisher r all entries 0.6683, clean entries only 0.6665
+    half Fisher / KL p1 0.986, p2 0.964, p3 0.966, all 0.939
+    per-token Fisher r median 0.655 (p90 1.203); top 1% tokens hold 0.226 of residual energy
+    head-10 entries per token: min 1, median 136, max 6796
+    fisher      r 0.668  norm ratio 0.899  p1/p3 0.907  p2/p3 0.990
+    full_euclid r 0.709  norm ratio 0.873  p1/p3 0.844  p2/p3 0.929
+    head5       r 0.669  norm ratio 0.853  p1/p3 0.870  p2/p3 0.923
+    head10      r 0.719  norm ratio 0.823  p1/p3 0.837  p2/p3 0.875
+    head14      r 0.745  norm ratio 0.813  p1/p3 0.832  p2/p3 0.866
+[noise-t.tsv] ffn_gate_up_exps: achieved/target - 1 over 768 experts x 3 seeds: mean +0.07%, min -0.15%, max +0.32%
+[noise-t.tsv] ffn_down_exps: achieved/target - 1 over 768 experts x 3 seeds: mean +0.21%, min -0.12%, max +0.54%
+[logs] per-chunk PPL of pp-noop equals pp-base in all chunks: True (16 chunks)
+[logs] per-chunk PPL of pp-allslots equals pp-all in all chunks: True (16 chunks)
+[logs] per-chunk PPL of pp-p1 equals pp-base in all chunks: False (16 chunks)
+[consistency] fisher: norm ratio stored 0.8413, rebuilt 0.8413; visit multiplier stored 3.2637, rebuilt 3.2637
+[consistency] head_euclid: norm ratio stored 0.8048, rebuilt 0.8048; visit multiplier stored 2.9857, rebuilt 2.9857
+[header] n_vocab 200058, n_ctx 4096, n_chunk 16, scored per chunk 2047, scored total 32752

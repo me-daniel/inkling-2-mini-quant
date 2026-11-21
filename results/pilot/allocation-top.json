@@ -1,0 +1,110 @@
+[
+ {
+  "predicted_kl": 0.039004000000000004,
+  "bytes": 11564368896,
+  "ne": "Q8_0",
+  "choice": {
+   "B1": [
+    "IQ2_XXS",
+    "Q2_0O"
+   ],
+   "B2": [
+    "IQ3_XXS",
+    "IQ4_NL"
+   ],
+   "B3": [
+    "IQ3_XXS",
+    "IQ4_NL"
+   ],
+   "B4": [
+    "IQ3_XXS",
+    "IQ4_NL"
+   ],
+   "B5": [
+    "IQ3_XXS",
+    "IQ4_NL"
+   ]
+  }
+ },
+ {
+  "predicted_kl": 0.039890999999999996,
+  "bytes": 11587011456,
+  "ne": "Q6_K",
+  "choice": {
+   "B1": [
+    "IQ2_XXS",
+    "IQ4_NL"
+   ],
+   "B2": [
+    "IQ3_XXS",
+    "IQ4_NL"
+   ],
+   "B3": [
+    "IQ3_XXS",
+    "IQ4_NL"
+   ],
+   "B4": [
+    "IQ3_XXS",
+    "IQ4_NL"
+   ],
+   "B5": [
+    "IQ2_S",
+    "IQ4_NL"
+   ]
+  }
+ },
+ {
+  "predicted_kl": 0.040006,
+  "bytes": 11502076800,
+  "ne": "Q6_K",
+  "choice": {
+   "B1": [
+    "IQ2_XXS",
+    "IQ4_NL"
+   ],
+   "B2": [
+    "IQ2_S",
+    "IQ4_NL"
+   ],
+   "B3": [
+    "IQ3_XXS",
+    "IQ4_NL"
+   ],
+   "B4": [
+    "IQ3_XXS",
+    "IQ4_NL"
+   ],
+   "B5": [
+    "IQ3_XXS",
+    "IQ4_NL"
+   ]
+  }
+ },
+ {
+  "predicted_kl": 0.040106,
+  "bytes": 11438375808,
+  "ne": "Q6_K",
+  "choice": {
+   "B1": [
+    "IQ2_S",
+    "Q2_0O"
+   ],
+   "B2": [
+    "IQ3_XXS",
+    "IQ4_NL"
+   ],
+   "B3": [
+    "IQ3_XXS",
+    "IQ4_NL"
+   ],
+   "B4": [
+    "IQ3_XXS",
+    "IQ4_NL"
+   ],
+   "B5": [
+    "IQ3_XXS",
+    "IQ4_NL"
+   ]
+  }
+ }
+]
