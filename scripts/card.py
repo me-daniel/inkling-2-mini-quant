@@ -815,9 +815,9 @@ def claim_par(v: dict) -> list[str]:
             f"and also than {NUM.get(len(big), len(big))} larger file{'s' if len(big) != 1 else ''} "
             f"({join_and([LARGER.get(k, mac_label(v, k, True)) for k in big])}). Tested on {day(v['g_date'])}, so later "
             "uploads aren't covered.",
-            f"- Unsloth UD-IQ3_XXS has lower KL than this file. On this Mac it runs {pc:.2f} times slower on pp512 and "
-            f"{tc:.2f} times slower on tg128, because Metal cannot multiply its NVFP4 tensors. On other backends, or once "
-            "Metal gains NVFP4 matrix multiplies, UD-IQ3_XXS is the better choice.",
+            f"- Unsloth's UD-IQ3_XXS stays closer to the original, but on a Mac it's {pc:.1f}× slower at reading prompts and "
+            f"{tc:.2f}× slower at generating, because Metal can't run its NVFP4 tensors at the moment. On other hardware, "
+            "or once Metal supports NVFP4, use that one.",
             "- All-Metal files of this size run at about the same speed as each other (table below).", ""]
 
 
