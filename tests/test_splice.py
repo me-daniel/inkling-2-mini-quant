@@ -100,3 +100,22 @@ def test_add_refuses_empty_match(pair, tmp_path):
     base, donor = pair
     r = splice(base, tmp_path / "out.gguf", "--add", donor, r"^blk\.9\.ffn_down_exps\.scale$")
     assert r.returncode != 0 and "matches no tensor" in r.stderr
+
+
+def test_drop_leaves_out_matching_base_tensors(pair, tmp_path):
+    base, donor = pair
+    with_scale = tmp_path / "with.gguf"
+    assert splice(base, with_scale, "--add", donor, ADD, "--verify").returncode == 0
+    out = tmp_path / "dropped.gguf"
+    r = splice(with_scale, out, "--take", donor, TAKE, "--drop", r"^blk\.0\.ffn_down_exps\.scale$", "--verify")
+    assert r.returncode == 0, r.stderr
+    o, w, d = tensors(out), tensors(with_scale), tensors(donor)
+    assert list(o) == [n for n in w if n != "blk.0.ffn_down_exps.scale"]
+    assert np.array_equal(o["blk.0.ffn_down_exps.weight"].data, d["blk.0.ffn_down_exps.weight"].data)
+    assert o["blk.1.ffn_down_exps.scale"].data.tobytes() == w["blk.1.ffn_down_exps.scale"].data.tobytes()
+
+
+def test_drop_refuses_empty_match(pair, tmp_path):
+    base, _ = pair
+    r = splice(base, tmp_path / "out.gguf", "--drop", r"^nothing$")
+    assert r.returncode != 0 and "matches nothing" in r.stderr

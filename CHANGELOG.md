@@ -98,3 +98,24 @@ From a Fable direction review (in-session subagent; its points are summarised he
 - **Label fix:** the plain IQ3_XXS build is 11,747,211,680 bytes, larger than UD-IQ3_XXS; it is called "stock IQ3_XXS (larger)", correcting Addendum F.
 - **Amendment (~14:55, before any download or score; Daniel: extra downloads that help are fine).** A size scan of the repos in `reviews/2026-11-21-scoop-check.md` found two more standard-type files under the limit: AtomicChat `AD-IQ2_S` (11,556,882,400 bytes) and mudler `APEX-I-Nano` (11,339,857,152 bytes). Both join the comparison. The decision rule now needs the candidate to beat every under-limit comparator (bartowski IQ2_S, AtomicChat AD-IQ2_S, APEX-I-Nano) on both T1 and T2, CI below 0, and each must be confirmed fully Metal-supported from its tensor types (otherwise it is reported but not counted). InterpreticAI's IQ3_XXS equals our stock build in bytes and is not downloaded.
 - **Amendment 2 (~21:40, before any download or score of these files; Daniel asked for a fresh search).** A rescan of all 133 Hugging Face repos matching "Inkling-2-Mini" found two more unmodified-weight GGUFs under the limit: IsValorum `APEX-I-NanoPlus-V2.1` (10,981,551,648 bytes, revision 2431e9d) and prithivMLmods `Q2_K` (10,863,738,816 bytes, revision e8f3baa). Both join the comparison under the same rule. Excluded: files with modified weights (heretic, abliterated, uncensored, Unbound), files over 11,663,310,784 bytes, and files already scored (AtomicChat's AD-IQ2_S is unchanged since our download: same LFS sha256 5e3a34bb at revisions 5c1759f and 4f0c56a).
+
+### Addendum H (2026-11-21, ~23:05, before any data it governs; standing approval for autonomous runs tonight)
+
+Plan in `docs/concept-v2.md`. All runs are KL on S at P = 3 unless stated; no speed runs tonight (the machine is shared).
+
+**H0. The 2 x 2 on S** (diagnostic, not release candidates; `scripts/hybrid.sh`, `scripts/mirror.sh`).
+- hybrid: cand with UD-IQ3_XXS's NVFP4 down projections of layers 0-19 and their `.scale` tensors.
+- mirror: UD-IQ3_XXS with our IQ4_NL down projections (pool-3bit, the bytes cand uses) in layers 0-19 and their `.scale` tensors dropped.
+- Reading rule, with the S values already on record (cand 0.02931, UD-IQ3_XXS 0.02050), comparing point estimates with their chunk SEs: if hybrid is within 2 SE of UD-IQ3_XXS or below it, our layout is at least as good as UD's at equal down, and the down format explains the gap. If mirror is more than 2 SE below cand, UD's layout is better at equal down too. Both can hold.
+
+**H1-H5. Per-pass controls** (`scripts/perpass3.sh`, IQ4_NL base, B2 unless stated, `analysis/per_pass.py` on each group):
+- H1: layer split at the 3-bit rung (3b-ls67, 3b-ls89, 3b-ls1011, 3b-all). Rule: the Addendum F rule at 3 bits, r and norm ratio of the 3-bit pass split (on record) against this split, beyond both 95% CIs.
+- H2: tied Gaussian noise decomposed by pass (draw 1 on pass 1 only, 2 only, 3 only, all passes).
+- H3: independent Gaussian noise decomposed by pass (draw k on pass k only; noise-indep). Tests Addendum A point 7: KL(noise-indep) / sum of the three single-pass KLs, paired chunk bootstrap; "about additive" if its 95% CI contains 1.
+- H4: two more independent orders (draws 2/3/1 and 3/1/2). The tied/independent ratio is then reported for every pair of the 3 tied and 3 independent draws; "tied costs more" is stated only if all 9 ratios are above 1.
+- H5: the 2-bit pass split on B3 (layers 12-17), same statistics as B2, descriptive.
+Logits are deleted after each group's analysis; `pp-base.kld` stays.
+
+**H6. bartowski Q2_K** (11,875,433,536 bytes, the last standard-type file between 11.66 and 12 GB), T1 and T2 as in Addendum G. The card may say "under 12 GB" only if cand beats every all-Metal GGUF under 12 GB that we scored (adds bartowski IQ2_M and Q2_K) on both sets with the CI below 0.
+
+**Parallel, no result depends on them until reviewed:** a Metal NVFP4 matrix-multiply patch (0008) with `test-backend-ops` in a separate worktree; a fresh held-out set T3 for any v2 candidate (built and hashed before a candidate exists, same overlap rules as `scripts/prepare-data.py`).

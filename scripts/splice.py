@@ -48,6 +48,8 @@ def main() -> None:
     ap.add_argument("--take", nargs=2, action="append", default=[], metavar=("DONOR", "REGEX"))
     ap.add_argument("--add", nargs=2, action="append", default=[], metavar=("DONOR", "REGEX"))
     ap.add_argument("--slot", nargs=3, action="append", default=[], metavar=("DONOR", "PHYS", "SLOT"))
+    ap.add_argument("--drop", action="append", default=[], metavar="REGEX",
+                    help="leave out base tensors matching REGEX (e.g. a .scale whose weight is replaced by a pre-scaled one)")
     ap.add_argument("--verify", action="store_true")
     args = ap.parse_args()
 
@@ -56,8 +58,14 @@ def main() -> None:
         sys.exit("only little-endian GGUF is supported")
     donors = [(re.compile(rx), {t.name: t for t in gguf.GGUFReader(path).tensors}, path) for path, rx in args.take]
 
+    drops = [re.compile(rx) for rx in args.drop]
+    for rx in drops:
+        if not any(rx.search(t.name) for t in base.tensors):
+            sys.exit(f"--drop {rx.pattern} matches nothing in base")
     plan: list[tuple[gguf.ReaderTensor, str]] = []
     for t in base.tensors:
+        if any(rx.search(t.name) for rx in drops):
+            continue
         src, src_path = t, "base"
         for rx, names, path in donors:
             if rx.search(t.name):
@@ -69,7 +77,7 @@ def main() -> None:
                 break
         plan.append((src, src_path, None))
 
-    base_names = {t.name for t in base.tensors}
+    base_names = {t.name for t in base.tensors if not any(rx.search(t.name) for rx in drops)}
     out_names = set(base_names)
     for path, rx in args.add:
         pat = re.compile(rx)
@@ -120,7 +128,7 @@ def main() -> None:
     for i, (_, p, name) in enumerate(plan):
         key = f"{p} (as slot tensors)" if name is not None else f"{p} (added)" if i >= len(base.tensors) else p
         counts[key] = counts.get(key, 0) + 1
-    manifest = {"base": args.base, "take": args.take, "add": args.add, "slot": args.slot, "tensors_from": counts}
+    manifest = {"base": args.base, "take": args.take, "add": args.add, "drop": args.drop, "slot": args.slot, "tensors_from": counts}
 
     if args.verify:
         out = gguf.GGUFReader(args.out)
