@@ -72,7 +72,7 @@ Found by an Astra-high report (`reviews/2026-11-21-daslab-gpt-6.2-astra.md`) and
 - The candidate may use optimized-Q2_0 tensors (type Q2_0), spliced byte for byte into the llama-quantize build.
 - Card wording, added: "imatrix-weighted Q2_0 encoding (our encoder)". Not allowed: any claim of GSQ, GPTQ or RCO.
 
-### Addendum F (2026-11-21, ~08:30, before any data it governs): direction review
+### Addendum F (2026-11-21, ~08:00, before any data it governs): direction review
 
 From a Fable direction review (in-session subagent; its points are summarised here). Its preliminary per-pass sample (chunks 1-2) was seen before this entry; nothing below depends on per-pass numbers.
 - **Per-pass controls (scripts/perpass2.sh).** (1) Layer-split comparator: the 2-bit block on layers 6-7 / 8-9 / 10-11 only, all passes. The same residual analysis on (base, three splits, all) gives r and the norm ratio for a split that involves no weight sharing. A loop-specific claim needs the pass-split values to differ from the layer-split values beyond both CIs. (2) Small-amplitude rung: pass 1 / 2 / 3 / all at the 3-bit level (IQ3_XXS gate_up). `analysis/per_pass.py` now also reports the pairwise Fisher cosines and the visit multiplier ||all||^2 / mean_k ||d_k||^2. The 2-bit conditions use stock Q2_0 down (relative error 0.52); results are reported as amplitude-specific.
