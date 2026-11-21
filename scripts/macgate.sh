@@ -14,6 +14,8 @@ B2='^blk\.(6|7|8|9|10|11)\.ffn_(gate_up|down)_exps\.weight$'
 EXT="bart-IQ2_S atomic-AD-IQ2_S apex-I-Nano bart-IQ2_M isvalorum-NanoPlus prithiv-Q2_K bart-Q2_K"
 mkdir -p "$T"
 step() { echo "[$(date '+%H:%M:%S')] $*"; }
+# one heavy GPU run at a time: wait while another chain holds the lock
+while [ -f "$ROOT/logs/gpu.lock" ]; do sleep 30; done
 done_log() { [ -f "$1" ] && grep -q 'Mean *KLD' "$1"; }
 ctx() { if [ "$1" = T2 ]; then echo 2048; else echo 4096; fi; }
 

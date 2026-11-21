@@ -24,4 +24,7 @@ one() { # name splice-args...
 }
 one ne-ud --take "$UD" '^(?!.*_exps\.)'
 one gu-ud --take "$UD" '^blk\.\d+\.ffn_gate_up_exps\.weight$' --add "$UD" '^blk\.\d+\.ffn_gate_up_exps\.scale$'
+# amendment 3: isolating swaps
+one gu15-ud --take "$UD" '^blk\.[1-5]\.ffn_gate_up_exps\.weight$' --add "$UD" '^blk\.[1-5]\.ffn_gate_up_exps\.scale$'
+one gu911-ud --take "$UD" '^blk\.(9|10|11)\.ffn_gate_up_exps\.weight$' --add "$UD" '^blk\.(9|10|11)\.ffn_gate_up_exps\.scale$'
 step "decompose done"

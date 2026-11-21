@@ -133,3 +133,9 @@ H0 result (`results/pilot/addendum-h.md`): hybrid 0.02813 and mirror 0.02149 on 
 - ne-ud: cand with every non-expert tensor taken from UD-IQ3_XXS (UD's attention, embedding and output types).
 - gu-ud: cand with UD-IQ3_XXS's gate_up expert tensors and their `.scale` tensors.
 Reading rule: each run's KL drop from cand (0.02931) as a share of the cand-to-mirror drop (0.00782); the larger share names the main source. Shares are reported as measured; they need not add up to 1.
+
+### Addendum H amendment 3: allocation, not quantization (2026-11-22, ~00:05, before these builds and runs)
+
+Found (CPU, `results/pilot/gu-error.md`, 16 of 128 experts): at the same type, UD-IQ3_XXS's gate_up tensors are further from BF16 than ours in 17 of 17 comparable layers (plain and imatrix-weighted relative error). UD gives more bits to layers 1-5 (IQ2_S/IQ2_XS where we use IQ2_XXS) and 9-11 (IQ3_XXS where we use IQ2_S), fewer to 12 and 18. Inference: UD wins by allocation. Registered before data:
+- gu15-ud and gu911-ud (S): cand with UD's gate_up of layers 1-5 only, or 9-11 only (with their `.scale`). Read as each one's share of the cand-to-gu-ud drop (0.00810).
+- v2a (S): our own quantization (BF16, our imatrix, `llama-quantize`) at UD's gate_up types per layer, IQ4_NL down everywhere, non-expert Q6_K except token_embd Q4_K and output Q5_K (UD's types for those two), under the 11,663,310,784-byte limit. v2a becomes a v2 candidate only if its S KL is below the mirror's 0.02149 by more than 2 SE. A candidate is then scored once on T3 (after Daniel approves amendment 1); T1 and T2 are reported as seen. No release without Daniel.
