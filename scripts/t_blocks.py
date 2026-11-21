@@ -9,6 +9,7 @@ dequantized one at a time; layers run in parallel processes.
 
 import sys
 from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
 
 import numpy as np
 
@@ -41,8 +42,9 @@ def main() -> None:
     ref_path, imat_path, out, *pools = sys.argv[1:]
     n_layer = 1 + max(int(t.name.split(".")[1]) for t in gguf.GGUFReader(ref_path).tensors if t.name.startswith("blk."))
     jobs = [(ref_path, imat_path, *p.split("=", 1), layer, kind) for p in pools for layer in range(n_layer) for kind in KINDS]
-    with ProcessPoolExecutor(max_workers=10) as ex:
+    with ProcessPoolExecutor(max_workers=6) as ex:
         rows = list(ex.map(one, jobs))
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
         f.write("layer\tkind\tpool\ttype\tt\tt_weighted\n" + "\n".join(rows) + "\n")
     print(f"wrote {len(rows)} rows to {out}")
