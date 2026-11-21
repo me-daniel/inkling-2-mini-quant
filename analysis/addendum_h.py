@@ -106,6 +106,16 @@ def main() -> None:
         L += [f"- {s}" for s in two_by_two((cand["kl"], cand["se"]), (ud["kl"], ud["se"]),
                                            (h["kl"], h["se"]) if h else None, (m["kl"], m["se"]) if m else None)] + [""]
 
+    # amendment 2: which part of UD's layout
+    if "ne-ud-S-P3" in kl or "gu-ud-S-P3" in kl:
+        cand, mir = kl["sel-2-S-P3"], kl.get("mirror-S-P3")
+        L += ["## Amendment 2. Which part of UD's layout", "", "| Build (S, P = 3) | KL | drop from cand | share of the cand-to-mirror drop |", "|---|---|---|---|"]
+        for name, label in (("ne-ud-S-P3", "cand + UD's non-expert tensors"), ("gu-ud-S-P3", "cand + UD's gate_up experts")):
+            if name in kl and mir:
+                d = cand["kl"] - kl[name]["kl"]
+                L.append(f"| {label} | {kl[name]['kl']:.5f} ± {kl[name]['se']:.5f} | {d:+.5f} | {d / (cand['kl'] - mir['kl']):.0%} |")
+        L += [""]
+
     # H1
     pass3, split3 = load("perpass3bit-residual.json"), load("layersplit3bit-residual.json")
     if pass3 and split3:
