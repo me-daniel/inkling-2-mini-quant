@@ -81,3 +81,30 @@ def test_fisher_norm_matches_kl(tmp_path: Path) -> None:
     half_fisher = 0.5 * acc[:, per_pass.TERMS.index("d3"), 0].sum() / n_pos
     kl = kldfile.kl_per_chunk(base, singles[2]).mean()
     assert abs(half_fisher - kl) / kl < 0.05
+
+
+def test_full_vocabulary_norm_keeps_the_floor(tmp_path: Path) -> None:
+    # entries far below the top are floored by the writer; full_euclid keeps them as written, head_euclid drops them
+    import kldfile
+
+    rng = np.random.default_rng(2)
+    tokens = rng.integers(0, N_VOCAB, size=(N_CHUNK, N_CTX))
+    base = rng.normal(0, 1.5, size=(N_CHUNK, N_SCORED, N_VOCAB))
+    base[..., : N_VOCAB // 4] -= 30.0  # a quarter of the vocabulary sits below the 16-nat floor
+    d = deltas((1, 1, 1))
+    paths = []
+    for k, x in (("base", base), *((k, base + d[k]) for k in ("p1", "p2", "p3")), ("all", base + d["p1"] + d["p2"] + d["p3"])):
+        write_file(tmp_path / f"{k}.kld", x.astype(np.float32), tokens)
+        paths.append(tmp_path / f"{k}.kld")
+    acc = per_pass.accumulate(paths[0], paths[1:4], paths[4])
+    assert acc.shape == (N_CHUNK, len(per_pass.TERMS), len(per_pass.NORMS))
+    lp = {k: np.stack([b[2] for b in kldfile.iter_blocks(p)]).astype(np.float64).reshape(N_CHUNK, N_SCORED, N_VOCAB)
+          for k, p in zip(("base", "d3"), (paths[0], paths[3]))}
+    x = lp["d3"] - lp["base"]
+    want = ((x - x.mean(axis=2, keepdims=True)) ** 2).sum(axis=(1, 2))
+    full = acc[:, per_pass.TERMS.index("d3"), per_pass.NORMS.index("full_euclid")]
+    head = acc[:, per_pass.TERMS.index("d3"), per_pass.NORMS.index("head_euclid")]
+    assert np.allclose(full, want, rtol=1e-9)
+    assert np.all(full > head)  # the floored quarter adds to the full form only
+    s = per_pass.summarize(acc, n_boot=50)
+    assert set(s) == set(per_pass.NORMS)
