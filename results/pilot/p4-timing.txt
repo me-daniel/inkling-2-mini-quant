@@ -1,0 +1,7 @@
+P	seconds	visits
+2	310	36
+3	400	48
+4	507	60
+P = 2: 310 s, ratio to P = 3 0.78, visits ratio 0.75
+P = 3: 400 s, ratio to P = 3 1.00, visits ratio 1.00
+P = 4: 507 s, ratio to P = 3 1.27, visits ratio 1.25

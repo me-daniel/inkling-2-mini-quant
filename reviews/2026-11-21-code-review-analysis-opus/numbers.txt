@@ -1,0 +1,101 @@
+##### check_gate.py
+== compare.py reproduced, with t-interval, sign count and re-rounding of the running means ==
+T1 cand vs UD-IQ3_XXS: n=16 diff +0.00747 boot [+0.00654, +0.00845] (width 0.00191); t [+0.00639, +0.00855] (width 0.00217, boot/t 0.88); cand worse on 16/16; boot width after re-rounding 0.00191 (sd 1.2e-05)
+T1 cand vs uniform-IQ3_XXS: n=16 diff -0.02735 boot [-0.02938, -0.02537] (width 0.00401); t [-0.02963, -0.02507] (width 0.00455, boot/t 0.88); cand worse on 0/16; boot width after re-rounding 0.00401 (sd 1.4e-05)
+T1 cand vs bart-IQ2_S: n=16 diff -0.01937 boot [-0.02139, -0.01748] (width 0.00391); t [-0.02156, -0.01718] (width 0.00439, boot/t 0.89); cand worse on 0/16; boot width after re-rounding 0.00391 (sd 1.1e-05)
+T1 cand vs atomic-AD-IQ2_S: n=16 diff -0.00811 boot [-0.00935, -0.00701] (width 0.00234); t [-0.00943, -0.00679] (width 0.00265, boot/t 0.89); cand worse on 0/16; boot width after re-rounding 0.00235 (sd 8.2e-06)
+T1 cand vs apex-I-Nano: n=16 diff -0.03249 boot [-0.03496, -0.03021] (width 0.00475); t [-0.03520, -0.02978] (width 0.00542, boot/t 0.88); cand worse on 0/16; boot width after re-rounding 0.00476 (sd 1.3e-05)
+T1 cand vs bart-IQ2_M: n=16 diff -0.00710 boot [-0.00827, -0.00614] (width 0.00213); t [-0.00829, -0.00591] (width 0.00238, boot/t 0.89); cand worse on 0/16; boot width after re-rounding 0.00213 (sd 8.3e-06)
+T2 cand vs UD-IQ3_XXS: n=5 diff +0.00581 boot [+0.00513, +0.00673] (width 0.00160); t [+0.00451, +0.00711] (width 0.00259, boot/t 0.62); cand worse on 5/5; boot width after re-rounding 0.00160 (sd 1.2e-05)
+T2 cand vs uniform-IQ3_XXS: n=5 diff -0.02680 boot [-0.02912, -0.02407] (width 0.00505); t [-0.03103, -0.02257] (width 0.00845, boot/t 0.60); cand worse on 0/5; boot width after re-rounding 0.00505 (sd 1.5e-05)
+T2 cand vs bart-IQ2_S: n=5 diff -0.01690 boot [-0.01907, -0.01421] (width 0.00485); t [-0.02093, -0.01287] (width 0.00807, boot/t 0.60); cand worse on 0/5; boot width after re-rounding 0.00485 (sd 2.0e-05)
+T2 cand vs atomic-AD-IQ2_S: n=5 diff -0.00608 boot [-0.00739, -0.00503] (width 0.00235); t [-0.00791, -0.00425] (width 0.00367, boot/t 0.64); cand worse on 0/5; boot width after re-rounding 0.00235 (sd 1.8e-05)
+T2 cand vs apex-I-Nano: n=5 diff -0.03573 boot [-0.03956, -0.03229] (width 0.00727); t [-0.04146, -0.03000] (width 0.01146, boot/t 0.63); cand worse on 0/5; boot width after re-rounding 0.00727 (sd 1.8e-05)
+T2 cand vs bart-IQ2_M: n=5 diff -0.00729 boot [-0.00973, -0.00536] (width 0.00437); t [-0.01089, -0.00369] (width 0.00719, boot/t 0.61); cand worse on 0/5; boot width after re-rounding 0.00437 (sd 1.7e-05)
+
+== T2 tokens (HF tokenizer of the release; llama-perplexity drops the tail past whole chunks) ==
+T2 tokens 10428, chunks of 2048: 5, tokens past the last chunk: 188, scored positions (second half of each chunk): 5115
+
+== compare.paired with unequal lengths ==
+paired(16 chunks of 0.02, 1 chunk of 0.03) -> (-0.01, -0.01, -0.01)
+
+== stored compare.py lines vs this recomputation ==
+12 of 12 stored comparison lines reproduced to the printed digit
+
+##### check_maptable.py
+== real logs: chunks declared by llama-perplexity vs chunk lines kept ==
+54 KL logs; 1 with dropped chunk lines: ['ppl-floor-q8-S-P3.log: declared 16, kept 14, first kept chunk 3']
+on the other 53: max |mean(per_chunk) - Mean KLD| = 5.0e-06
+dropped lines in the floor log: ['1       7.5511 ±    0.3921       0.00000 ±        nan       0.00000 ±    0.00000     0.001 ±  0.000 %    100.0', '2       7.1882 ±    0.2712      -0.00000 ±        nan       0.00000 ±    0.00000     0.001 ±  0.000 %    100.0']
+
+== synthetic log, 6 chunks, line 4 unparseable ==
+an SE printed as nan: true [0.02, 0.03, 0.025, 0.015, 0.04, 0.01], parsed [0.02, 0.03, 0.025, 0.03, 0.01], n 5, mean 0.02300 vs true 0.02333; chunk 5 should be 0.040 (or 0.055 for 4+5)
+a running KL printed as -0.00000: true [0.02, 0.03, 0.025, 0.015, 0.04, 0.01], parsed [0.02, 0.03, 0.025, 0.03, 0.01], n 5, mean 0.02300 vs true 0.02333; chunk 5 should be 0.040 (or 0.055 for 4+5)
+
+== seconds column ==
+kl.tsv rows 53, seconds = nan in 53; logs with a 'total time' line: 0
+
+##### check_allocate.py
+== allocator rerun ==
+stored allocation-top.json reproduced exactly: True
+spare MB of the printed top 8: [87, 64, 149, 213, 43, 2, 172, 87]; smallest 2 MB
+gate_up options in code: ['IQ3_XXS', 'IQ2_S', 'IQ2_XXS'] ; down options: ['IQ4_NL', 'Q2_0O'] ; docstring says '4 gate_up'
+
+== hand prediction, Addendum E: KL(3bit) + [gu level - 3bit] + [dnq2o - 3bit], plus NE Q6_K ==
+sel-0: hand 0.039004, stored 0.039004, measured on S 0.031449
+sel-1: hand 0.039891, stored 0.039891, measured on S 0.029632
+sel-2: hand 0.040006, stored 0.040006, measured on S 0.029309
+sel-3: hand 0.040106, stored 0.040106, measured on S 0.029453
+
+== bytes ==
+cand.gguf: tensor bytes 11,502,076,800, formula 11,502,076,800, file 11,514,054,944 (overhead 11,978,144)
+uniform-IQ3_XXS.gguf: tensor bytes 11,735,233,536, formula 11,735,233,536, file 11,747,211,680 (overhead 11,978,144)
+UD-IQ3_XXS.gguf: tensor bytes 11,651,330,816, formula 11,651,330,816, file 11,663,310,784 (overhead 11,979,968)
+overhead assumed by BUDGET 11,977,760; cand.gguf overhead 11,978,144; difference 384 bytes
+allocator bytes of sel-2 11,502,076,800; cand.gguf tensor bytes 11,502,076,800
+
+== missing map runs: does the allocator notice? ==
+without ('map-B3-gu2s-S-P3', 'map-NE-Q6K-S-P3'): allocator ran, no error, 4 picks, NE types used ['Q8_0'], B3 gate_up types used ['IQ3_XXS']
+
+##### check_per_pass.py
+== 1. Fisher statistics: largest relative difference, per_pass vs independent Gram ==
+over 9 statistics: 3.5e-15
+r per chunk: 2.5e-14
+== 2. r CI: per_pass [0.262016239301, 0.290463186122], independent [0.262016239301, 0.290463186122]
+== 3. mutants against tests/test_per_pass.py ==
+6 tests; unmutated, failing: none
+Fisher norm without centring: failing tests none
+head norm without centring: failing tests none
+HEAD_NATS 10 -> 3: failing tests none
+max |logp(x + 3) - logp(x)| after the writer: 1.1e-04 nats (the +3.0 and -7.0 shifts in test_shift_invariance never reach per_pass)
+
+##### check_report.py
+== noise ratio ==
+stored noise-ratio.txt equals a recomputation from perpass-kl.tsv: True
+noise-tied / noise-indep: 1.196 [1.169, 1.225]
+noise-tied2 / noise-indep: 1.222 [1.187, 1.256]
+noise-tied3 / noise-indep: 1.223 [1.182, 1.262]
+
+== duplicate rows: which one wins ==
+noise.chunks -> [0.1, 0.1]; perpass_report.kl_chunks -> [0.2, 0.2]; perpass_report.kl_table -> 0.2
+
+== control_section sentence when CIs are disjoint but a point lies inside the other's CI ==
+apart -> disjoint True, points outside False; control_section would print: 'CIs do not overlap. Each point lies outside the other's CI.'
+
+== text in per_pass.py's docstring vs CHANGELOG ==
+per_pass.py says 'not recorded in CHANGELOG.md': True ; CHANGELOG has Addendum G section 2: True
+
+##### check_real_logits.py
+== chunk 0, rows 0-127, 2-bit pass split ==
+max |float32 decode - float64 decode|: 1.07e-06 nats; median writer step 2.44e-04 nats
+fisher: rounding-noise share of ||R||^2 1.1e-06, of ||all||^2 1.0e-07; r 0.61062, noise-corrected 0.61062
+head_euclid: rounding-noise share of ||R||^2 3.2e-07, of ||all||^2 3.7e-08; r 0.68243, noise-corrected 0.68243
+full_euclid: rounding-noise share of ||R||^2 1.5e-07, of ||all||^2 1.7e-08; r 0.67010, noise-corrected 0.67009
+
+== B2 expert tensors: IQ4_NL base vs pool-3bit (the 3-bit rung's donor) ==
+down: identical in 6 of 6 layers; types base ['IQ4_NL'], pool-3bit ['IQ4_NL']
+gate_up: identical in 0 of 6 layers; types base ['IQ4_NL'], pool-3bit ['IQ3_XXS']
+
+##### pytest
+....................                                                     [100%]
+20 passed in 1.66s
