@@ -391,7 +391,8 @@ def speed_par(v: dict) -> list[str]:
             f"binary for all files (build `{ud['build']}` as printed by llama-bench, the patched HEAD below). The ± is "
             f"llama-bench's standard deviation over the {v['bench_reps']} repetitions. Machine: {v['machine']}. Engine: "
             f"llama.cpp `{v['base'][:7]}` ({v['tag']}) plus {len(v['patches'])} patches "
-            f"({', '.join(p[:4] for p, _ in v['patches'])}, listed under Provenance). Peak memory was not recorded."]
+            f"({', '.join(p[:4] for p, _ in v['patches'])}, listed under Provenance)."
+            + ("" if memory_rows() else " Peak memory was not recorded.")]
 
 
 def stability_lines(v: dict) -> list[str]:
@@ -724,6 +725,105 @@ def render(v: dict) -> tuple[str, str]:
     return "\n".join(N) + "\n", "\n".join(C) + "\n"
 
 
+def base_license() -> str:
+    """The release's license id, read from its model card front matter."""
+    return one(r"^license: (\S+)$", text(ROOT / "models/Inkling-2-Mini/README.md"), re.M)[1]
+
+
+def upstream_check() -> dict | None:
+    """Stock upstream llama.cpp rescore of the candidate (results/pilot/upstream-check.txt)."""
+    p = R / "upstream-check.txt"
+    if not p.exists():
+        return None
+    t = text(p)
+    kl = re.findall(r"Mean KLD: ([\d.]+) ± ([\d.]+) \| Same top p: ([\d.]+)", t)
+    assert len(kl) == 2, "upstream-check.txt: expected two runs"
+    return dict(commit=one(r"stock upstream ([0-9a-f]+)", t)[1], same=kl[0] == kl[1], kl=kl[1][0], top=kl[1][2])
+
+
+DEPTH_FILES = ("cand", "UD-IQ3_XXS", "atomic-AD-IQ2_S")
+
+
+def depth_rows() -> dict:
+    """llama-bench at context depth (results/pilot/depth-NAME.txt): {name: {test: (t/s, ±)}}; files missing are skipped."""
+    out = {}
+    for name in DEPTH_FILES:
+        p = R / f"depth-{name}.txt"
+        if p.exists():
+            out[name] = {m[1].strip(): (m[2], m[3]) for m in re.finditer(r"\|\s*((?:pp512|tg128)(?: @ d\d+)?)\s*\|\s*([\d.]+) ± ([\d.]+)\s*\|", text(p))}
+    return out
+
+
+def memory_rows() -> dict:
+    """Peak memory from /usr/bin/time -l (results/pilot/memory-NAME.txt), in bytes."""
+    out = {}
+    for name in DEPTH_FILES:
+        p = R / f"memory-{name}.txt"
+        if p.exists():
+            t = text(p)
+            out[name] = dict(rss=int(one(r"(\d+)\s+maximum resident set size", t)[1]),
+                             foot=int(one(r"(\d+)\s+peak memory footprint", t)[1]))
+    return out
+
+
+def depth_section(v: dict) -> list[str]:
+    d, mem = depth_rows(), memory_rows()
+    if not d and not mem:
+        return []
+    out = ["", "## Speed at context depth and peak memory", ""]
+    if d:
+        tests = sorted({t for r in d.values() for t in r}, key=lambda t: (t[:5], int(t.split("d")[-1]) if "@" in t else 0))
+        names = [k for k in DEPTH_FILES if k in d]
+        out += ["Same binary and flags as above, `-d 0,4096,16384 -r 2`: each test runs after that many tokens of context.", "",
+                "| Test | " + " | ".join(mac_label(v, k, True) for k in names) + " |", "|---|" + "---|" * len(names)]
+        out += [f"| {t} | " + " | ".join(f"{d[k][t][0]} ± {d[k][t][1]}" if t in d[k] else "n/a" for k in names) + " |" for t in tests]
+    if mem:
+        out += ["", "Peak memory of one llama-bench run at depth 16,384 (macOS `/usr/bin/time -l`; the footprint includes "
+                "GPU allocations in unified memory):", "",
+                "| File | Peak memory footprint | Maximum resident set size |", "|---|---|---|"]
+        out += [f"| {mac_label(v, k, True)} | {mem[k]['foot'] / 2**30:.2f} GiB | {mem[k]['rss'] / 2**30:.2f} GiB |" for k in DEPTH_FILES if k in mem]
+    return out
+
+
+def claim_par(v: dict) -> list[str]:
+    f, mf = mac_facts(v), v["mf"]
+    limit = mf["UD-IQ3_XXS"]["bytes"]
+    under = [k for k in f["counted_ok"] if mf[k]["bytes"] < limit]
+    over = [k for k in v["mnames"] if k != "cand" and mf[k]["off"] == 0 and mf[k]["bytes"] >= limit]
+    won = lambda k: all(v["mrows"][(t, k)]["win"] for t in ("T1", "T2"))  # noqa: E731
+    assert all(won(k) for k in under), "claim needs a win over every under-limit comparator"
+    big = [k for k in over if won(k)]
+    (pc, _, _), (tc, _, _) = f["vs_ud"]["pp512"], f["vs_ud"]["tg128"]
+    return ["## In short", "",
+            f"- As of {v['g_date']}, this file has lower held-out KL (T1 and T2, 95% CI) than each of the {len(under)} other "
+            f"GGUFs under {n(limit)} bytes with all expert tensors in Metal-supported types that we compared "
+            f"({', '.join(mac_label(v, k, True) for k in under)}), and than {len(big)} larger all-Metal "
+            f"file{'s' if len(big) != 1 else ''} ({', '.join(mac_label(v, k, True).replace(' (larger)', ' build') for k in big)}). "
+            "The comparison set is a snapshot of that day. Files uploaded later are not covered.",
+            f"- Unsloth UD-IQ3_XXS has lower KL than this file. On this Mac it runs {pc:.2f} times slower on pp512 and "
+            f"{tc:.2f} times slower on tg128, because Metal cannot multiply its NVFP4 tensors. On other backends, or once "
+            "Metal gains NVFP4 matrix multiplies, UD-IQ3_XXS is the better choice.",
+            "- All-Metal files of this size run at about the same speed as each other (table below).", ""]
+
+
+def usage_section(v: dict) -> list[str]:
+    u = upstream_check()
+    out = ["## Use", "",
+           "Needs a llama.cpp build with Inkling 2 support (upstream after 20 Nov 2026). Homebrew's llama.cpp releases "
+           "of that date do not load it yet.", "",
+           "```sh",
+           "llama-cli -m Inkling-2-Mini-Metal.gguf -ngl 99 --jinja -c 32768 --temp 1.0 --reasoning-budget 16384",
+           "llama-server -m Inkling-2-Mini-Metal.gguf -ngl 99 --jinja -c 32768 --temp 1.0 --reasoning-budget 16384 --port 8080",
+           "```", "",
+           "Temperature 1.0 is the release's `generation_config.json` value. The base model card warns about long "
+           "reasoning loops, so the commands cap thinking at 16K tokens. The loop count stays at its default of 3."]
+    if u:
+        out += ["", f"Stock upstream llama.cpp (`{u['commit']}`, no patches) scores this file "
+                + ("identically" if u["same"] else "differently") + f" to the build used for the tables (T1: KL {u['kl']}, "
+                f"top-1 {u['top']}%)."]
+    return out + [""]
+
+
 DRAFT_LINE = "> DRAFT for Daniel's review. Not uploaded. Delete this line before any upload."
 
 
@@ -735,14 +835,17 @@ def mac_card(v: dict, label: dict, cand_bytes: int, ud_bytes: int, ud: list, s: 
     nv = one(r"ffn_down_exps NVFP4 x(\d+)", v["files"]["UD-IQ3_XXS"]["expert tensor types"])[1]
     cand_down = one(r"ffn_down_exps (\w+) x(\d+)", v["files"]["cand"]["expert tensor types"])
     assert int(nv) == udf["off"], "NVFP4 count in gate.md differs from the bench file"
-    C = ["---", f"base_model: {v['model']}", "tags:", "- gguf", "- llama.cpp", "- exploratory", "---", "",
-         "# Inkling 2 Mini GGUF, block-wise allocation, all expert tensors in Metal-supported types (exploratory)", "",
-         f"## Pre-registered gate against UD-IQ3_XXS: {v['verdict']}", "",
+    C = ["---", f"base_model: {v['model']}", "base_model_relation: quantized", f"license: {base_license()}", "tags:",
+         "- gguf", "- llama.cpp", "- inkling2_loop", "- apple-silicon", "- exploratory", "---", "",
+         "# Inkling 2 Mini GGUF, block-wise allocation, all expert tensors in Metal-supported types (exploratory)", ""]
+    C += claim_par(v) + usage_section(v)
+    C += [f"## Pre-registered gate against UD-IQ3_XXS: {v['verdict']}", "",
          f"This file ({n(cand_bytes)} bytes) has higher KL to the reference than Unsloth UD-IQ3_XXS ({n(ud_bytes)} bytes) "
          f"on both held-out sets. On T1 the difference is {ud[0]['d']:+.5f} [{ud[0]['lo']:+.5f}, {ud[0]['hi']:+.5f}], "
          f"and this file is worse on {ud[0]['worse']} of {ud[0]['n']} chunks. On T2 it is {ud[1]['d']:+.5f} "
          f"[{ud[1]['lo']:+.5f}, {ud[1]['hi']:+.5f}], worse on {ud[1]['worse']} of {ud[1]['n']} chunks. Under the "
-         "pre-registered rule this is a FAIL, and it stands.", "",
+         "pre-registered rule this is a FAIL, and it stands. The rule is in our change log, which is private for now. "
+         "A public mirror will follow.", "",
          f"Why. UD-IQ3_XXS keeps the release's native NVFP4 down projections in {nv} expert tensors. The pinned Metal "
          f"backend cannot multiply NVFP4, so on Apple Silicon those {nv} tensors run on the CPU. This file stores every "
          f"expert down projection as {cand_down[1]} ({cand_down[2]} tensors), a type Metal can multiply, and pays for it "
@@ -767,7 +870,7 @@ def mac_card(v: dict, label: dict, cand_bytes: int, ud_bytes: int, ud: list, s: 
                   + ("higher" if won else "not shown to have higher") + f" KL than this file on both sets ({r1['d']} "
                   f"[{r1['lo']}, {r1['hi']}] on T1, {r2['d']} [{r2['lo']}, {r2['hi']}] on T2)."]
     C += ["",
-          "## Speed", ""] + speed_par(v)
+          "## Speed", ""] + speed_par(v) + depth_section(v)
     C += ["", "## Stability", "",
           "The registered stability battery, run on this file and on the Q8_0 reference with the same server settings.", ""]
     C += stability_lines(v)
@@ -799,9 +902,11 @@ def main() -> None:
     if bad:
         print("\n".join(bad), file=sys.stderr)
         raise SystemExit(1)
-    if v["mac"]:
-        card = DRAFT_LINE + "\n\n" + card  # the only line outside the scan; it names the reviewer
     OUT.mkdir(exist_ok=True)
+    if v["mac"]:
+        (OUT / "release").mkdir(exist_ok=True)
+        (OUT / "release" / "README.md").write_text(card, encoding="utf-8")  # upload copy, no draft line
+        card = DRAFT_LINE + "\n\n" + card  # the only line outside the scan; it names the reviewer
     (OUT / "note.md").write_text(note, encoding="utf-8")
     (OUT / "MODEL_CARD.md").write_text(card, encoding="utf-8")
     kind = (f"Mac-track card, Addendum G rule {v['mq']['verdict']}, stability {'PASS' if v['judge']['pass'] else 'FAIL'}"
