@@ -887,7 +887,18 @@ def lean_card(v: dict, cand_bytes: int) -> list[str]:
          "Temperature 1.0 is the release default. The base model card warns about long reasoning loops, so the "
          "command caps thinking at 16K tokens."
          + (f" Stock upstream llama.cpp (`{u['commit']}`) gives identical scores." if u and u["same"] else ""), "",
-         "## Research background", "",
+         "## Which Mac", "",
+         "- 24 GB or more: fits comfortably, with room for a 16K context and other apps.",
+         "- 16 GB: possible after raising the GPU memory limit, with a short context and little RAM left for other "
+         "apps. macOS lets the GPU use only about two thirds of RAM by default, which is less than the model needs:", "",
+         "```sh",
+         "sudo sysctl iogpu.wired_limit_mb=13000   # resets on reboot",
+         "```", ""]
+    mem = memory_rows().get("cand")
+    if mem:
+        C += [f"Measured on our Mac, the whole process peaked at {mem['rss'] / 1e9:.1f} GB with the context filled to "
+              "16K tokens.", ""]
+    C += ["## Research background", "",
          "We made this file as part of a master's thesis pilot on looped models. Inkling 2 Mini runs layers 6 to 17 "
          "three times with the same weights. We enabled quantization error on one pass at a time to measure how the "
          "errors add up across passes. The report covers that experiment. We chose the file's layout independently of it.", "",
