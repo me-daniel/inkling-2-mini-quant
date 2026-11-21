@@ -785,6 +785,21 @@ def depth_section(v: dict) -> list[str]:
     return out
 
 
+NUM = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five"}
+LARGER = {"uniform-IQ3_XXS": "a stock IQ3_XXS build"}
+
+
+def join_and(xs: list[str]) -> str:
+    return xs[0] if len(xs) == 1 else ", ".join(xs[:-1]) + " and " + xs[-1]
+
+
+def day(iso: str) -> str:
+    """2026-11-21 -> 21 Nov 2026"""
+    import datetime
+    d = datetime.date.fromisoformat(iso)
+    return f"{d.day} {d.strftime('%b')} {d.year}"
+
+
 def claim_par(v: dict) -> list[str]:
     f, mf = mac_facts(v), v["mf"]
     limit = mf["UD-IQ3_XXS"]["bytes"]
@@ -795,11 +810,11 @@ def claim_par(v: dict) -> list[str]:
     big = [k for k in over if won(k)]
     (pc, _, _), (tc, _, _) = f["vs_ud"]["pp512"], f["vs_ud"]["tg128"]
     return ["## In short", "",
-            f"- As of {v['g_date']}, this file has lower held-out KL (T1 and T2, 95% CI) than each of the {len(under)} other "
-            f"GGUFs under {n(limit)} bytes with all expert tensors in Metal-supported types that we compared "
-            f"({', '.join(mac_label(v, k, True) for k in under)}), and than {len(big)} larger all-Metal "
-            f"file{'s' if len(big) != 1 else ''} ({', '.join(mac_label(v, k, True).replace(' (larger)', ' build') for k in big)}). "
-            "The comparison set is a snapshot of that day. Files uploaded later are not covered.",
+            f"- Of the GGUFs under {limit / 1e9:.1f} GB that we tested and that run entirely on the Mac GPU, this one stays "
+            f"closest to the original model. It has lower KL on held-out text than {join_and([mac_label(v, k, True) for k in under])}, "
+            f"and also than {NUM.get(len(big), len(big))} larger file{'s' if len(big) != 1 else ''} "
+            f"({join_and([LARGER.get(k, mac_label(v, k, True)) for k in big])}). Tested on {day(v['g_date'])}, so later "
+            "uploads aren't covered.",
             f"- Unsloth UD-IQ3_XXS has lower KL than this file. On this Mac it runs {pc:.2f} times slower on pp512 and "
             f"{tc:.2f} times slower on tg128, because Metal cannot multiply its NVFP4 tensors. On other backends, or once "
             "Metal gains NVFP4 matrix multiplies, UD-IQ3_XXS is the better choice.",
