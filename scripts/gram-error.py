@@ -41,6 +41,7 @@ N_EXP, N_IN, N_OUT = 128, 2304, 2304
 HALVES = {"gate": slice(0, 1152), "up": slice(1152, 2304), "both": slice(0, 2304)}
 METRICS = ("full", "diag", "plain")
 EXTRA: dict[str, str] = {}  # name -> path, from --extra
+REG: float | None = None  # --reg s adds metric "reg": the full error under G + s * Diag(G) (amendment 9b)
 SPLIT = ("bias", "rest")  # full = bias + rest, needs the per-expert input mean (in_sum / count)
 AGGS = ("unweighted", "count-weighted", "trace-weighted")
 
@@ -61,6 +62,8 @@ def row_forms(x: np.ndarray, g: np.ndarray, mean=None, count: float = 0) -> dict
         full = np.einsum("ij,ij->i", y.astype(np.float64), x.astype(np.float64))
         x2 = x.astype(np.float64) ** 2
         out = {"full": full, "diag": x2 @ np.diag(g).astype(np.float64), "plain": x2.sum(axis=1)}
+        if REG is not None:
+            out["reg"] = full + REG * out["diag"]
         if mean is not None:
             out["bias"] = float(count) * (x.astype(np.float64) @ np.asarray(mean, dtype=np.float64)) ** 2
     for k, v in out.items():
@@ -75,7 +78,7 @@ def rel_errors(w: np.ndarray, wq: np.ndarray, g: np.ndarray, halves=HALVES, mean
     With the input mean and token count also bias = n ||dW m||^2 / tr(W G W^T) and rest = full - bias."""
     fw, fd = row_forms(w, g), row_forms(wq - w, g, mean, count)
     res: dict[str, dict[str, float]] = {}
-    for m in METRICS + (("bias",) if mean is not None else ()):
+    for m in METRICS + (("reg",) if REG is not None else ()) + (("bias",) if mean is not None else ()):
         res[m] = {}
         for h, s in halves.items():
             den = fw["full" if m == "bias" else m][s].sum()
@@ -213,7 +216,7 @@ def run(layers, experts, tsv):
         notes = layout_check(l, u, counts)
         means, mnote = load_means(l, counts)
         notes.append(mnote)
-        mets = METRICS + (SPLIT if means is not None else ())
+        mets = METRICS + (("reg",) if REG is not None else ()) + (SPLIT if means is not None else ())
         traces = np.full(N_EXP, np.nan)
         res = {}
         t0 = time.time()
@@ -242,10 +245,14 @@ def run(layers, experts, tsv):
                 for f in ("ours", "ud", *EXTRA):
                     r = res[e][f]
                     rec.append(f"{l}\t{ty}\t{e}\t{counts[e]}\t{traces[e]:.6e}\t{h}\t{f}\t"
-                               + "\t".join(f"{r[m][h]:.6e}" if m in r else "nan" for m in METRICS + SPLIT))
+                               + "\t".join(f"{r[m][h]:.6e}" if m in r else "nan" for m in tsv_cols()))
     with open(tsv, "w", encoding="utf-8") as fh:
-        fh.write("layer\ttype\texpert\tcount\tgram_trace\thalf\tfile\tfull\tdiag\tplain\tbias\trest\n" + "\n".join(rec) + "\n")
+        fh.write("layer\ttype\texpert\tcount\tgram_trace\thalf\tfile\t" + "\t".join(tsv_cols()) + "\n" + "\n".join(rec) + "\n")
     return meta
+
+
+def tsv_cols() -> tuple[str, ...]:
+    return METRICS + SPLIT + (("reg",) if REG is not None else ())
 
 
 def fmt(x: float) -> str:
@@ -258,6 +265,8 @@ def report(meta, experts, md, tsv):
     if EXTRA:
         title += " and " + ", ".join(EXTRA)
         origin += "; extra encodings (amendment 9): " + ", ".join(f"{k} = `{v}`" for k, v in EXTRA.items())
+    if REG is not None:
+        origin += f"; reg = full with G + {REG:g} * Diag(G) in numerator and denominator (amendment 9b's objective)"
     out = [title, "", origin + ". Per-expert rows: `" + tsv + "`.",
            f"Grams: `{GRAMS}` (patched llama-imatrix on cand.gguf at P = 3, first 100 chunks of `data/calib-wt.txt`, "
            "pooled over all visits), symmetrised from the upper triangle. dW = dequantized minus BF16; UD's dequantized "
@@ -281,7 +290,7 @@ def report(meta, experts, md, tsv):
                 + "".join(f" {k} | {k} / ours | {k} < ours |" for k in EXTRA),
                 "|---|---|---|---|---|---|---|" + "---|---|---|" * len(EXTRA)]
         arr = {}
-        for met in ("full",) + tuple(x for x in m["mets"] if x in SPLIT) + ("diag", "plain"):
+        for met in ("full",) + tuple(x for x in m["mets"] if x in ("reg",) + SPLIT) + ("diag", "plain"):
             for h in HALVES:
                 o = np.full(N_EXP, np.nan)
                 u = np.full(N_EXP, np.nan)
@@ -319,7 +328,7 @@ def report(meta, experts, md, tsv):
             out += ["", f"Paired bootstrap over experts (10,000 resamples, seed 0), count-weighted mean of {k} minus ours "
                     f"and {k} minus UD:", "", f"| metric | half | {k} - ours | 95% CI | {k} - UD | 95% CI |",
                     "|---|---|---|---|---|---|"]
-            for met in ("full", "bias", "rest", "diag"):
+            for met in ("full", "reg", "bias", "rest", "diag"):
                 if met not in m["mets"]:
                     continue
                 for h in HALVES:
@@ -401,6 +410,10 @@ def extra_summary(k: str, meta, v, experts) -> list[str]:
             ro, ru = v[(l, "rest", "both", "count-weighted")]
             bx, rx = v[(l, "bias", "both", "count-weighted", k)], v[(l, "rest", "both", "count-weighted", k)]
             s.append(f"Bias part {fmt(bx)} (ours {fmt(bo)}, UD {fmt(bu)}), rest {fmt(rx)} (ours {fmt(ro)}, UD {fmt(ru)}).")
+        if (l, "reg", "both", "count-weighted", k) in v:
+            go, gu = v[(l, "reg", "both", "count-weighted")]
+            gx = v[(l, "reg", "both", "count-weighted", k)]
+            s.append(f"Regularised (the search objective) {fmt(gx)} (ours {fmt(go)}, UD {fmt(gu)}).")
         do, du = v[(l, "diag", "both", "count-weighted")]
         dx = v[(l, "diag", "both", "count-weighted", k)]
         po, pu = v[(l, "plain", "both", "count-weighted")]
@@ -437,6 +450,7 @@ def extra_summary(k: str, meta, v, experts) -> list[str]:
             "| layer | experts refined | skipped | sweeps used (count) | accepted moves | blocks changed | "
             "expert seconds (sum) | max abs(log - here), before | max abs(log - here), after | J never rose |",
             "|---|---|---|---|---|---|---|---|---|---|"]
+    regchk: list[str] = []
     for l in meta:
         recs = [r for r in log["layers"].get(str(l), {}).get("experts", []) if r["expert"] in experts]
         done = [r for r in recs if r["sweeps"]]
@@ -447,17 +461,27 @@ def extra_summary(k: str, meta, v, experts) -> list[str]:
         db = max((abs(r["sweeps"][0]["rel_before"] - res[r["expert"]]["ours"]["full"]["both"]) for r in done), default=0.0)
         da = max((abs(r["sweeps"][-1]["rel_after"] - res[r["expert"]][k]["full"]["both"]) for r in done), default=0.0)
         mono = all(sw["J_after"] <= sw["J_before"] for r in done for sw in r["sweeps"])
+        if REG is not None and done and "relreg_before" in done[0]["sweeps"][0]:
+            gb = max(abs(r["sweeps"][0]["relreg_before"] - res[r["expert"]]["ours"]["reg"]["both"]) for r in done)
+            ga = max(abs(r["sweeps"][-1]["relreg_after"] - res[r["expert"]][k]["reg"]["both"]) for r in done)
+            regchk.append(f"layer {l}: max abs(log - here) on reg {gb:.2e} before, {ga:.2e} after")
         nblk = N_OUT * N_IN // 256
         out.append(f"| {l} | {len(done)} | {len(recs) - len(done)} | "
                    + ", ".join(f"{a}: {b}" for a, b in sorted(nsw.items())) + " | "
                    f"{sum(sw['accepted'] for r in done for sw in r['sweeps'])} | "
                    f"{sum(r.get('blocks_changed', 0) for r in done)} of {nblk * len(done)} | "
                    f"{sum(r['seconds'] for r in done):.0f} | {db:.2e} | {da:.2e} | {'yes' if mono else 'no'} |")
+    sk = sorted({r.get("skipped", "") for x in log["layers"].values() for r in x["experts"] if not r["sweeps"]})
+    out += ["", f"Search settings from the log: shrink {log['args'].get('shrink', 0)}, min tokens "
+            f"{log['args'].get('min_tokens', 0)}; 'J never rose' is under the search objective; the max abs columns "
+            "compare the log's own full-G relative errors with the ones computed here."
+            + (" " + "; ".join(regchk) + "." if regchk else "")
+            + (f" Skipped experts keep the source bytes (reasons: {len(sk)} distinct, e.g. '{sk[0]}')." if sk else "")]
     return out
 
 
 def main() -> None:
-    global GRAMS
+    global GRAMS, REG
     ap = argparse.ArgumentParser()
     ap.add_argument("--layers", type=int, nargs="+", default=[6, 20])
     ap.add_argument("--experts", default="0:128:1", help="start:stop:step")
@@ -465,10 +489,13 @@ def main() -> None:
     ap.add_argument("--md", default="results/pilot/gram-error.md")
     ap.add_argument("--grams", default=GRAMS, help="Gram directory (default the amendment 7 capture)")
     ap.add_argument("--min-free", type=int, default=30, help="memory_pressure free percentage required to start")
+    ap.add_argument("--reg", type=float, default=None, metavar="S",
+                    help="also report the full error under G + S * Diag(G) (amendment 9b: S = 0.1)")
     ap.add_argument("--extra", action="append", default=[], metavar="NAME=GGUF",
                     help="another encoding of the same tensors to compare (e.g. refined=models/refined/gu-refined-6-20.gguf)")
     args = ap.parse_args()
     GRAMS = args.grams
+    REG = args.reg
     for x in args.extra:
         k, _, path = x.partition("=")
         if not path or k in ("ours", "ud", "bf16") or k in EXTRA:
