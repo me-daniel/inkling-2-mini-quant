@@ -186,7 +186,7 @@ Dropped from amendment 5: the scaled diagnostic. The IQ quantizer's weight `qw *
 
 Amendment 6, before its run: cal-wt1200, identical to cal-wt except 1,200 chunks (the first 614,400 tokens of the same train text, nested over cal-wt's 300; 0 shared 13-grams with S/T1/T2/T3). Reading: if cal-wt1200 minus cal-wt has a paired CI below 0, imatrix quantity matters at fixed domain and a larger imatrix is the next lever; if the CI includes 0, quantity at this scale is not the lever either, and the remaining candidates are UD's quantizer build and its importance objective, which we cannot reproduce from the file.
 
-### Addendum H amendment 7: a full-Gram test of UD's encoding (2026-11-22, ~04:55, before the capture)
+### Addendum H amendment 7: a full-Gram test of UD's encoding (2026-11-22, ~04:42, before the capture)
 
 Evidence so far: UD's gate_up has a larger diagonal-imatrix-weighted weight error than our encoder at the same type, yet much lower KL; four importance sources (ggml-org, bartowski in the sibling repo, the sibling's own capture, WikiText-2 train) move our encoder's KL by at most about 0.0005. A diagonal metric cannot see input correlations. Hypothesis (inference): UD's codes are better under the full input second moment, i.e. its encoder exploits correlations between input columns.
 
