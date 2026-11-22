@@ -176,7 +176,7 @@ From `reviews/2026-11-22-pivot-astra.md`. In order:
 - The ggml-org imatrix is expert-indexed (in_sum2 [cols, 128], counts [1, 128], no expert at 0) and sums all three visits of a looped layer (looped / non-looped totals exactly 3.0000). So plain visit pooling is not what separates UD's importance weighting from ours; calibration data and the rounding objective stay open.
 - **Correction to the previous entry:** the imatrix saw 590 chunks of 512 tokens (302,080 tokens), not 1,770. Its stored chunk_count counts each loop pass.
 
-### Addendum H, cal-wt result and amendment 6 (2026-11-22, ~03:15; amendment registered before its run)
+### Addendum H, cal-wt result and amendment 6 (2026-11-22, ~03:04; amendment registered before its run)
 
 Result (record, `logs/ppl-cal-wt-S-P3.log`, paired on S): cal-wt (our encoder at UD's gate_up map, imatrix from 300 chunks of WikiText-2 train, 0 shared 13-grams with S/T1/T2/T3) scores 0.026624. Against gu-v2a (same map, ggml-org imatrix) it recovers +0.00055 [+0.00008, +0.00099] of the encoding gap; UD's own gate_up stays +0.00541 [+0.00461, +0.00623] better. A calibration text from the evaluation's own domain barely helps, so the calibration domain is not the lever.
 
