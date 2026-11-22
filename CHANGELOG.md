@@ -279,3 +279,7 @@ That record says noise-tied3 "is recomputed from scratch". It was not used: the 
 ### Addendum H, H1-H5 results (2026-11-22, ~09:30; a record)
 
 `results/pilot/perpass-h1-h5.md` (`scripts/perpass-summary.py`; every number from `results/pilot`): all five groups complete. H1 rule met (pass split r 0.748 [0.732, 0.761] against layer split 1.108 [1.074, 1.145]); H2 descriptive (tied noise KL all/sum 1.141 [1.119, 1.162], like the 2-bit split's 1.135); H3 ratio 0.953 [0.934, 0.971], CI excludes 1, so not "about additive" by the registered rule (about 5% sub-additive); H4 rule met (all 9 ratios above 1, 1.167 to 1.223; the 9 share three draws); H5 descriptive (B3 KL all/sum 1.226 [1.209, 1.244], pass 3 dominates). Across visit splits KL all/sum runs from 0.87 to 1.23, against about 0.33 for "counts once" and about 3 for fully aligned visits.
+
+### Addendum H amendment 10, note before data (2026-11-22, ~09:40)
+
+Offline gains of v1 so far (`results/pilot/cand-gain.tsv`, 13 of 48 tensors): IQ4_NL down gain 0.995-0.996 (energy 0.995-0.998), IQ2_XXS gate_up gain 0.973-0.976 with energy 1.070-1.077, IQ2_S gate_up 0.996 (energy 1.061). v1 hardly attenuates. The sibling repo's M0uu (its gate_up and IQ4_NL down rescaled to gain 1 on top of M0u) was worse, +0.00138 [+0.00076, +0.00198], because gate_up already runs at energy above 1. So any cand-u effect will come mostly from the gate_up rescale, and the prior leans to zero or harm. No down-only split is added (a 0.5% correction). cand-u is read as registered.
