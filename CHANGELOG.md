@@ -305,7 +305,7 @@ Build rp-refined-k-9-10-11: the refined 9-11 gate_up with every row rescaled to 
 
 rp-refined-k-9-10-11 (refined 9-11 rescaled per row to v2a's plain gain) scores 0.026181 on S: minus gu-v2a -0.00099 [-0.00147, -0.00048] (share 0.99), minus rp-refined-9-10-11 +0.00012 [-0.00007, +0.00032], minus UD's 9-11 +0.00001 [-0.00026, +0.00027]. Restoring the plain gain does not help the code refinement (it raised energy to about 1.04); the 9c floor stays the rule.
 
-### Addendum H amendment 12: v2r, all gate_up layers refined (2026-11-22, before any of its data)
+### Addendum H amendment 12: v2r, all gate_up layers refined (2026-11-22, 11:18 by its commit, before any of its data)
 
 Base: v2a (our llama-quantize at UD-IQ3_XXS's per-layer types, IQ4_NL down in all 24 layers, 0 tensors off Metal, at most UD's 11,663,310,784 bytes; 0.02780 on S). v2r = v2a with refined gate_up in every layer the refiner supports: IQ3_XXS (9-11, 13-17, 19-23) and IQ2_S (1-3, 5-8, 12, 18); layers 0 (IQ2_XXS) and 4 (IQ2_XS) keep v2a's bytes unless support is added and tested first. Codes only, types and bytes unchanged, so v2r has v2a's size.
 Refiner before the run: Astra's review fixes (IQ2_S sign search, the zero-denominator report, the gain floor tracked as a change from baseline), tests for each; guards 9b and 9c unchanged (the pilot passed with them; 9e showed no gain from restoring plain gain). Daniel reviews `scripts/refine-codes.py` before any v2r result is used for a release.
