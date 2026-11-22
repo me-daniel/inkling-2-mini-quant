@@ -101,3 +101,4 @@ Card v2 only changes if a result changes: new comparators, the 2 x 2 line, depth
 - v2: only if A and C give a better file on T3.
 
 3d. (22 Nov, 05:20) `mem_wait` checks once, so two CPU jobs launched seconds apart both pass it; swap filled to 35 GB that way. CPU-heavy steps now take the shared `~/GitHub/.cpu.lock` (`cpu_take`/`cpu_give` in `scripts/gpu-lock.sh`, same format as the GPU lock, adopted by the sibling repo too).
+3e. (22 Nov, 08:43) Before starting any pipeline script by hand, `pgrep -f scripts/<name>.sh` for a copy a chain already runs. A second macgate.sh re-spliced a GGUF in place while the first one's llama-perplexity was reading it; that run was killed and redone (CHANGELOG record).
