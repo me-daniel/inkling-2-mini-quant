@@ -349,3 +349,18 @@ Why: v2r closed 0.93 (S) and 0.74 (T1) of the v2a to UD gap, both WikiText-2, bu
 Calibration: `data/calib-mix.txt` (`scripts/calib-mix.py`, sha256 7790f380...1ddeb): WikiText-2 train (`data/calib-wt.txt`), the v6 calibration conversations rendered with the model's own chat template (as their format notes ask; tool use and reasoning; `{% generation %}` tags dropped, they emit nothing) and the v6 prose, interleaved in blocks of about 6,000 characters. The first 300 chunks of 512 tokens (3x v2r's tokens, roughly equal parts) go to llama-imatrix with `--parse-special`. Both v6 files have 0 shared 13-grams with S, T1, T2 and T3 (`results/data.md`).
 Build: `scripts/v2m.sh`, identical to v2r's settings (guards 9b and 9c, shrink 0.1, min tokens 2304, sweeps 4, tol 1e-4), all 22 layers refined anew in groups (1 2 3 5) (6 7 8 9) (10 11 12 13) (14 15 16 17) (18 19 20 21) (22 23); layers 0 and 4 keep v2a's bytes. Not a 3-layer pilot: a 3-layer effect on T2 (5 chunks) would fall below its resolution (v2r's whole-model T2 effect was -0.00100 with a CI half-width of about 0.0010).
 Reading (S, T1, T2, all seen; descriptive): v2m minus v2r and v2m minus UD-IQ3_XXS, paired, and the share of the v2a to UD gap closed per set. The hypothesis is supported if v2m's T2 share is at least twice v2r's (0.36) with v2m minus v2r on T2 below zero, while S and T1 shares stay at least 0.6. Release test unchanged: T3, after Daniel approves amendment 1 and reviews `scripts/refine-codes.py`.
+
+### Record: v2r speed against v1 (2026-11-22, 21:07-21:15)
+
+`scripts/bench-v2r.sh` (`logs/bench-v2r.out`; `results/pilot/bench2-*.txt`, `depth2-*.txt`): both locks held, no refiner running, 82% memory free, build 9f5b9d6, Apple M5 Pro, llama-bench -ngl 99. v1 (cand) and v2r back to back.
+
+| test | v1 run 1 | v2r run 1 | v1 run 2 | v2r run 2 |
+|---|---|---|---|---|
+| pp512 (t/s) | 218.7 ± 7.0 | 209.8 ± 5.3 | 224.6 ± 12.3 | 234.7 ± 11.7 |
+| tg128 (t/s) | 17.97 ± 0.18 | 17.56 ± 0.15 | 17.72 ± 0.00 | 18.90 ± 0.18 |
+| pp512 at 4K | | | 158.3 ± 0.8 | 169.5 ± 2.6 |
+| tg128 at 4K | | | 16.69 ± 0.02 | 17.92 ± 0.16 |
+| pp512 at 16K | | | 120.9 ± 1.8 | 117.3 ± 0.1 |
+| tg128 at 16K | | | 16.84 ± 0.42 | 16.58 ± 0.56 |
+
+Reading: the order of the two files flips between runs 1 and 2 and the run-to-run spread (up to 7% at depth 0) is larger than any v2r - v1 difference, so the two run at the same speed within this bench's resolution. Both are below v1's gate bench of 21 Nov (18.97 t/s); that bench and this one are not compared. v2r is 52,648,704 bytes (0.46%) larger than v1.
