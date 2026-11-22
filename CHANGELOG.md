@@ -157,3 +157,13 @@ Paired on S (`results/pilot/addendum-h.md`):
 - gu-v2a (our encoder at UD's gate_up map) recovers 0.00214 [0.00144, 0.00285] of cand's gap; gu-ud (UD's own gate_up tensors at that map) recovers 0.00810. UD's encoding at its own map, beyond ours, is 0.00596 [0.00524, 0.00670], far above the 0.001 "negligible" bound.
 - gu15-ud recovers 0.00248, gu911-ud 0.00300 (both mix map and encoding).
 - **Correction to amendment 3.** Its inference "UD wins by allocation" is refuted: most of UD's gate_up advantage is in the encoded values, not the type map, although those values are further from BF16 under our imatrix-weighted metric. Weight error under our importance weights does not predict output KL here. Inference, to be tested: UD's importance weighting (calibration data, or how importance is accumulated over the three loop visits) is the lever. This bears directly on H2 (visit-pooled importance) and on the imatrix we used (`ggml-org`, 1,770 chunks of `inkling2-loop-calibration-v6`, 392 entries; it covers every fused gate_up tensor, checked in `logs/quant-v2a.log`).
+
+### Addendum H amendment 5: why UD's encoding wins (2026-11-22, ~02:05, before these checks and runs)
+
+From `reviews/2026-11-22-pivot-astra.md`. In order:
+1. CPU audit of the source (no new scores): independently decode sampled NVFP4 blocks of the release safetensors (with their scales) and compare against our BF16 conversion and against UD's dequantized gate_up times its `.scale`, matching layout, expert order and the gate/up halves. A mismatch between our BF16 and the release would void the same-type error comparison.
+2. CPU audit of the imatrix: per-expert sums and counts for the `_exps` tensors (expert-indexed or pooled), and whether counts suggest all three visits of a looped layer were accumulated.
+3. After the per-pass controls (S, one run each, gate_up only, everything else as cand, UD's per-layer types):
+   - cal-wt: our encoder with an imatrix computed by upstream `llama-imatrix` on a disjoint WikiText-2 train slice (same chunk size, about 300 chunks, on the Q8_0 reference). Read: its recovery of the 0.0060 encoding gap against gu-v2a.
+   - scaled: our encoder on W / s_e with UD's per-expert scales attached (layers 0-19), as UD stores it. Read: its recovery against gu-v2a.
+   Both are diagnostics, not candidates. Neither implements visit-pooled accumulation (H2 stays Daniel's).
