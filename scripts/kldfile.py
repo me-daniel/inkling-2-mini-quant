@@ -82,15 +82,16 @@ def kl_per_chunk(base: str | Path, other: str | Path) -> np.ndarray:
     """Mean KL(base || other) per chunk from two logits files over the same tokens, float64 [n_chunk]."""
     if not same_tokens(base, other):
         raise ValueError("files were scored on different tokens")
-    out = []
-    for (_, _, lp), (_, _, lq) in zip(iter_chunks(base), iter_chunks(other)):
-        p = np.exp(lp.astype(np.float64))
-        p /= p.sum(axis=1, keepdims=True)
+    # Streams 256-row blocks: whole-chunk float64 temporaries (~3 GB each at a 200K vocab) made this page-fault bound.
+    h = read_header(base)
+    sums = np.zeros(h.n_chunk)
+    for (c, _, lp), (_, _, lq) in zip(iter_blocks(base), iter_blocks(other)):
+        lp64 = lp.astype(np.float64)
+        lp64 -= np.log(np.exp(lp64).sum(axis=1, keepdims=True))
         lq64 = lq.astype(np.float64)
         lq64 -= np.log(np.exp(lq64).sum(axis=1, keepdims=True))
-        lp64 = np.log(p)
-        out.append(float(np.mean(np.sum(p * (lp64 - lq64), axis=1))))
-    return np.array(out)
+        sums[c] += float(np.sum(np.exp(lp64) * (lp64 - lq64)))
+    return sums / h.n_scored
 
 
 if __name__ == "__main__":

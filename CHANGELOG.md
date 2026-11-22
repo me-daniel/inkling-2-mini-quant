@@ -175,3 +175,13 @@ From `reviews/2026-11-22-pivot-astra.md`. In order:
 - UD's NVFP4 down times its `.scale` equals the release exactly (42,467,328 of 42,467,328 elements); its `.scale` is the release amax / 2688.
 - The ggml-org imatrix is expert-indexed (in_sum2 [cols, 128], counts [1, 128], no expert at 0) and sums all three visits of a looped layer (looped / non-looped totals exactly 3.0000). So plain visit pooling is not what separates UD's importance weighting from ours; calibration data and the rounding objective stay open.
 - **Correction to the previous entry:** the imatrix saw 590 chunks of 512 tokens (302,080 tokens), not 1,770. Its stored chunk_count counts each loop pass.
+
+### Addendum H, cal-wt result and amendment 6 (2026-11-22, ~03:15; amendment registered before its run)
+
+Result (record, `logs/ppl-cal-wt-S-P3.log`, paired on S): cal-wt (our encoder at UD's gate_up map, imatrix from 300 chunks of WikiText-2 train, 0 shared 13-grams with S/T1/T2/T3) scores 0.026624. Against gu-v2a (same map, ggml-org imatrix) it recovers +0.00055 [+0.00008, +0.00099] of the encoding gap; UD's own gate_up stays +0.00541 [+0.00461, +0.00623] better. A calibration text from the evaluation's own domain barely helps, so the calibration domain is not the lever.
+
+Context (CPU, `quantize.imatrix.*` metadata of the UD file): Unsloth's imatrix is `imatrix_clean.gguf` from `imx_s0.conv.jsonl`, chunk_count 8,238 (about 2,746 chunks if that counter also ticks per loop pass, as ours does; chunk size unknown). Per-expert importance vectors of the ggml-org and the WikiText imatrix agree only moderately (median log-correlation 0.38 to 0.94 for gate_up across layers 0, 6, 12, 19, lower for down and for rarely routed experts), so neither diagonal is converged.
+
+Dropped from amendment 5: the scaled diagnostic. The IQ quantizer's weight `qw * sqrt(sigma2 + x^2)` (ggml-quants.c) scales linearly with a per-expert constant, so the rounding objective and its argmin do not change; only fp16 rounding of the block scales differs (inference from the code, not run).
+
+Amendment 6, before its run: cal-wt1200, identical to cal-wt except 1,200 chunks (the first 614,400 tokens of the same train text, nested over cal-wt's 300; 0 shared 13-grams with S/T1/T2/T3). Reading: if cal-wt1200 minus cal-wt has a paired CI below 0, imatrix quantity matters at fixed domain and a larger imatrix is the next lever; if the CI includes 0, quantity at this scale is not the lever either, and the remaining candidates are UD's quantizer build and its importance objective, which we cannot reproduce from the file.
