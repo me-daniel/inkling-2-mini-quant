@@ -251,3 +251,7 @@ Change: the S pilot uses layers 9, 10 and 11 (looped, IQ3_XXS in UD's map; UD's 
 ### History rewrite to remove local paths (2026-11-22, a record; Daniel's go)
 
 Every commit was rewritten once with git-filter-repo and force-pushed (`6f3f561` -> `356fa97`, 106 commits). Changes: the string `/Users/daniel` became `~` in every file version (it appeared in a committed llama.cpp load log, two stability JSONs, a patch smoke-test note and a review), and `logs/load-UD-IQ2_XXS-root-unsloth-b12588.log` was removed from history (its path-free excerpt is `results/pilot/unsloth-prebuild-load.md`). Nothing else changed: same commit messages, author and commit dates, so every registration keeps its time; only the hashes are new. Hashes quoted elsewhere before this point refer to the old history.
+
+### Addendum H, amendment 9d target (2026-11-22, ~08:10; a record)
+
+rp-ud-9-10-11 (gu-v2a with UD's gate_up and `.scale` in layers 9-11) scores 0.026169 on S; gu-v2a minus rp-ud-9-10-11 +0.00100 [+0.00055, +0.00140]. The CI is above 0, so the pilot can decide by the registered share (a - b) / (a - c). Grams for layers 9-11 captured at 07:15 (`models/grams/gu-9-10-11`).
