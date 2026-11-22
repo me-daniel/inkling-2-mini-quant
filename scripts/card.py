@@ -44,6 +44,10 @@ FORBIDDEN = [r"loop-aware", r"pass-aware", r"\bfirst\b", r"\bbest\b", r"same[- ]
              r"\bfastest\b", r"beats unsloth", r"\bbeats? UD"]
 
 
+REL = "[b12588-mix](https://github.com/unslothai/llama.cpp/releases/tag/b12588-mix-c0c3de8)"
+PR = "[unslothai/llama.cpp#348](https://github.com/unslothai/llama.cpp/pull/348)"
+
+
 def text(p: Path) -> str:
     return p.read_text(encoding="utf-8")
 
@@ -599,7 +603,9 @@ def render(v: dict) -> tuple[str, str]:
         name = stock if k == stock_key else k
         N.append(f"| {name} | {r['bytes']} | {r['expert tensor types']} | {v['metal'][k]} |")
     N += ["", "UD-IQ3_XXS keeps the release's NVFP4 down projections in "
-          f"{v['metal']['UD-IQ3_XXS']} expert tensors. The tensor count says where those multiplies cannot run. It is "
+          f"{v['metal']['UD-IQ3_XXS']} expert tensors. The tensor count says where those multiplies cannot run on stock "
+          "llama.cpp. Unsloth's own prebuild (" + REL + ") includes Metal NVFP4 kernels (" + PR + "); with it, "
+          "the NVFP4 tensors of Unsloth's root GGUF load on the Mac GPU (checked with UD-IQ2_XXS, 22 Nov). It is "
           "not a speed measurement. " + ("Speed is measured and reported under Addendum G below." if v["mac"] else
                                          "We report no speed figures."), ""]
     if v["mac"]:
@@ -846,9 +852,10 @@ def claim_par(v: dict) -> list[str]:
             f"and also than {NUM.get(len(big), len(big))} larger file{'s' if len(big) != 1 else ''} "
             f"({join_and([LARGER.get(k, mac_label(v, k, True)) for k in big])}). Tested on {day(v['g_date'])}, so later "
             "uploads aren't covered.",
-            f"- Unsloth's UD-IQ3_XXS stays closer to the original, but on a Mac it's {pc:.1f}× slower at reading prompts and "
-            f"{tc:.2f}× slower at generating, because Metal can't run its NVFP4 tensors at the moment. On other hardware, "
-            "or once Metal supports NVFP4, use that one.",
+            f"- Unsloth's UD-IQ3_XXS stays closer to the original. With stock llama.cpp on a Mac it's {pc:.1f}× slower at "
+            f"reading prompts and {tc:.2f}× slower at generating, because stock llama.cpp's Metal backend can't run its NVFP4 "
+            "tensors yet. Unsloth's own llama.cpp prebuild (" + REL + ") can. With that build, on other hardware, or once "
+            "stock llama.cpp supports NVFP4 on Metal, use Unsloth's file.",
             "- All-Metal files of this size run at about the same speed as each other (table below).", ""]
 
 
@@ -893,11 +900,13 @@ def lean_card(v: dict, cand_bytes: int) -> list[str]:
          "![Inkling 2 Mini runs layers 6 to 17 three times on the same expert weights](figures/hero.svg)", "",
          "Unsloth's UD-IQ3_XXS stays closer to the original model (KL "
          f"{v['mrows'][('T1', 'UD-IQ3_XXS')]['d']} on T1 and {v['mrows'][('T2', 'UD-IQ3_XXS')]['d']} on T2, our file "
-         "minus theirs), so the quality test we registered against it beforehand did not pass. This GGUF keeps the "
-         f"whole model on the Mac GPU instead, and reads prompts {f['vs_ud']['pp512'][0]:.1f}× faster there at the moment.", "",
+         "minus theirs), so the quality test we registered against it beforehand did not pass. With stock llama.cpp, this "
+         f"GGUF keeps the whole model on the Mac GPU instead, and reads prompts {f['vs_ud']['pp512'][0]:.1f}× faster there at "
+         "the moment. Unsloth's own llama.cpp prebuild (" + REL + ") runs their file fully on the Mac GPU as well.", "",
          "## How we made and tested it", "",
-         "- Fully on Metal: every expert tensor uses a type the Mac GPU can run. Unsloth's UD-IQ3_XXS has "
-         f"{ud['off']} NVFP4 expert tensors that currently fall back to the CPU on a Mac.",
+         "- Fully on Metal: every expert tensor uses a type stock llama.cpp can run on the Mac GPU. Unsloth's UD-IQ3_XXS "
+         f"has {ud['off']} NVFP4 expert tensors that fall back to the CPU on stock llama.cpp, though not on Unsloth's own "
+         "prebuild.",
          f"- Layout from measurement: we measured the cost of shrinking each of {nb} layer groups, including the core "
          f"that runs three times, and chose the layout from {len(v['sel'])} tested candidates.",
          "- Tested in the open: before release we registered a quality test against Unsloth's file. Our file failed "

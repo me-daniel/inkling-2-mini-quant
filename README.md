@@ -11,11 +11,11 @@ Inkling 2 Mini is a mixture-of-experts model with a loop. Layers 6 to 17 run thr
 
 Every number comes from `results/pilot/`. KL is measured against a Q8_0 reference at P = 3 passes. T1 and T2 are held-out sets.
 
-### 1. Behind Unsloth on quality, ahead on a Mac
+### 1. Behind Unsloth on quality, ahead on a Mac with stock llama.cpp
 
 - Pre-registered gate: FAIL. The candidate (11,514,054,944 bytes) has higher KL than Unsloth UD-IQ3_XXS (11,663,310,784 bytes) on both held-out sets. The difference is +0.00747 [+0.00654, +0.00845] on T1 and +0.00581 [+0.00513, +0.00673] on T2. The FAIL stands.
 - The candidate passes a narrower, post hoc comparison that we registered after the FAIL. We scored 3 comparison files under the size limit that keep all expert tensors in Metal-supported types (bartowski IQ2_S, AtomicChat AD-IQ2_S, mudler APEX-I-Nano). The candidate has lower KL than each on T1 and T2, with the 95% CI for each difference below zero. We registered two more files under the limit (IsValorum APEX-I-NanoPlus-V2.1, prithivMLmods Q2_K) but have yet to score them.
-- UD-IQ3_XXS is slower on our Mac. It keeps 20 expert tensors in NVFP4, which the pinned Metal backend cannot multiply. On an Apple M5 Pro with llama-bench (llama.cpp `29b52d3` plus our patches), UD-IQ3_XXS generated at 10.87 t/s and the candidate at 18.97 t/s. The candidate was 1.75 times as fast. The all-Metal files we tested at this size ran at about the same speed.
+- With stock llama.cpp, UD-IQ3_XXS is slower on our Mac. It keeps 20 expert tensors in NVFP4, which stock llama.cpp's Metal backend cannot multiply yet. On an Apple M5 Pro with llama-bench (llama.cpp `29b52d3` plus our patches), UD-IQ3_XXS generated at 10.87 t/s and the candidate at 18.97 t/s. The candidate was 1.75 times as fast. The all-Metal files we tested at this size ran at about the same speed. Unsloth's own llama.cpp prebuild ([b12588-mix](https://github.com/unslothai/llama.cpp/releases/tag/b12588-mix-c0c3de8)) includes Metal NVFP4 kernels ([unslothai/llama.cpp#348](https://github.com/unslothai/llama.cpp/pull/348)). With it, the NVFP4 tensors of Unsloth's root GGUF load on the Mac GPU (we checked UD-IQ2_XXS), so this speed gap does not apply there. We have not measured that build's speed.
 
 ![KL on T1 and T2 for the seven files](figures/mac-comparison.png)
 
