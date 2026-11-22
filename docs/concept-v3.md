@@ -8,12 +8,12 @@ Written 22 Nov 2026, morning, after the night's runs (CHANGELOG, Addendum H amen
 - llama.cpp patches 0001 to 0007: the loop-scale fix (without 0001, passes 2 and 3 of Unsloth-style files run unscaled), per-pass cache slots that let one pass carry its own experts, and the converter fix. The slots are the instrument nobody else has.
 - The per-pass test: loop error is not additive across passes (residual about 0.75 at two amplitudes), with layer-split, noise and B3 controls running.
 - The night's diagnosis of UD's lead: it lives in the gate_up encoding, not the type map, the imatrix (domain, source, 4x data all near zero), the down format, our BF16 conversion or the quantizer version. Under the full input Gram, UD's gate_up beats llama-quantize's in 128 of 128 experts while losing under the diagonal, mostly along the experts' mean input.
-- From the sibling repo: lowering per-layer error can shrink each expert's output (gain below 1), and over 48 layer visits that compounds into a worse KL. That explains why GPTQ and a mean-aware refit both lost. UD lowers the error without attenuating.
+- From the sibling repo: lowering per-layer error can shrink each expert's output (gain below 1), and over 48 layer visits that compounds into a worse KL. That explains the mean-aware refit's failure (gain 0.79, +0.072 KL). It is a necessary guard, not the whole story: rescaling its Q2_0 down to gain 1 (X5) still lost to UD by +0.0040, and UD's own Q2_0 runs at gain 0.91. At 8.49 GB the gap to UD splits into gate_up 61%, non-expert 23% and down 15%.
 
 ## Where we cannot compete, and where we can
 
 - Not ours to win: day-0 releases of every size, an encoder we cannot see, a fork with its own kernels (Unsloth's prebuild already runs NVFP4 on Metal), GPU-heavy methods that need a PyTorch forward (GSQ-style). A leaderboard of quant files is their game.
-- Ours: the loop. Everyone quantizes Inkling as a plain transformer. We can measure per pass, untie passes, and now name a mechanism (attenuation compounding over visits). The thesis question compares allocations within one encoder, so UD's encoder edge does not touch it.
+- Ours: the loop. Everyone quantizes Inkling as a plain transformer. We can measure per pass, untie passes, and test whether a gain error compounds over visits (the refit failure suggests it does). The thesis question compares allocations within one encoder, so UD's encoder edge does not touch it. The win is a finding, not a file, unless the pilot in point 2 says otherwise.
 
 ## Lean order
 
