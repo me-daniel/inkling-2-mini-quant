@@ -287,3 +287,7 @@ Offline gains of v1 so far (`results/pilot/cand-gain.tsv`, 13 of 48 tensors): IQ
 ### Addendum H, amendment 10 result (2026-11-22, ~10:50; a record)
 
 `logs/ppl-cand-u-S-P3.log`: cand-u (all 48 expert tensors of v1 rescaled per row to gain 1) scores 0.028971 on S against cand (sel-2) 0.02931; cand-u minus cand -0.00034 [-0.00068, +0.00003]. The CI includes 0, so by the registered rule v1 does not attenuate in a way that matters, and cand-u is not a v1.1 candidate. Offline, all 48 tensors (`results/pilot/cand-gain.tsv`): down gain about 0.996, gate_up 0.97-1.00 with energy above 1, as in the note before data.
+
+### Addendum H, amendment 11 result (2026-11-22, ~11:00; a record)
+
+`results/pilot/under116-quality.txt` (`analysis/compare.py`): cand has lower KL than each of the 8 all-Metal GGUFs under 11.6 GB in the registered set (bartowski IQ2_S, AtomicChat AD-IQ2_S, mudler APEX-I-Nano, IsValorum APEX-I-NanoPlus-V2.1, prithivMLmods Q2_K, arelius Q2K-Q2_0, nikolaus714 Q2_K, DevQuasar Q2_K) on T1 and T2, every paired 95% CI below zero (16 of 16 contrasts). The claim rule is met: "closest to the original among the all-Metal GGUFs under 11.6 GB we tested (22 Nov 2026)". Untested and named as such: bartowski IQ2_XXS and AtomicChat AD-IQ2_XXS. prithivMLmods and nikolaus714 Q2_K score identically on both sets (different file hashes, same tensors as far as KL shows).

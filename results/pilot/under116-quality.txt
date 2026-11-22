@@ -1,0 +1,17 @@
+T1 cand vs bart-IQ2_S: KL 0.02686 vs 0.04623, diff -0.01937 [-0.02139, -0.01748], top-1 93.14% vs 91.32% -> better
+T1 cand vs atomic-AD-IQ2_S: KL 0.02686 vs 0.03497, diff -0.00811 [-0.00935, -0.00701], top-1 93.14% vs 92.23% -> better
+T1 cand vs apex-I-Nano: KL 0.02686 vs 0.05935, diff -0.03249 [-0.03496, -0.03021], top-1 93.14% vs 89.78% -> better
+T1 cand vs isvalorum-NanoPlus: KL 0.02686 vs 0.05229, diff -0.02543 [-0.02823, -0.02288], top-1 93.14% vs 90.68% -> better
+T1 cand vs prithiv-Q2_K: KL 0.02686 vs 0.11653, diff -0.08967 [-0.09537, -0.08376], top-1 93.14% vs 86.27% -> better
+T1 cand vs arelius-Q2K-Q2_0: KL 0.02686 vs 0.08793, diff -0.06107 [-0.06545, -0.05695], top-1 93.14% vs 87.96% -> better
+T1 cand vs nikolaus-Q2_K: KL 0.02686 vs 0.11653, diff -0.08967 [-0.09537, -0.08376], top-1 93.14% vs 86.27% -> better
+T1 cand vs devquasar-Q2_K: KL 0.02686 vs 0.11621, diff -0.08935 [-0.09463, -0.08386], top-1 93.14% vs 86.22% -> better
+T2 cand vs bart-IQ2_S: KL 0.01942 vs 0.03632, diff -0.01690 [-0.01907, -0.01421], top-1 95.29% vs 93.49% -> better
+T2 cand vs atomic-AD-IQ2_S: KL 0.01942 vs 0.02550, diff -0.00608 [-0.00739, -0.00503], top-1 95.29% vs 94.35% -> better
+T2 cand vs apex-I-Nano: KL 0.01942 vs 0.05515, diff -0.03573 [-0.03956, -0.03229], top-1 95.29% vs 91.69% -> better
+T2 cand vs isvalorum-NanoPlus: KL 0.01942 vs 0.03905, diff -0.01963 [-0.02305, -0.01617], top-1 95.29% vs 93.65% -> better
+T2 cand vs prithiv-Q2_K: KL 0.01942 vs 0.09787, diff -0.07845 [-0.08522, -0.07168], top-1 95.29% vs 89.36% -> better
+T2 cand vs arelius-Q2K-Q2_0: KL 0.01942 vs 0.07202, diff -0.05260 [-0.05780, -0.04740], top-1 95.29% vs 90.58% -> better
+T2 cand vs nikolaus-Q2_K: KL 0.01942 vs 0.09787, diff -0.07845 [-0.08522, -0.07168], top-1 95.29% vs 89.36% -> better
+T2 cand vs devquasar-Q2_K: KL 0.01942 vs 0.09664, diff -0.07722 [-0.08314, -0.07130], top-1 95.29% vs 89.21% -> better
+quality gate: PASS
