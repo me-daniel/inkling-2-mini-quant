@@ -7,7 +7,10 @@ set -eu
 ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
 SIBBIN="$HOME/GitHub/inkling-2-mini-under10/vendor/llama.cpp/build/bin/llama-imatrix"
 LAYERS=${LAYERS:-6 20}  # amendment 9d: LAYERS="9 10 11"
-TAG=$(echo "$LAYERS" | tr " " "-"); RX=$(echo "$LAYERS" | tr " " "|")
+# amendment 13: CALIB=calib-mix.txt CHUNKS=300 GSUF=-mix (the mix holds chat-template tokens, so --parse-special)
+CALIB=${CALIB:-calib-wt.txt}; CHUNKS=${CHUNKS:-100}; GSUF=${GSUF:-}
+PS=""; [ "$CALIB" = calib-wt.txt ] || PS=--parse-special
+TAG=$(echo "$LAYERS" | tr " " "-")$GSUF; RX=$(echo "$LAYERS" | tr " " "|")
 D="$ROOT/models/grams/gu-$TAG"; L="$ROOT/logs"
 . "$ROOT/scripts/gpu-lock.sh"
 [ -f "$D/done" ] && { echo "already captured"; exit 0; }
@@ -15,7 +18,7 @@ mkdir -p "$D"
 echo "[$(date '+%H:%M:%S')] capture gate_up Grams, layers $LAYERS"
 mem_wait; gpu_take
 GRAM_DIR="$D" GRAM_MATCH="^blk\\.($RX)\\.ffn_gate_up_exps\\.weight\$" "$SIBBIN" -m "$ROOT/models/cand.gguf" \
-    -f "$ROOT/data/calib-wt.txt" --chunks 100 -c 512 -ngl 99 \
+    -f "$ROOT/data/$CALIB" --chunks "$CHUNKS" -c 512 -ngl 99 $PS \
     --override-kv "inkling2_loop.loop.count=int:3" -o "$D/imatrix.gguf" > "$L/gram-gu-$TAG.log" 2>&1
 gpu_give
 touch "$D/done"
