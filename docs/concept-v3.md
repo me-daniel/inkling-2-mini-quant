@@ -1,0 +1,30 @@
+# Concept v3: a lean order
+
+Written 22 Nov 2026, morning, after the night's runs (CHANGELOG, Addendum H amendments 1 to 9d). It replaces the run order of `concept-v2.md`; the workflow lessons there still hold.
+
+## What we have (measured)
+
+- v1 is public: 11.5 GB, every expert tensor in a type stock llama.cpp runs on Metal; 1.75x generation and 3.3x prompt speed against UD-IQ3_XXS on stock llama.cpp; closest to the original among the all-Metal files under 12 GB we scored. It fails the registered gate against UD-IQ3_XXS, and says so.
+- llama.cpp patches 0001 to 0007: the loop-scale fix (without 0001, passes 2 and 3 of Unsloth-style files run unscaled), per-pass cache slots that let one pass carry its own experts, and the converter fix. The slots are the instrument nobody else has.
+- The per-pass test: loop error is not additive across passes (residual about 0.75 at two amplitudes), with layer-split, noise and B3 controls running.
+- The night's diagnosis of UD's lead: it lives in the gate_up encoding, not the type map, the imatrix (domain, source, 4x data all near zero), the down format, our BF16 conversion or the quantizer version. Under the full input Gram, UD's gate_up beats llama-quantize's in 128 of 128 experts while losing under the diagonal, mostly along the experts' mean input.
+- From the sibling repo: lowering per-layer error can shrink each expert's output (gain below 1), and over 48 layer visits that compounds into a worse KL. That explains why GPTQ and a mean-aware refit both lost. UD lowers the error without attenuating.
+
+## Where we cannot compete, and where we can
+
+- Not ours to win: day-0 releases of every size, an encoder we cannot see, a fork with its own kernels (Unsloth's prebuild already runs NVFP4 on Metal), GPU-heavy methods that need a PyTorch forward (GSQ-style). A leaderboard of quant files is their game.
+- Ours: the loop. Everyone quantizes Inkling as a plain transformer. We can measure per pass, untie passes, and now name a mechanism (attenuation compounding over visits). The thesis question compares allocations within one encoder, so UD's encoder edge does not touch it.
+
+## Lean order
+
+1. Thesis core, H1 (GPU, in progress): finish the per-pass controls (H1 to H5). Add one clean instrument from the night: pure attenuation. Scaling a block's fp16 d by a constant (a byte edit, no other error) in a looped versus a non-looped layer, at P = 2, 3 and 4, shows whether a gain error compounds per visit while noise does not. Cheap, and it is the loop-specific result.
+2. Encoder pilot (amendment 9 to 9d): code refinement under the full Gram with no attenuation allowed, on layers 9 to 11. The pilot decides: at least half of UD's 9-11 effect means all 24 layers next, then T3; below a quarter stops the route.
+3. H2 (Daniel): llama-imatrix already sums the three visits, so "visit-pooled" needs a definition that adds something, for example weighting each visit by its effect on the output, or a gain-aware importance. Daniel's decision and his function.
+4. v2 release only if 2 gives a file that beats v1 on T3. The mirror (UD's tensors, our Metal-native down) stays a credited fallback, Daniel's call.
+5. Parked: our Metal NVFP4 PR (Unsloth's fork ships one, and upstream has #330), more imatrix variants, more allocation search. Comparators (H6) finish in the background.
+
+## Decisions for Daniel
+
+- H2's definition (point 3).
+- Whether the attenuation instrument (point 1) goes into the thesis as its own registered test.
+- Approve Addenda F, G section 2, H and amendment 1 (T3).
