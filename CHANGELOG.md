@@ -200,3 +200,7 @@ The proposed patches 0008-0009 (`patches/llama.cpp-proposed/`, worktree `vendor/
 ### Addendum H amendment 7, addition (2026-11-22, 04:51 by its commit, before the Grams exist)
 
 Also split the full error into a mean (bias) part, count * ||dW m||^2 with m = in_sum / count from the capture's imatrix, and the rest. Reason: the sibling repo found that its GPTQ down encoding round-trips exactly and lowers held-out output error by about 29%, yet loses on KL to diagonal rounding and to UD's own Q2_0. So a lower layer-local quadratic error does not predict KL here, and a search that trades L2 for a smaller coherent bias (Astra, `reviews/2026-11-22-gram-plan-astra.md` point 2) is a candidate. Reading: a UD bias term well below ours in both layers points to bias as the lever.
+
+### Addendum H, amendment 6 result (2026-11-22, ~05:05; a record)
+
+`logs/ppl-cal-wt1200-S-P3.log`, paired on S: cal-wt1200 (1,200 WikiText-2 train chunks) scores 0.026430. Against cal-wt (300 chunks of the same text): +0.00019 [-0.00020, +0.00060], CI includes 0. Against gu-v2a: +0.00074 [+0.00016, +0.00131]; UD's own gate_up stays +0.00522 [+0.00448, +0.00595] better. By the registered rule, imatrix quantity at this scale is not the lever. With domain (amendment 5) and source (sibling repo: bartowski, own capture) also near zero, no diagonal importance input we can build closes more than about an eighth of UD's encoding edge. Remaining candidates: UD's quantizer build or objective (amendment 7 tests one version of the latter), which the file alone does not reveal.
