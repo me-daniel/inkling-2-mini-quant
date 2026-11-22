@@ -244,3 +244,142 @@ def test_validate_rejects_bad_values():
     rc.validate(f, raw)
     with pytest.raises(AssertionError):
         rc.validate(f, raw, rc.decode(f, raw) * np.float32(1.5))
+
+
+# (5) Astra review fixes (reviews/2026-11-22-refiner-astra.md), each test written to fail before its fix
+def iq2s_row(db_d, idx, neg):
+    """One IQ2_S row of len(idx) // 32 blocks: fp16 d = db_d (so db = d / 8 with all sub-block scales 0), group gi
+    gets grid index idx[gi] and signs neg[gi] (8 bools)."""
+    f = rc.FMTS[Q.IQ2_S]
+    nb = len(idx) // f.gpb
+    raw = np.zeros((1, nb, f.bsize), dtype=np.uint8)
+    raw[..., :2] = np.array([db_d], dtype=np.float16).view(np.uint8)
+    raw = raw.reshape(1, -1)
+    for gi in range(len(idx)):
+        rc.set_group(f, raw, np.array([0]), gi, np.array([idx[gi]]), np.asarray(neg[gi], dtype=bool)[None])
+    return raw
+
+
+def test_iq2s_searches_signs_astra_point1():
+    """Astra point 1: db = 1, grid 0 (all 8s), q[0:2] = (8, 8), w[0:2] = (1, 1), q[8] = w[8] = -8, rest exact; G =
+    identity with the {0, 1, 8} block all ones. Flipping only q[0]'s sign lowers the regularised objective from
+    205.8 to 17 and raises the gain numerator by 94.4; signs fixed from the continuous target cannot find it."""
+    f = rc.FMTS[Q.IQ2_S]
+    neg = np.zeros((32, 8), dtype=bool)
+    neg[1, 0] = True  # q[8] = -8
+    raw = iq2s_row(8.0, np.zeros(32, dtype=np.int64), neg)
+    q = rc.decode(f, raw)
+    assert q[0, 0] == 8 and q[0, 1] == 8 and q[0, 8] == -8 and np.all(np.abs(q) == 8)
+    w = q.copy()
+    w[0, :2] = 1
+    g = np.eye(256)
+    g[np.ix_([0, 1, 8], [0, 1, 8])] = 1.0
+    h = g + 0.1 * np.diag(np.diag(g))
+    e = q.astype(np.float64) - w
+    assert float(np.sum(e * (e @ h))) == pytest.approx(205.8)
+    out, dq1, sw = rc.refine(f, raw, w, h, max_sweeps=4, tol=0.0, g_report=g, gain_guard=True)
+    assert sw[-1]["J_after"] <= 17 + 1e-9
+    assert sw[-1]["min_row_ogain_change"] >= 0
+    rc.validate(f, out, dq1)
+
+
+def test_zero_unregularised_denominator_is_null_astra_point2(monkeypatch):
+    """Astra point 2: 2304 identical tokens (1, 1, 0, ...) and BF16 rows (1, -1, 0, ...): the count passes, tr(G) > 0,
+    tr(W H W^T) > 0, but tr(W G W^T) = 0. The undefined ratios are reported as null instead of raising."""
+    f = rc.FMTS[Q.IQ2_S]
+    raw = random_raw(f, 2, 1, np.random.default_rng(5))
+    w = np.zeros((2, 256), dtype=np.float32)
+    w[:, 0], w[:, 1] = 1, -1
+    x = np.zeros(256)
+    x[:2] = 1
+    u = np.triu(2304 * np.outer(x, x)).astype(np.float32)[None]
+    n = "blk.7.ffn_gate_up_exps.weight"
+
+    class T:
+        tensor_type = Q.IQ2_S
+        data = raw[None]
+
+    monkeypatch.setattr(rc, "_W", {"q": {n: T}, "b": {n: T}})
+    monkeypatch.setattr(rc.ge, "load_gram", lambda l: (u, np.array([2304])))
+    monkeypatch.setattr(rc.ge, "deq", lambda t, e: w)
+    layer, e, raw1, rec = rc._one((7, 0, 2, 1e-4, 1e-6, 0.1, 2304, True))
+    assert rec["tr_WGWt"] == 0 and rec["tr_WHWt"] > 0
+    assert rec["sweeps"] and all(s["rel_before"] is None and s["rel_after"] is None for s in rec["sweeps"])
+    assert all(np.isfinite(s["relreg_before"]) for s in rec["sweeps"])
+    assert "rel n/a" in rc._msg(rec)
+    rc.validate(f, raw1)
+
+
+def test_gain_floor_is_a_change_from_baseline_astra_point3():
+    """Astra point 3: w all 8s, q equal except q[0] = 43, diagonal G with G[0,0] = 2^-64 and 10 elsewhere. Moving 43
+    to 8 removes the error but lowers the gain numerator by 308 * 2^-64 (times 1.1 under H), which vanishes when added
+    to the full numerator. Tracked as a change from 0, the move is rejected."""
+    f = rc.FMTS[Q.IQ2_S]
+    idx = np.zeros(32, dtype=np.int64)
+    idx[0] = 1  # grid 1 = (43, 8, 8, 8, 8, 8, 8, 8)
+    raw = iq2s_row(8.0, idx, np.zeros((32, 8), dtype=bool))
+    q = rc.decode(f, raw)
+    assert q[0, 0] == 43 and np.all(q[0, 1:] == 8)
+    w = np.full_like(q, 8)
+    g = np.diag(np.r_[2.0 ** -64, np.full(255, 10.0)])
+    h = g + 0.1 * np.diag(np.diag(g))
+    out, dq1, sw = rc.refine(f, raw, w, h, max_sweeps=4, tol=0.0, g_report=g, gain_guard=True)
+    np.testing.assert_array_equal(out, raw)
+    out2, _, _ = rc.refine(f, raw, w, h, max_sweeps=4, tol=0.0, g_report=g, gain_guard=False)
+    assert not np.array_equal(out2, raw)  # without the floor the move is taken (the test exercises the floor)
+
+
+@pytest.mark.parametrize("guarded", [False, True])
+def test_iq2s_ranked_winner_over_all_documented_sign_patterns(guarded):
+    """The IQ2_S ranking returns the exact best over every documented sign pattern x all 1024 magnitudes, and the sign
+    polish ends in a point no single feasible sign flip improves, never worse than the ranked winner."""
+    f = rc.FMTS[Q.IQ2_S]
+    rng = np.random.default_rng(6)
+    raw = random_raw(f, 40, 1, rng)
+    db, idx, neg = rc.fields(f, raw)
+    dq = rc.values(f, db, idx, neg).astype(np.float64)
+    w = dq + 0.004 * rng.standard_normal(dq.shape)
+    g = correlated_gram(dq.shape[1], 500, rng)
+    R = (dq - w) @ g
+    gi = 5
+    c = slice(gi * f.k, gi * f.k + f.k)
+    Gb, Rg, cur = g[c, c], R[:, c], dq[:, c]
+    uw = (w @ g)[:, c]
+    thr = np.einsum("ri,ri->r", cur, uw) if guarded else None
+    ridge = 1e-6 * np.mean(np.diag(g))
+    pats = rc._iq2s_sign_patterns(Gb, Rg, cur, db[:, gi], neg[:, gi], ridge)
+    assert len(pats) == 3
+    ci, cn = rc._pick_iq2s(f, Gb, Rg, cur, db[:, gi], neg[:, gi], ridge, uw, thr)
+
+    def dj(r, gidx, ng):
+        v = (db[r, gi] * f.grid[gidx] * np.where(ng, np.float32(-1), np.float32(1))).astype(np.float64)
+        d = v - cur[r]
+        return 2 * d @ Rg[r] + d @ Gb @ d, d @ uw[r]
+
+    checked = 0
+    for r in range(dq.shape[0]):
+        best = np.inf
+        for p in pats:
+            v = (db[r, gi] * f.grid * np.where(p[r], np.float32(-1), np.float32(1))).astype(np.float64)
+            d = v - cur[r]
+            s = 2 * d @ Rg[r] + np.einsum("ci,ij,cj->c", d, Gb, d)
+            if guarded:
+                s = np.where(d @ uw[r] >= -1e-15 * abs(thr[r]) - 1e-18, s, np.inf)
+            best = min(best, s.min())
+        if best < 0:
+            assert dj(r, ci[r], cn[r])[0] == pytest.approx(best, rel=1e-6, abs=1e-12 * abs(best) + 1e-18)
+            checked += 1
+    assert checked >= 3
+    pn = rc._polish_iq2s(f, Gb, Rg, cur, db[:, gi], ci, cn, uw, thr)
+    improved = 0
+    for r in range(dq.shape[0]):
+        d0, d1 = dj(r, ci[r], cn[r])[0], dj(r, ci[r], pn[r])
+        assert d1[0] <= d0 + 1e-12 * abs(d0) + 1e-18
+        improved += d1[0] < d0 - 1e-9 * abs(d0)
+        for i in range(f.k):
+            fl = pn[r].copy()
+            fl[i] = ~fl[i]
+            df = dj(r, ci[r], fl)
+            if not guarded or df[1] >= 0:
+                assert df[0] >= d1[0] - 1e-9 * abs(d1[0]) - 1e-18
+    assert improved >= 1

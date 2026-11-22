@@ -12,14 +12,16 @@ CLOCK="$HOME/GitHub/.cpu.lock"
 _take() { # lockfile
     while :; do
         if ( set -C; echo "$$ inkling-2-mini-quant $(date '+%H:%M:%S')" > "$1" ) 2>/dev/null; then return 0; fi
-        pid=$(cut -d' ' -f1 "$1" 2>/dev/null)
-        [ "$pid" = "$$" ] && return 0
-        if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then rm -f "$1"; continue; fi
+        _lk_pid=$(cut -d' ' -f1 "$1" 2>/dev/null)
+        [ "$_lk_pid" = "$$" ] && return 0
+        if [ -n "$_lk_pid" ] && ! kill -0 "$_lk_pid" 2>/dev/null; then rm -f "$1"; continue; fi
         sleep 30
     done
 }
 _give() { [ "$(cut -d' ' -f1 "$1" 2>/dev/null)" = "$$" ] && rm -f "$1"; return 0; }
-mem_wait() { while :; do f=$(memory_pressure 2>/dev/null | sed -n 's/.*free percentage: \([0-9]*\)%.*/\1/p'); [ "${f:-100}" -ge 30 ] && return 0; sleep 30; done; }
+# sh has no local variables: helper variables carry a _lk_ prefix so they never overwrite a caller's (a caller's $f
+# once became the free-memory percentage, 22 Nov 11:00).
+mem_wait() { while :; do _lk_free=$(memory_pressure 2>/dev/null | sed -n 's/.*free percentage: \([0-9]*\)%.*/\1/p'); [ "${_lk_free:-100}" -ge 30 ] && return 0; sleep 30; done; }
 gpu_take() { _take "$GLOCK"; }
 gpu_give() { _give "$GLOCK"; }
 cpu_take() { _take "$CLOCK"; mem_wait; }

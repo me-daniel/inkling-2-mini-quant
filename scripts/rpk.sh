@@ -10,9 +10,9 @@ log="$L/ppl-rp-refined-k-9-10-11-S-P3.log"
 if ! { [ -f "$log" ] && grep -q 'Mean *KLD' "$log"; }; then
     args=""
     for l in 9 10 11; do
-        f="$D/rk-$l.gguf"
-        [ -f "$f" ] || { mem_wait; nice -n 10 $PY "$ROOT/scripts/degain2.py" "$D/gu-refined-9-10-11.gguf" "$f" $l --kind ffn_gate_up_exps --target-from "$M/v2a.gguf" | tee -a "$L/rpk-degain.log"; }
-        args="$args --take $f ^blk\\.$l\\.ffn_gate_up_exps\\.weight\$"
+        dn="$D/rk-$l.gguf"
+        [ -f "$dn" ] || { mem_wait; nice -n 10 $PY "$ROOT/scripts/degain2.py" "$D/gu-refined-9-10-11.gguf" "$dn" $l --kind ffn_gate_up_exps --target-from "$M/v2a.gguf" | tee -a "$L/rpk-degain.log"; }
+        args="$args --take $dn ^blk\\.$l\\.ffn_gate_up_exps\\.weight\$"
     done
     step "splice rp-refined-k-9-10-11"
     cpu_take

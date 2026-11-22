@@ -18,7 +18,19 @@ registered. Below, "G" in the search means H.
 One group = the values that share one grid index: 8 inputs for IQ2_S, 4 for IQ3_XXS. For group columns idx, all
 rows at once:
   delta* = -solve(G[idx,idx] + ridge I, R[:,idx]^T)^T, ridge = 1e-6 * mean(diag G) (used for delta* only)
-  IQ2_S candidates: signs = sign(current + delta*) (current sign where that is exactly 0), all 1024 grid magnitudes.
+  IQ2_S candidates (Astra review point 1): all 1024 grid magnitudes, each with three sign patterns per row:
+    (i) target: sign(current + delta*) (current sign where that is exactly 0);
+    (ii) separable: weight by weight, the sign that minimises the row's exact dJ with the group's other weights held
+      at their current values: dJ_i = H_ii v_i^2 + 2 v_i (R_i - H_ii cur_i) + const, v_i = db * m_i * s_i; the
+      square does not depend on the sign, so s_i = -sign(db * (R_i - H_ii cur_i)) (current sign where that is 0).
+      Every grid magnitude m_i is positive, so this pattern is the same for all 1024 magnitudes; IQ2_S stores the
+      8 signs freely (no parity), so every pattern is representable;
+    (iii) current: the code's own signs.
+    The ranked winner over these 3 x 1024 candidates then gets a sign polish: single sign flips of the winner, weights
+    0..7 in order, each taken if it lowers the exact dJ (and keeps the output-gain floor when guarded), repeated
+    until no flip helps (at most 16 passes). The separable rule ignores the coupling H_ij between new values of the
+    same group, so on its own it can flip two correlated weights together and lose; the polish then finds the
+    single flip (Astra's example: 205.8 -> 17).
   IQ3_XXS candidates: all 256 grids x the 8 sign patterns whose parity keeps the 8-value sign word even (the
     partner group of the word is held fixed; ksigns stores 7 bits and sets the 8th to make the count of minus
     signs even). Exhaustive, so delta* is not needed there.
@@ -26,13 +38,17 @@ rows at once:
   the winner per row is then scored exactly, dJ = 2 d.R[:,idx] + d G[idx,idx] d with d = v - cur in weight units
   (v = db * grid * sign in float32, exactly as gguf-py decodes it; float64 arithmetic, unregularised G), and
   accepted if dJ < 0. Accepted rows update E[:, idx], R += d G[idx, :] and the raw block bytes.
+Output-gain floor (amendment 9c; Astra review point 3): per row the change of the numerator q_r H w_r^T from
+llama-quantize's value is tracked from 0 as the sum of the accepted moves' d . (H w_r^T)[idx], and a move is taken
+only if that change stays >= 0 (comparing the full numerator with its start lets float rounding hide a tiny loss).
 Processing order: groups by ascending input column (block 0 group 0, 1, ..., then block 1, ...), all rows in
 parallel; experts in ascending index. A sweep visits every group once; R and J are recomputed from E at each
 sweep start; sweeps repeat until (J_before - J_after) / J_before < 1e-4 or 4 sweeps (J under H).
 
 Outputs: a GGUF holding only blk.L.ffn_gate_up_exps.weight for the given layers (type, shape and byte layout as in
 --quant; written to .part, then renamed) and a JSON log next to it (per layer and expert: J under H and under G,
-J / tr(W H W^T) as relreg_*, J_G / tr(W G W^T) as rel_*, before/after each sweep, accepted moves, the tracked J from the summed accepted dJ, seconds). Every expert is
+J / tr(W H W^T) as relreg_*, J_G / tr(W G W^T) as rel_*, null where the denominator is not > 0 (Astra review point 2),
+before/after each sweep, accepted moves, the tracked J from the summed accepted dJ, seconds). Every expert is
 checked: the decoder equals gguf-py's dequantize bit for bit before and after, d and scale bits are unchanged,
 and every group decodes to a representable code.
 """
@@ -191,24 +207,74 @@ def _pick_iq2s(f, Gb, Rg, cur, db, neg_cur, ridge, uw=None, thr=None):
         return _pick_iq2s_(f, Gb, Rg, cur, db, neg_cur, ridge, uw, thr)
 
 
-def _pick_iq2s_(f, Gb, Rg, cur, db, neg_cur, ridge, uw, thr):
-    k = f.k
-    delta = -np.linalg.solve(Gb + ridge * np.eye(k), Rg.T).T
+def _iq2s_sign_patterns(Gb, Rg, cur, db, neg_cur, ridge):
+    """The documented IQ2_S sign patterns [target, separable, current], each bool [rows, k] (True = minus)."""
+    k = Gb.shape[0]
+    with np.errstate(all="ignore"):
+        delta = -np.linalg.solve(Gb + ridge * np.eye(k), Rg.T).T
     tgt = cur + delta
     negt = np.where(tgt == 0, neg_cur, tgt < 0)
-    sig = np.where(negt, -1.0, 1.0)
+    lin = db.astype(np.float64)[:, None] * (Rg - np.diag(Gb) * cur)  # sign s_i minimises 2 s_i * lin_i
+    negs = np.where(lin == 0, neg_cur, lin > 0)
+    return [negt, negs, np.asarray(neg_cur, dtype=bool)]
+
+
+def _pick_iq2s_(f, Gb, Rg, cur, db, neg_cur, ridge, uw, thr):
+    k = f.k
     b = Rg - cur @ Gb
     iu, ju = np.triu_indices(k)
     coef = np.where(iu == ju, 1.0, 2.0)
-    feat = Gb[iu, ju] * coef * sig[:, iu] * sig[:, ju]  # [rows, k(k+1)/2]
     P = f.grid[:, iu].astype(np.float64) * f.grid[:, ju]  # [n_grid, k(k+1)/2]
-    d64 = db.astype(np.float64)[:, None]
-    A = np.hstack([d64 ** 2 * feat, 2 * d64 * sig * b])
     B = np.hstack([P, f.grid.astype(np.float64)])
-    score = A @ B.T
-    if thr is not None:
-        score = _feasible(score, (d64 * sig * uw) @ f.grid.T.astype(np.float64), thr)
-    return np.argmin(score, axis=1), negt
+    d64 = db.astype(np.float64)[:, None]
+    rows = np.arange(len(cur))
+    best_s = np.full(len(cur), np.inf)
+    best_i = np.zeros(len(cur), dtype=np.int64)
+    best_n = np.zeros((len(cur), k), dtype=bool)
+    for negp in _iq2s_sign_patterns(Gb, Rg, cur, db, neg_cur, ridge):
+        sig = np.where(negp, -1.0, 1.0)
+        feat = Gb[iu, ju] * coef * sig[:, iu] * sig[:, ju]  # [rows, k(k+1)/2]
+        A = np.hstack([d64 ** 2 * feat, 2 * d64 * sig * b])
+        score = A @ B.T
+        if thr is not None:
+            score = _feasible(score, (d64 * sig * uw) @ f.grid.T.astype(np.float64), thr)
+        i = np.argmin(score, axis=1)
+        s = score[rows, i]
+        better = s < best_s  # ties keep the earlier pattern
+        best_s[better], best_i[better], best_n[better] = s[better], i[better], negp[better]
+    return best_i, best_n
+
+
+def _polish_iq2s(f, Gb, Rg, cur, db, ci, cn, uw=None, thr=None, max_passes=16):
+    """Single sign flips of the IQ2_S winner (grid index ci, signs cn): weight i flips if that lowers the exact
+    dJ = 2 d.R + d G d (d = v - cur) and, with thr, keeps v . uw >= thr. Returns the new signs [rows, k]."""
+    with np.errstate(all="ignore"):
+        cn = np.array(cn, dtype=bool)
+        v = (db[:, None] * f.grid[ci] * np.where(cn, np.float32(-1), np.float32(1))).astype(np.float64)
+        d = v - cur
+        Gd = d @ Gb
+        lin = np.einsum("ri,ri->r", v, uw) if thr is not None else None
+        for _ in range(max_passes):
+            moved = False
+            for i in range(f.k):
+                dl = -2 * v[:, i]
+                ch = 2 * dl * (Rg[:, i] + Gd[:, i]) + dl * dl * Gb[i, i]
+                ok = ch < 0
+                if thr is not None:
+                    ok &= lin + dl * uw[:, i] >= thr
+                if not ok.any():
+                    continue
+                a = np.nonzero(ok)[0]
+                v[a, i] = -v[a, i]
+                d[a, i] += dl[a]
+                Gd[a] += dl[a, None] * Gb[i][None]
+                if lin is not None:
+                    lin[a] += dl[a] * uw[a, i]
+                cn[a, i] = ~cn[a, i]
+                moved = True
+            if not moved:
+                break
+    return cn
 
 
 _PATS = np.array([[(p >> i) & 1 for i in range(4)] for p in range(16)], dtype=bool)
@@ -261,7 +327,7 @@ def refine(f: Fmt, raw: np.ndarray, w: np.ndarray, g: np.ndarray, max_sweeps: in
         U = w64 @ g  # rows of g w_r^T (g symmetric)
     den_r = np.einsum("ri,ri->r", w64, U)
     num0 = np.einsum("ri,ri->r", dq.astype(np.float64), U)  # the starting (llama-quantize) numerators
-    num = num0.copy()
+    gch = np.zeros(len(num0))  # tracked change of each row's numerator from num0 (Astra point 3)
     ridge = ridge_rel * float(np.mean(np.diag(g)))
     k, ngroups = f.k, db.shape[1]
     sweeps = []
@@ -278,10 +344,11 @@ def refine(f: Fmt, raw: np.ndarray, w: np.ndarray, g: np.ndarray, max_sweeps: in
             c = slice(gi * k, gi * k + k)
             Gb, Rg, cur = g[c, c], R[:, c], dq[:, c].astype(np.float64)
             uw = U[:, c]
-            thr = np.einsum("ri,ri->r", cur, uw) - (num - num0) if gain_guard else None
+            thr = np.einsum("ri,ri->r", cur, uw) - gch if gain_guard else None
             with np.errstate(all="ignore"):
                 if f.qtype == Q.IQ2_S:
                     ci, cn = _pick_iq2s(f, Gb, Rg, cur, db[:, gi], neg[:, gi], ridge, uw, thr)
+                    cn = _polish_iq2s(f, Gb, Rg, cur, db[:, gi], ci, cn, uw, thr)
                 else:
                     ci, cn = _pick_iq3xxs(f, Gb, Rg, cur, db[:, gi], neg[:, gi ^ 1], uw, thr)
                 v = db[:, gi, None] * f.grid[ci] * np.where(cn, np.float32(-1), np.float32(1))  # float32, as decode
@@ -290,7 +357,7 @@ def refine(f: Fmt, raw: np.ndarray, w: np.ndarray, g: np.ndarray, max_sweeps: in
                 dnum = np.einsum("ri,ri->r", dd, uw)
             ok = dj < 0
             if gain_guard:
-                keep = num + dnum >= num0
+                keep = gch + dnum >= 0
                 blocked += int(np.sum(ok & ~keep))
                 ok &= keep
             a = np.nonzero(ok)[0]
@@ -302,7 +369,7 @@ def refine(f: Fmt, raw: np.ndarray, w: np.ndarray, g: np.ndarray, max_sweeps: in
                 R[a] += dd[a] @ g[c, :]
             set_group(f, raw, a, gi, ci[a], cn[a])
             idx[a, gi], neg[a, gi] = ci[a], cn[a]
-            num[a] += dnum[a]
+            gch[a] += dnum[a]
             tracked += float(dj[a].sum())
             acc_n += len(a)
         with np.errstate(all="ignore"):
@@ -310,8 +377,8 @@ def refine(f: Fmt, raw: np.ndarray, w: np.ndarray, g: np.ndarray, max_sweeps: in
         num_now = np.einsum("ri,ri->r", dq.astype(np.float64), U)  # recomputed, not tracked
         pos = den_r > 0
         sweeps.append({"sweep": s + 1, "J_before": j0, "J_after": j1, "J_tracked": tracked, "accepted": acc_n,
-                       "gain_blocked": blocked, "ogain_before": float(num0.sum() / den_r.sum()),
-                       "ogain_after": float(num_now.sum() / den_r.sum()),
+                       "gain_blocked": blocked, "ogain_before": _ratio(num0.sum(), den_r.sum()),
+                       "ogain_after": _ratio(num_now.sum(), den_r.sum()),
                        "min_row_ogain_change": float(np.min((num_now[pos] - num0[pos]) / den_r[pos])) if pos.any() else 0.0,
                        "seconds": round(time.time() - t0, 2)})
         if g_report is not None:
@@ -325,6 +392,24 @@ def refine(f: Fmt, raw: np.ndarray, w: np.ndarray, g: np.ndarray, max_sweeps: in
 # ---- driver -------------------------------------------------------------------------------------------------------
 
 _W: dict = {}
+
+
+def _ratio(a, b):
+    """a / b as a float, or None (JSON null) where b is not > 0 (Astra review point 2)."""
+    return float(a) / float(b) if b > 0 else None
+
+
+def _f5(x):
+    return "n/a" if x is None else f"{x:.5f}"
+
+
+def _msg(rec) -> str:
+    sw = rec["sweeps"]
+    if not sw:
+        return rec.get("skipped", "")
+    return (f"rel {_f5(sw[0]['rel_before'])} -> {_f5(sw[-1]['rel_after'])} (reg {_f5(sw[0]['relreg_before'])} -> "
+            f"{_f5(sw[-1]['relreg_after'])}; output gain {_f5(sw[0]['ogain_before'])} -> {_f5(sw[-1]['ogain_after'])}) "
+            f"in {len(sw)} sweeps")
 
 
 def _worker_init(quant, bf16, grams):
@@ -364,8 +449,8 @@ def _one(job):
     if not np.array_equal(raw0 & mask, raw1 & mask):
         raise AssertionError(f"layer {layer} expert {e}: d or scale bits changed")
     for x in sw:
-        x["relreg_before"], x["relreg_after"] = x["J_before"] / den_h, x["J_after"] / den_h
-        x["rel_before"], x["rel_after"] = x["JG_before"] / den, x["JG_after"] / den
+        x["relreg_before"], x["relreg_after"] = _ratio(x["J_before"], den_h), _ratio(x["J_after"], den_h)
+        x["rel_before"], x["rel_after"] = _ratio(x["JG_before"], den), _ratio(x["JG_after"], den)
     rec.update(sweeps=sw, blocks_changed=int(np.sum(np.any((raw0 != raw1).reshape(raw0.shape[0], -1, f.bsize), axis=2))),
                seconds=round(time.time() - t0, 2))
     return layer, e, raw1, rec
@@ -419,12 +504,7 @@ def main() -> None:
         l, e, raw, rec = res
         out[l][e] = raw
         log["layers"][str(l)]["experts"].append(rec)
-        sw = rec["sweeps"]
-        msg = (f"rel {sw[0]['rel_before']:.5f} -> {sw[-1]['rel_after']:.5f} (reg {sw[0]['relreg_before']:.5f} -> "
-               f"{sw[-1]['relreg_after']:.5f}; output gain {sw[0]['ogain_before']:.5f} -> {sw[-1]['ogain_after']:.5f}) "
-               f"in {len(sw)} sweeps"
-               if sw else rec.get("skipped", ""))
-        print(f"[{time.time() - t0:7.0f} s] layer {l} expert {e}: {msg} ({rec['seconds']} s)", flush=True)
+        print(f"[{time.time() - t0:7.0f} s] layer {l} expert {e}: {_msg(rec)} ({rec['seconds']} s)", flush=True)
 
     if args.workers > 1:
         from concurrent.futures import ProcessPoolExecutor

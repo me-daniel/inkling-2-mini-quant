@@ -491,12 +491,14 @@ def extra_summary(k: str, meta, v, experts) -> list[str]:
         for r in done:
             nsw[len(r["sweeps"])] = nsw.get(len(r["sweeps"]), 0) + 1
         res = meta[l]["res"]
-        db = max((abs(r["sweeps"][0]["rel_before"] - res[r["expert"]]["ours"]["full"]["both"]) for r in done), default=0.0)
-        da = max((abs(r["sweeps"][-1]["rel_after"] - res[r["expert"]][k]["full"]["both"]) for r in done), default=0.0)
+        rd = [r for r in done if r["sweeps"][0]["rel_before"] is not None]  # null: tr(W G W^T) = 0 in the log
+        db = max((abs(r["sweeps"][0]["rel_before"] - res[r["expert"]]["ours"]["full"]["both"]) for r in rd), default=0.0)
+        da = max((abs(r["sweeps"][-1]["rel_after"] - res[r["expert"]][k]["full"]["both"]) for r in rd), default=0.0)
         mono = all(sw["J_after"] <= sw["J_before"] for r in done for sw in r["sweeps"])
         if REG is not None and done and "relreg_before" in done[0]["sweeps"][0]:
-            gb = max(abs(r["sweeps"][0]["relreg_before"] - res[r["expert"]]["ours"]["reg"]["both"]) for r in done)
-            ga = max(abs(r["sweeps"][-1]["relreg_after"] - res[r["expert"]][k]["reg"]["both"]) for r in done)
+            rg = [r for r in done if r["sweeps"][0]["relreg_before"] is not None]
+            gb = max((abs(r["sweeps"][0]["relreg_before"] - res[r["expert"]]["ours"]["reg"]["both"]) for r in rg), default=0.0)
+            ga = max((abs(r["sweeps"][-1]["relreg_after"] - res[r["expert"]][k]["reg"]["both"]) for r in rg), default=0.0)
             regchk.append(f"layer {l}: max abs(log - here) on reg {gb:.2e} before, {ga:.2e} after")
         nblk = N_OUT * N_IN // 256
         out.append(f"| {l} | {len(done)} | {len(recs) - len(done)} | "
