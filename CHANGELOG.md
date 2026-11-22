@@ -196,3 +196,7 @@ Reading: if UD is lower than ours on the full error and higher or equal on the d
 ### Addendum H amendment 8: end-to-end check of the proposed Metal NVFP4 kernel (2026-11-22, ~04:58, before the run)
 
 The proposed patches 0008-0009 (`patches/llama.cpp-proposed/`, worktree `vendor/llama.cpp-nvfp4`) pass every NVFP4 case of test-backend-ops; that does not establish end-to-end parity. Check: build llama-perplexity in the worktree, confirm from the load log that no UD-IQ3_XXS expert tensor stays on the CPU, and score UD-IQ3_XXS on S at P = 3 against the same reference logits. Pass: per-chunk KL within 2e-4 of the measurement build's UD run (where the NVFP4 tensors run on the CPU) in every chunk, and the mean within 1e-4. Nothing in the release or the thesis depends on this build; it informs Daniel's upstream decision. Speed only later, on an idle machine.
+
+### Addendum H amendment 7, addition (2026-11-22, ~05:20, before the Grams exist)
+
+Also split the full error into a mean (bias) part, count * ||dW m||^2 with m = in_sum / count from the capture's imatrix, and the rest. Reason: the sibling repo found that its GPTQ down encoding round-trips exactly and lowers held-out output error by about 29%, yet loses on KL to diagonal rounding and to UD's own Q2_0. So a lower layer-local quadratic error does not predict KL here, and a search that trades L2 for a smaller coherent bias (Astra, `reviews/2026-11-22-gram-plan-astra.md` point 2) is a candidate. Reading: a UD bias term well below ours in both layers points to bias as the lever.
