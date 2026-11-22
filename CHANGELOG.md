@@ -167,3 +167,11 @@ From `reviews/2026-11-22-pivot-astra.md`. In order:
    - cal-wt: our encoder with an imatrix computed by upstream `llama-imatrix` on a disjoint WikiText-2 train slice (same chunk size, about 300 chunks, on the Q8_0 reference). Read: its recovery of the 0.0060 encoding gap against gu-v2a.
    - scaled: our encoder on W / s_e with UD's per-expert scales attached (layers 0-19), as UD stores it. Read: its recovery against gu-v2a.
    Both are diagnostics, not candidates. Neither implements visit-pooled accumulation (H2 stays Daniel's).
+
+### Addendum H, amendment 5 audits (2026-11-22, ~02:20; a record)
+
+`results/pilot/source-audit.md` (`scripts/source-audit.py`, CPU):
+- Our BF16 conversion equals an independent NVFP4 decode of the release after BF16 rounding (0 of 127,401,984 checked elements differ; the release's fused w13 rows are interleaved, even rows to our gate rows). The same-type weight-error comparison was made against the right target.
+- UD's NVFP4 down times its `.scale` equals the release exactly (42,467,328 of 42,467,328 elements); its `.scale` is the release amax / 2688.
+- The ggml-org imatrix is expert-indexed (in_sum2 [cols, 128], counts [1, 128], no expert at 0) and sums all three visits of a looped layer (looped / non-looped totals exactly 3.0000). So plain visit pooling is not what separates UD's importance weighting from ours; calibration data and the rounding objective stay open.
+- **Correction to the previous entry:** the imatrix saw 590 chunks of 512 tokens (302,080 tokens), not 1,770. Its stored chunk_count counts each loop pass.
