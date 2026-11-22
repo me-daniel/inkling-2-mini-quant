@@ -5,6 +5,8 @@
 #   CPU: ~/GitHub/.cpu.lock around splices, llama-quantize and heavy CPU analyses (cpu_take / cpu_give); cpu_take
 #        then waits for at least 30% free memory. mem_wait alone checks only once, so two jobs started seconds apart
 #        both passed it (22 Nov, 05:20, swap full).
+#   Small jobs (under 2 GB RSS and under 2 minutes) may run beside a held CPU lock while memory_pressure shows at
+#   least 30% free; anything bigger takes the lock (agreed with the sibling repo, 22 Nov 09:00).
 GLOCK="$HOME/GitHub/.gpu.lock"
 CLOCK="$HOME/GitHub/.cpu.lock"
 _take() { # lockfile
