@@ -320,3 +320,12 @@ The condition for running mirror-u (concept v3, point 4) was that gain-1 rescali
 
 - Refiner fix (a), as implemented for v2r: each IQ2_S grid magnitude is ranked with three sign patterns (the continuous target's signs, the per-weight rule s_i = -sign(db (R_i - H_ii cur_i)), the code's current signs); the ranked winner then gets a sign polish (single flips, weights 0 to 7, each taken only if it lowers the exact dJ and keeps the gain floor, repeated up to 16 passes). The per-weight rule alone fails Astra's example because correlated columns flip together; the polish reaches it (205.8 to 17). Fixes (b) null ratios and (c) the gain floor as a change from baseline, each with a test that failed before. 34 tests pass. Layer 6 is re-refined; layers 9-11 and 20 (IQ3_XXS) are reused.
 - Bug found in `scripts/gpu-lock.sh`: `mem_wait` set a global `f` (sh has no locals), so in `scripts/rpk.sh` the 9e donor paths became the free-memory percentages and the donors were written to the repo root as `34`, `38`, `47`. The splice took exactly those files, each holding the right layer (34: blk.9, 38: blk.10, 47: blk.11), so the 9e result stands. Files moved to `models/refined/rk-{9,10,11}.gguf`; `rpk.sh` and the lock helper's variables renamed; the running v2r chain does not reuse `f` after a lock call (checked).
+
+### Addendum H, amendment 12 result on S (2026-11-22, ~17:15; a record, selection set, descriptive)
+
+`models/v2r.gguf` (sha256 24b90dae...b3482, `logs/v2r.out`): 22 refined gate_up layers on v2a, 11,566,703,648 bytes (v2a's size), 704 tensors with v2a's names and types, 0 expert tensors off Metal, layers 0 and 4 byte-identical to v2a (`logs/v2r-check-final.txt`). Every group check passed; offline tables in `results/pilot/v2r-offline-*.md` (in-sample).
+`logs/ppl-v2r-S-P3.log`: 0.02102 on S, top-1 94.10%. Paired over 16 chunks (`analysis/compare.paired` on `results/pilot/kl.tsv`, rebuilt by `analysis/maptable.py`):
+- v2r minus v2a: -0.00677 [-0.00758, -0.00610]; top-1 94.10% against 93.04%.
+- v2r minus UD-IQ3_XXS: +0.00052 [-0.00030, +0.00133], no difference resolved; top-1 94.10% against 94.26%.
+- Share of the v2a to UD gap closed: 0.93.
+Limits: S is the selection set and the Grams come from WikiText-2 train, the same source as S (disjoint text), so S may favour v2r over held-out domains. The release reading is T3 (amendment 12), which waits for Daniel's approval of amendment 1 and his review of `scripts/refine-codes.py`.
