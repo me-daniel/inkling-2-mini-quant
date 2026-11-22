@@ -149,3 +149,11 @@ From `reviews/2026-11-22-night-review-astra.md`.
 - **T3 frozen** (still only after Daniel approves amendment 1). The artifact is `models/v2a.gguf` as built (sha256 recorded before T3 is opened), unchanged. Success: paired 95% CI of v2a minus UD-IQ3_XXS below 0 on T3, with top-1 not lower. Secondary, descriptive: v2a against cand. The S gate (v2a below the mirror) stays as registered and is also reported paired. T1 and T2 stay descriptive; no reasoning claim without fresh reasoning data.
 - **Script fixes.** `scripts/v2a.sh` requires exactly the 24 gate_up tensors on both sides; the GPU lock is shared with the sibling repo and released only by the pid that took it (`scripts/gpu-lock.sh`).
 - **Noted, not run tonight.** Route replay (force the baseline expert ids at every visit) to test the router-flip explanation of r at small amplitude; a tiny-amplitude noise rung; fresh noise seed triplets (H4 permutes the same three draws and adds no seed replication); a pass-to-tensor trace on a short prompt.
+
+### Addendum H, results of amendments 3 and 4 (2026-11-22, ~01:55; a record, no new hypothesis)
+
+Paired on S (`results/pilot/addendum-h.md`):
+- v2a 0.02780 fails its registered gate: it is 0.00630 [0.00574, 0.00690] above the mirror and 0.00729 above UD-IQ3_XXS. v2a is not a candidate; T3 stays unopened.
+- gu-v2a (our encoder at UD's gate_up map) recovers 0.00214 [0.00144, 0.00285] of cand's gap; gu-ud (UD's own gate_up tensors at that map) recovers 0.00810. UD's encoding at its own map, beyond ours, is 0.00596 [0.00524, 0.00670], far above the 0.001 "negligible" bound.
+- gu15-ud recovers 0.00248, gu911-ud 0.00300 (both mix map and encoding).
+- **Correction to amendment 3.** Its inference "UD wins by allocation" is refuted: most of UD's gate_up advantage is in the encoded values, not the type map, although those values are further from BF16 under our imatrix-weighted metric. Weight error under our importance weights does not predict output KL here. Inference, to be tested: UD's importance weighting (calibration data, or how importance is accumulated over the three loop visits) is the lever. This bears directly on H2 (visit-pooled importance) and on the imatrix we used (`ggml-org`, 1,770 chunks of `inkling2-loop-calibration-v6`, 392 entries; it covers every fused gate_up tensor, checked in `logs/quant-v2a.log`).

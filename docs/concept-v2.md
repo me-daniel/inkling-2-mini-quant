@@ -61,6 +61,11 @@ Measured on S (`results/pilot/addendum-h.md`):
 - The open question is whether UD's gate_up wins by type choice per layer or by better quantization at the same type (a CPU comparison against BF16 is running, `scripts/gu-error.py`). That decides C2 to C4.
 - The mirror is a fully-Metal file at 0.02149 on S. Releasing it would be a Metal-native re-encode of Unsloth's layout, with clear credit; that is Daniel's call.
 
+### Update, 22 Nov ~01:55: the map is not the lever
+
+- v2a (our encoder at UD's per-layer types) scores 0.02780 on S, barely below cand. Our encoder at UD's map recovers 0.0021 of the 0.0081 gap; UD's own tensors at the same map recover all of it.
+- So UD's edge is mostly in how it encodes, not where it spends bits, even though its tensors are further from BF16 under our importance weights. The likely lever is the importance weighting (inference). That is the thesis's H2 question, and the next experiment is an imatrix comparison, not a new allocation.
+
 ### C. Improve (after A; v2 candidate)
 
 Order depends on the 2 x 2:
