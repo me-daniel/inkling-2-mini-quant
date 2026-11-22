@@ -256,7 +256,7 @@ Every commit was rewritten once with git-filter-repo and force-pushed (`6f3f561`
 
 rp-ud-9-10-11 (gu-v2a with UD's gate_up and `.scale` in layers 9-11) scores 0.026169 on S; gu-v2a minus rp-ud-9-10-11 +0.00100 [+0.00055, +0.00140]. The CI is above 0, so the pilot can decide by the registered share (a - b) / (a - c). Grams for layers 9-11 captured at 07:15 (`models/grams/gu-9-10-11`).
 
-### Addendum H amendment 10: does v1 attenuate, and does de-attenuation help it? (2026-11-22, before any data)
+### Addendum H amendment 10: does v1 attenuate, and does de-attenuation help it? (2026-11-22, 08:16 by its commit, before any data)
 
 Reason (sibling repo, measured): rescaling its own Q2_0 down rows to gain 1, codes unchanged (M0u), lowered KL on S by -0.00698 [-0.00831, -0.00560]; inside UD's file the same correction bought about 0.0003. Whether it helps depends on how much the file attenuates.
 Plan: (1) offline, per expert tensor of cand.gguf (gate_up IQ2_XXS/IQ2_S/IQ3_XXS, down IQ4_NL), the per-row plain gain g = <q,w>/<w,w> against our BF16 and the energy <q,q>/<w,w> (all experts of layers 0, 6, 12, 19, 23; same for UD-IQ3_XXS at those layers); (2) cand-u: cand with every expert row's block scales multiplied by 1/g (codes unchanged; rows with g <= 0 untouched), all 24 layers, gate_up and down; (3) S, paired. Reading: cand-u minus cand with a paired CI below 0 makes cand-u a v1.1 candidate, which then needs T3 (frozen comparison against v1 and UD, as amendment 4). A CI including 0 or above: v1 does not attenuate in a way that matters, recorded as such.

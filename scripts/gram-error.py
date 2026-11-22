@@ -86,7 +86,28 @@ def rel_errors(w: np.ndarray, wq: np.ndarray, g: np.ndarray, halves=HALVES, mean
             res[m][h] = float(np.sqrt(v)) if m == "plain" else float(v)
     if mean is not None:
         res["rest"] = {h: res["full"][h] - res["bias"][h] for h in halves}
+    if REG is not None:  # amendment 9c: plain gain <q,w>/<w,w>, energy <q,q>/<w,w>, output gain under G + s Diag(G)
+        res.update(gains(w, wq, g, halves))
     return res
+
+
+GAINS = ("gain", "energy", "ogain")
+
+
+def gains(w: np.ndarray, wq: np.ndarray, g: np.ndarray, halves=HALVES) -> dict[str, dict[str, float]]:
+    """Ratios of row sums over each half: gain = sum <q,w> / sum <w,w>, energy = sum <q,q> / sum <w,w>,
+    ogain = sum q H w^T / sum w H w^T with H = G + REG * Diag(G)."""
+    w64, q64 = w.astype(np.float64), wq.astype(np.float64)
+    with np.errstate(all="ignore"):
+        u = (np.ascontiguousarray(w, dtype=np.float32) @ g.astype(np.float32, copy=False)).astype(np.float64)
+    u += REG * w64 * np.diag(g).astype(np.float64)
+    if not np.all(np.isfinite(u)):
+        raise FloatingPointError("non-finite H w^T")
+    qw, ww, qq = (q64 * w64).sum(1), (w64 * w64).sum(1), (q64 * q64).sum(1)
+    qu, wu = (q64 * u).sum(1), (w64 * u).sum(1)
+    return {"gain": {h: float(qw[s].sum() / ww[s].sum()) for h, s in halves.items()},
+            "energy": {h: float(qq[s].sum() / ww[s].sum()) for h, s in halves.items()},
+            "ogain": {h: float(qu[s].sum() / wu[s].sum()) for h, s in halves.items()}}
 
 
 def wmean(v: np.ndarray, wt: np.ndarray) -> float:
@@ -216,7 +237,8 @@ def run(layers, experts, tsv):
         notes = layout_check(l, u, counts)
         means, mnote = load_means(l, counts)
         notes.append(mnote)
-        mets = METRICS + (("reg",) if REG is not None else ()) + (SPLIT if means is not None else ())
+        mets = METRICS + (("reg",) if REG is not None else ()) + (SPLIT if means is not None else ()) \
+            + (GAINS if REG is not None else ())
         traces = np.full(N_EXP, np.nan)
         res = {}
         t0 = time.time()
@@ -252,7 +274,7 @@ def run(layers, experts, tsv):
 
 
 def tsv_cols() -> tuple[str, ...]:
-    return METRICS + SPLIT + (("reg",) if REG is not None else ())
+    return METRICS + SPLIT + (("reg",) + GAINS if REG is not None else ())
 
 
 def fmt(x: float) -> str:
@@ -267,9 +289,14 @@ def report(meta, experts, md, tsv):
         origin += "; extra encodings (amendment 9): " + ", ".join(f"{k} = `{v}`" for k, v in EXTRA.items())
     if REG is not None:
         origin += f"; reg = full with G + {REG:g} * Diag(G) in numerator and denominator (amendment 9b's objective)"
+        origin += ("; gain = sum <q,w> / sum <w,w>, energy = sum <q,q> / sum <w,w>, ogain = sum q H w^T / sum w H w^T "
+                   f"with H = G + {REG:g} * Diag(G) (amendment 9c; 1 means no attenuation; their `< ours` columns count "
+                   "lower values, not better ones)")
     out = [title, "", origin + ". Per-expert rows: `" + tsv + "`.",
-           f"Grams: `{GRAMS}` (patched llama-imatrix on cand.gguf at P = 3, first 100 chunks of `data/calib-wt.txt`, "
-           "pooled over all visits), symmetrised from the upper triangle. dW = dequantized minus BF16; UD's dequantized "
+           f"Grams: `{GRAMS}` ("
+           + ("patched llama-imatrix on cand.gguf at P = 3, first 100 chunks of `data/calib-wt.txt`, pooled over all "
+              "visits" if GRAMS == "models/grams/gu-6-20" else "capture settings in its log, not restated here")
+           + "), symmetrised from the upper triangle. dW = dequantized minus BF16; UD's dequantized "
            "values times its per-expert `.scale` where present. full = tr(dW G dW^T) / tr(W G W^T), diag = the same "
            "with diag(G), plain = ||dW|| / ||W|| (Frobenius, not squared). bias = n_e ||dW m_e||^2 / tr(W G W^T) with "
            "m_e = in_sum_e / n_e the expert's mean input (G is uncentred, so the mean contributes n_e (dW_r m_e)^2 per "
@@ -290,7 +317,8 @@ def report(meta, experts, md, tsv):
                 + "".join(f" {k} | {k} / ours | {k} < ours |" for k in EXTRA),
                 "|---|---|---|---|---|---|---|" + "---|---|---|" * len(EXTRA)]
         arr = {}
-        for met in ("full",) + tuple(x for x in m["mets"] if x in ("reg",) + SPLIT) + ("diag", "plain"):
+        for met in ("full",) + tuple(x for x in m["mets"] if x in ("reg",) + SPLIT) + ("diag", "plain") \
+                + tuple(x for x in m["mets"] if x in GAINS):
             for h in HALVES:
                 o = np.full(N_EXP, np.nan)
                 u = np.full(N_EXP, np.nan)
@@ -419,6 +447,11 @@ def extra_summary(k: str, meta, v, experts) -> list[str]:
         po, pu = v[(l, "plain", "both", "count-weighted")]
         px = v[(l, "plain", "both", "count-weighted", k)]
         s.append(f"Diagonal {fmt(dx)} (ours {fmt(do)}, UD {fmt(du)}), plain {fmt(px)} (ours {fmt(po)}, UD {fmt(pu)}).")
+        if (l, "ogain", "both", "count-weighted", k) in v:
+            gg = {m: (*v[(l, m, "both", "count-weighted")], v[(l, m, "both", "count-weighted", k)]) for m in GAINS}
+            s.append("Gains (ours / UD / " + k + "): plain " + " / ".join(f"{x:.4f}" for x in gg["gain"])
+                     + ", energy " + " / ".join(f"{x:.4f}" for x in gg["energy"])
+                     + ", output " + " / ".join(f"{x:.4f}" for x in gg["ogain"]) + ".")
     out.append(" ".join(s))
     # in-sample caveat: an expert with fewer tokens than inputs has a rank-deficient Gram, whose null space a search
     # under that same Gram can fill at zero measured cost
@@ -471,12 +504,14 @@ def extra_summary(k: str, meta, v, experts) -> list[str]:
                    f"{sum(sw['accepted'] for r in done for sw in r['sweeps'])} | "
                    f"{sum(r.get('blocks_changed', 0) for r in done)} of {nblk * len(done)} | "
                    f"{sum(r['seconds'] for r in done):.0f} | {db:.2e} | {da:.2e} | {'yes' if mono else 'no'} |")
-    sk = sorted({r.get("skipped", "") for x in log["layers"].values() for r in x["experts"] if not r["sweeps"]})
+    import re
+    sk = sorted({re.sub(r"^\d+ ", "N ", r.get("skipped", "")) for x in log["layers"].values() for r in x["experts"]
+                 if not r["sweeps"]})
     out += ["", f"Search settings from the log: shrink {log['args'].get('shrink', 0)}, min tokens "
             f"{log['args'].get('min_tokens', 0)}; 'J never rose' is under the search objective; the max abs columns "
             "compare the log's own full-G relative errors with the ones computed here."
             + (" " + "; ".join(regchk) + "." if regchk else "")
-            + (f" Skipped experts keep the source bytes (reasons: {len(sk)} distinct, e.g. '{sk[0]}')." if sk else "")]
+            + (" Skipped experts keep the source bytes (reason: " + "; ".join(f"'{x}'" for x in sk) + ")." if sk else "")]
     return out
 
 
