@@ -300,3 +300,14 @@ Build rp-refined-k-9-10-11: the refined 9-11 gate_up with every row rescaled to 
 ### Addendum H, amendment 9 pilot result (2026-11-22, ~11:10; a record)
 
 `logs/ppl-rp-refined-9-10-11-S-P3.log`: the guarded code refinement (9b, 9c) of our gate_up in layers 9-11 scores 0.026064 on S; minus gu-v2a -0.00111 [-0.00156, -0.00067]; UD's own gate_up there (rp-ud-9-10-11) -0.00100 [-0.00140, -0.00055]. Registered share (a - b) / (a - c) = 1.11 with the (a - b) CI above 0: **the pilot passes.** Refined minus UD's tensors directly: -0.00011 [-0.00038, +0.00017] (no difference resolved); top-1 93.15% against 93.14% (UD) and 92.98% (gu-v2a). With our own encoder on these three layers, the model is as close to the original as with Unsloth's tensors. By amendment 9, the next step is all 24 layers (registered separately, after the 9e result and the review fixes).
+
+### Addendum H, amendment 9e result (2026-11-22, ~11:20; a record)
+
+rp-refined-k-9-10-11 (refined 9-11 rescaled per row to v2a's plain gain) scores 0.026181 on S: minus gu-v2a -0.00099 [-0.00147, -0.00048] (share 0.99), minus rp-refined-9-10-11 +0.00012 [-0.00007, +0.00032], minus UD's 9-11 +0.00001 [-0.00026, +0.00027]. Restoring the plain gain does not help the code refinement (it raised energy to about 1.04); the 9c floor stays the rule.
+
+### Addendum H amendment 12: v2r, all gate_up layers refined (2026-11-22, before any of its data)
+
+Base: v2a (our llama-quantize at UD-IQ3_XXS's per-layer types, IQ4_NL down in all 24 layers, 0 tensors off Metal, at most UD's 11,663,310,784 bytes; 0.02780 on S). v2r = v2a with refined gate_up in every layer the refiner supports: IQ3_XXS (9-11, 13-17, 19-23) and IQ2_S (1-3, 5-8, 12, 18); layers 0 (IQ2_XXS) and 4 (IQ2_XS) keep v2a's bytes unless support is added and tested first. Codes only, types and bytes unchanged, so v2r has v2a's size.
+Refiner before the run: Astra's review fixes (IQ2_S sign search, the zero-denominator report, the gain floor tracked as a change from baseline), tests for each; guards 9b and 9c unchanged (the pilot passed with them; 9e showed no gain from restoring plain gain). Daniel reviews `scripts/refine-codes.py` before any v2r result is used for a release.
+Grams: as in the pilot (patched llama-imatrix from the sibling repo, cand forward, P = 3, the first 100 chunks of `data/calib-wt.txt`), captured in groups of up to 4 layers, deleted once a group is refined.
+Reading on S (selection, not the release test): v2r minus v2a and v2r minus UD, paired; descriptive. Release test on T3, frozen before v2r exists: v2r minus UD-IQ3_XXS with the paired 95% CI below zero and top-1 not lower (amendment 4's rule, now for v2r). T3 needs Daniel's approval of amendment 1 before it is opened. If T3 is not approved, v2r is reported on S, T1 and T2 with T1 and T2 marked as seen.
