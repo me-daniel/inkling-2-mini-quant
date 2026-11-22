@@ -10,7 +10,10 @@ PY="$ROOT/.venv/bin/python -I"
 . "$ROOT/scripts/gpu-lock.sh"
 step() { echo "[$(date '+%H:%M:%S')] $*"; }
 done_log() { [ -f "$1" ] && grep -q 'Mean *KLD' "$1"; }
-L620='^blk\.(6|20)\.ffn_gate_up_exps\.weight$'
+LAYERS=${LAYERS:-6 20}  # amendment 9d: LAYERS="9 10 11"
+TAG=$(echo "$LAYERS" | tr " " "-"); RX=$(echo "$LAYERS" | tr " " "|")
+L620="^blk\\.($RX)\\.ffn_gate_up_exps\\.weight\$"
+SC="^blk\\.($RX)\\.ffn_gate_up_exps\\.scale\$"
 ALL='^blk\.\d+\.ffn_gate_up_exps\.weight$'
 one() { # name splice-args...
     name=$1; shift; log="$L/ppl-$name-S-P3.log"
@@ -30,7 +33,8 @@ one() { # name splice-args...
     grep -E 'Mean +KLD' "$log"
 }
 mkdir -p "$T"
-one rp-ud --take "$M/UD-IQ3_XXS.gguf" "$L620" --take "$M/v2a.gguf" "$ALL" --add "$M/UD-IQ3_XXS.gguf" '^blk\.6\.ffn_gate_up_exps\.scale$'
-R="$M/refined/gu-refined-6-20.gguf"
-if [ -f "$R" ]; then one rp-refined --take "$R" "$L620" --take "$M/v2a.gguf" "$ALL"; else step "rp-refined: $R not there yet"; fi
+SFX=""; [ "$TAG" = 6-20 ] || SFX="-$TAG"
+one rp-ud$SFX --take "$M/UD-IQ3_XXS.gguf" "$L620" --take "$M/v2a.gguf" "$ALL" --add "$M/UD-IQ3_XXS.gguf" "$SC"
+R="$M/refined/gu-refined-$TAG.gguf"
+if [ -f "$R" ]; then one rp-refined$SFX --take "$R" "$L620" --take "$M/v2a.gguf" "$ALL"; else step "rp-refined: $R not there yet"; fi
 step "refine-pilot done"
