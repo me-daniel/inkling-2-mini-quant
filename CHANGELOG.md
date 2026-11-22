@@ -329,3 +329,16 @@ The condition for running mirror-u (concept v3, point 4) was that gain-1 rescali
 - v2r minus UD-IQ3_XXS: +0.00052 [-0.00030, +0.00133], no difference resolved; top-1 94.10% against 94.26%.
 - Share of the v2a to UD gap closed: 0.93.
 Limits: S is the selection set and the Grams come from WikiText-2 train, the same source as S (disjoint text), so S may favour v2r over held-out domains. The release reading is T3 (amendment 12), which waits for Daniel's approval of amendment 1 and his review of `scripts/refine-codes.py`.
+
+### Addendum H, amendment 12 result on T1 and T2 (2026-11-22, ~17:35; a record, both sets seen)
+
+`scripts/v2r-t12.sh` (N=v2r, then N=v2a; `logs/v2r-t12.out`, `logs/v2a-t12.out`), paired over chunks (`analysis/compare.py`):
+
+| set | v2r | v2a | UD-IQ3_XXS | v2r - v2a | v2r - UD | gap v2a to UD closed | top-1 v2r / v2a / UD |
+|---|---|---|---|---|---|---|---|
+| S (16 chunks, WikiText-2 test) | 0.02102 | 0.02779 | 0.02050 | -0.00677 [-0.00758, -0.00610] | +0.00052 [-0.00030, +0.00133] | 0.93 | 94.10 / 93.04 / 94.26 |
+| T1 (16 chunks, WikiText-2 test) | 0.02077 | 0.02462 | 0.01939 | -0.00385 [-0.00470, -0.00298] | +0.00138 [+0.00059, +0.00218] | 0.74 | 94.29 / 93.44 / 94.42 |
+| T2 (5 chunks, reasoning traces) | 0.01829 | 0.01929 | 0.01361 | -0.00100 [-0.00186, +0.00009] | +0.00468 [+0.00333, +0.00626] | 0.18 | 95.39 / 95.54 / 95.95 |
+
+Against v1 (cand): T1 -0.00609 [-0.00738, -0.00484], T2 -0.00113 [-0.00281, +0.00060].
+Reading: the refinement transfers within WikiText (S, T1) and mostly not to reasoning traces (T2), where top-1 is lower than v2a's. The Grams were captured on WikiText-2 train only (51,200 tokens; median expert about 5,000 tokens for 2,304 input dimensions), so the refined codes fit WikiText's input covariance. UD's encoding keeps its lead on T2. T3 is a WikiText-2 test span like S and T1; on T1, v2r loses to UD with the CI above zero, so T3 is unlikely to pass amendment 12's rule (inferred, T3 not opened).
