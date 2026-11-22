@@ -853,9 +853,7 @@ def claim_par(v: dict) -> list[str]:
             f"({join_and([LARGER.get(k, mac_label(v, k, True)) for k in big])}). Tested on {day(v['g_date'])}, so later "
             "uploads aren't covered.",
             f"- Unsloth's UD-IQ3_XXS stays closer to the original. With stock llama.cpp on a Mac it's {pc:.1f}× slower at "
-            f"reading prompts and {tc:.2f}× slower at generating, because stock llama.cpp's Metal backend can't run its NVFP4 "
-            "tensors yet. Unsloth's own llama.cpp prebuild (" + REL + ") can. With that build, on other hardware, or once "
-            "stock llama.cpp supports NVFP4 on Metal, use Unsloth's file.",
+            f"reading prompts and {tc:.2f}× slower at generating, because 20 of its expert tensors run on the CPU there.",
             "- All-Metal files of this size run at about the same speed as each other (table below).", ""]
 
 
@@ -902,11 +900,10 @@ def lean_card(v: dict, cand_bytes: int) -> list[str]:
          f"{v['mrows'][('T1', 'UD-IQ3_XXS')]['d']} on T1 and {v['mrows'][('T2', 'UD-IQ3_XXS')]['d']} on T2, our file "
          "minus theirs), so the quality test we registered against it beforehand did not pass. With stock llama.cpp, this "
          f"GGUF keeps the whole model on the Mac GPU instead, and reads prompts {f['vs_ud']['pp512'][0]:.1f}× faster there at "
-         "the moment. Unsloth's own llama.cpp prebuild (" + REL + ") runs their file fully on the Mac GPU as well.", "",
+         "the moment.", "",
          "## How we made and tested it", "",
          "- Fully on Metal: every expert tensor uses a type stock llama.cpp can run on the Mac GPU. Unsloth's UD-IQ3_XXS "
-         f"has {ud['off']} NVFP4 expert tensors that fall back to the CPU on stock llama.cpp, though not on Unsloth's own "
-         "prebuild.",
+         f"has {ud['off']} NVFP4 expert tensors that fall back to the CPU on stock llama.cpp.",
          f"- Layout from measurement: we measured the cost of shrinking each of {nb} layer groups, including the core "
          f"that runs three times, and chose the layout from {len(v['sel'])} tested candidates.",
          "- Tested in the open: before release we registered a quality test against Unsloth's file. Our file failed "
@@ -958,7 +955,7 @@ def lean_card(v: dict, cand_bytes: int) -> list[str]:
          "- KL measures how closely a file matches the reference model's outputs. Task quality needs its own test.",
          "- One machine, one llama.cpp build and one importance matrix.",
          "- The comparison covers the files we tested that day.",
-         "- On CUDA, or once Metal supports NVFP4, Unsloth's UD-IQ3_XXS is the better choice.", "",
+         "- Speed was measured with stock llama.cpp on one Mac. Builds that run NVFP4 on Metal don't have the CPU fallback.", "",
          "## Provenance", "",
          f"- Base model: `{v['model']}` at revision `{v['rev'][v['model']][:7]}`, importance matrix from "
          "`ggml-org/Inkling-2-Mini-GGUF`.",

@@ -265,7 +265,7 @@ Plan: (1) offline, per expert tensor of cand.gguf (gate_up IQ2_XXS/IQ2_S/IQ3_XXS
 
 A second, hand-started copy of `scripts/macgate.sh` re-spliced `models/tmp/pp-noise-tied3.gguf` in place while the chain's copy was scoring it (08:39 to 08:43). That run was killed before it finished, its partial logits deleted, and macgate restarted alone at 08:44; noise-tied3 is recomputed from scratch. No number from the discarded run is used.
 
-### Addendum H amendment 11: the all-Metal set under 11.6 GB (2026-11-22, before these files are scored)
+### Addendum H amendment 11: the all-Metal set under 11.6 GB (2026-11-22, 08:55 by its commit, before these files are scored)
 
 Hugging Face scan (22 Nov ~09:00) of base-model Inkling 2 Mini GGUFs from 9.0 to 11.6 GB (fine-tunes, abliterated and "heretic" variants excluded: different weights). Expert tensor types read from each file's header (`scripts/remote-types.py`, one range request, the off-Metal list of `scripts/gguf-types.py`):
 - All-Metal and loadable on stock llama.cpp (b12600), so in the set: bartowski IQ2_S, AtomicChat AD-IQ2_S, mudler APEX-I-Nano (scored 21 Nov), IsValorum APEX-I-NanoPlus-V2.1 and prithivMLmods Q2_K (registered 21 Nov, being scored), and new: arelius Q2K-Q2_0 (9.94 GB, `arelius/Inkling-2-Mini-Q2-3090-GGUF@d1679c7`), nikolaus714 Q2_K (10.86 GB, `@8375982`), DevQuasar Q2_K (10.86 GB, `@fd1ba3a`).
