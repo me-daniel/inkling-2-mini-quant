@@ -283,3 +283,7 @@ That record says noise-tied3 "is recomputed from scratch". It was not used: the 
 ### Addendum H amendment 10, note before data (2026-11-22, ~09:40)
 
 Offline gains of v1 so far (`results/pilot/cand-gain.tsv`, 13 of 48 tensors): IQ4_NL down gain 0.995-0.996 (energy 0.995-0.998), IQ2_XXS gate_up gain 0.973-0.976 with energy 1.070-1.077, IQ2_S gate_up 0.996 (energy 1.061). v1 hardly attenuates. The sibling repo's M0uu (its gate_up and IQ4_NL down rescaled to gain 1 on top of M0u) was worse, +0.00138 [+0.00076, +0.00198], because gate_up already runs at energy above 1. So any cand-u effect will come mostly from the gate_up rescale, and the prior leans to zero or harm. No down-only split is added (a 0.5% correction). cand-u is read as registered.
+
+### Addendum H, amendment 10 result (2026-11-22, ~10:50; a record)
+
+`logs/ppl-cand-u-S-P3.log`: cand-u (all 48 expert tensors of v1 rescaled per row to gain 1) scores 0.028971 on S against cand (sel-2) 0.02931; cand-u minus cand -0.00034 [-0.00068, +0.00003]. The CI includes 0, so by the registered rule v1 does not attenuate in a way that matters, and cand-u is not a v1.1 candidate. Offline, all 48 tensors (`results/pilot/cand-gain.tsv`): down gain about 0.996, gate_up 0.97-1.00 with energy above 1, as in the note before data.
