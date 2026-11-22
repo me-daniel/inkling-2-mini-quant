@@ -38,7 +38,7 @@ log="$L/ppl-cal-wt$TAG-S-P3.log"
 if ! done_log "$log"; then
     if [ ! -f "$M/v2a-wt$TAG.gguf" ]; then
         step "quantize v2a-wt"
-        mem_wait
+        cpu_take
         nice -n 5 "$BIN/llama-quantize" --imatrix "$M/imatrix-wt$TAG.gguf" \
             --tensor-type 'blk\.0\.ffn_gate_up_exps=iq2_xxs' \
             --tensor-type 'blk\.4\.ffn_gate_up_exps=iq2_xs' \
@@ -48,11 +48,13 @@ if ! done_log "$log"; then
             --token-embedding-type q4_k --output-tensor-type q5_k \
             "$M/Inkling-2-Mini-BF16.gguf" "$M/v2a-wt$TAG.gguf.part" Q6_K > "$L/quant-v2a-wt$TAG.log" 2>&1
         mv "$M/v2a-wt$TAG.gguf.part" "$M/v2a-wt$TAG.gguf"
+        cpu_give
     fi
     step "splice cal-wt$TAG"
-    mem_wait
+    cpu_take
     $PY "$ROOT/scripts/splice.py" "$M/cand.gguf" "$T/cal-wt$TAG.gguf" --take "$M/v2a-wt$TAG.gguf" '^blk\.\d+\.ffn_gate_up_exps\.weight$' \
         --verify > "$L/splice-cal-wt$TAG.json"
+    cpu_give
     step "perplexity cal-wt$TAG (P=3)"
     gpu_take
     "$BIN/llama-perplexity" -m "$T/cal-wt$TAG.gguf" -f "$ROOT/data/S.txt" -c 4096 --chunks 16 -ngl 99 \

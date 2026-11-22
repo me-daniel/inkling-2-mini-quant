@@ -14,9 +14,10 @@ one() { # name splice-args...
     name=$1; shift
     log="$L/ppl-$name-S-P3.log"; done_log "$log" && return 0
     step "splice $name"
-    mem_wait
+    cpu_take
     $PY "$ROOT/scripts/splice.py" "$M/cand.gguf" "$T/$name.gguf" "$@" --verify > "$L/splice-$name.json"
     $PY "$ROOT/scripts/gguf-types.py" "$T/$name.gguf" > "$L/types-$name.txt"
+    cpu_give
     grep -q "tensors in types Metal cannot multiply: 0 " "$L/types-$name.txt" || { echo "$name has off-Metal tensors" >&2; exit 1; }
     step "perplexity $name (P=3)"
     gpu_take

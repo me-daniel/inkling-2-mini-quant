@@ -99,3 +99,5 @@ Card v2 only changes if a result changes: new comparators, the 2 x 2 line, depth
 - Approve Addenda F, G section 2 and H.
 - Patch 0008: review the diff, then decide whether to open an upstream PR.
 - v2: only if A and C give a better file on T3.
+
+3d. (22 Nov, 05:20) `mem_wait` checks once, so two CPU jobs launched seconds apart both pass it; swap filled to 35 GB that way. CPU-heavy steps now take the shared `~/GitHub/.cpu.lock` (`cpu_take`/`cpu_give` in `scripts/gpu-lock.sh`, same format as the GPU lock, adopted by the sibling repo too).
