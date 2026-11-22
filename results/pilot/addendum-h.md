@@ -38,3 +38,41 @@ Per-chunk differences with a paired bootstrap; positive means b has lower KL tha
 | cand + UD's non-expert tensors | 0.02941 ± 0.00041 | -0.00010 | -1% |
 | cand + UD's gate_up experts | 0.02121 ± 0.00027 | +0.00810 | 104% |
 
+## H1. Layer split at the 3-bit rung
+
+| Split | r (Fisher) | norm ratio (Fisher) |
+|---|---|---|
+| pass split, 3-bit | 0.748 [0.732, 0.761] | 0.788 [0.780, 0.794] |
+| layer split, 3-bit | 1.108 [1.074, 1.145] | 0.640 [0.627, 0.652] |
+
+- Addendum F rule at 3 bits: r intervals do not overlap, norm-ratio intervals do not overlap. The pass split differs from the layer split at 3 bits as well.
+
+## H2, H3. Gaussian noise decomposed by pass
+
+| Split | r (Fisher) | norm ratio (Fisher) |
+|---|---|---|
+| tied (draw 1 on every pass) | 0.680 [0.660, 0.702] | 0.836 [0.825, 0.847] |
+| independent (draw k on pass k) | 0.723 [0.709, 0.736] | 0.807 [0.798, 0.817] |
+
+- Addendum A point 7: KL(independent) / sum of single-pass KLs = 0.953 [0.934, 0.971]. Not additive (the CI excludes 1).
+- Tied: KL(tied) / sum of its single-pass KLs = 1.141 [1.119, 1.162].
+
+## H4. Tied against independent noise, every pair of draws
+
+| tied \ independent | noise-indep | indep-231 | indep-312 |
+|---|---|---|---|
+| noise-tied | 1.196 [1.169, 1.225] | 1.167 [1.146, 1.188] | 1.179 [1.154, 1.202] |
+| noise-tied2 | 1.222 [1.187, 1.256] | 1.192 [1.161, 1.219] | 1.204 [1.162, 1.246] |
+| noise-tied3 | 1.223 [1.182, 1.262] | 1.193 [1.154, 1.230] | 1.205 [1.173, 1.238] |
+
+- 9 ratios, from 1.167 to 1.223. Tied noise costs more in every pair.
+
+## H5. The pass split on B3 (layers 12-17), 2-bit
+
+| Split | r (Fisher) | norm ratio (Fisher) |
+|---|---|---|
+| B2 (on record) | 0.675 [0.657, 0.693] | 0.841 [0.829, 0.855] |
+| B3 | 0.539 [0.526, 0.553] | 0.906 [0.897, 0.915] |
+
+- KL all / sum of single passes on B3 = 1.226 [1.209, 1.244]; per pass p1 0.01661, p2 0.02069, p3 0.03244, all 0.08548.
+

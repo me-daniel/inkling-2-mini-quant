@@ -271,3 +271,11 @@ Hugging Face scan (22 Nov ~09:00) of base-model Inkling 2 Mini GGUFs from 9.0 to
 - All-Metal and loadable on stock llama.cpp (b12600), so in the set: bartowski IQ2_S, AtomicChat AD-IQ2_S, mudler APEX-I-Nano (scored 21 Nov), IsValorum APEX-I-NanoPlus-V2.1 and prithivMLmods Q2_K (registered 21 Nov, being scored), and new: arelius Q2K-Q2_0 (9.94 GB, `arelius/Inkling-2-Mini-Q2-3090-GGUF@d1679c7`), nikolaus714 Q2_K (10.86 GB, `@8375982`), DevQuasar Q2_K (10.86 GB, `@fd1ba3a`).
 - Out of the set: Unsloth UD-Q2_K_XL (11 NVFP4 expert tensors), nahcmon fast-folded (20 NVFP4, arch inkling2), Interchained q2_k (arch inkling2, does not load on stock llama.cpp b12600); bartowski IQ2_XXS (10.32 GB) and AtomicChat AD-IQ2_XXS (10.43 GB) are lower-bit files from the same makers as bartowski IQ2_S and AD-IQ2_S, which cand already beats; they are listed as untested, not as beaten.
 Claim rule: the card may say "closest to the original among the all-Metal GGUFs under 11.6 GB we tested" and list them, if cand has lower KL than each on T1 and T2 with the paired 95% CI below zero. Any file in the set that cand does not beat is named next to the claim.
+
+### Correction to the record "one noise-tied3 run discarded" (2026-11-22, ~09:30)
+
+That record says noise-tied3 "is recomputed from scratch". It was not used: the per-pass tables already held noise-tied2 and noise-tied3 from the 21 Nov runs, the 22 Nov reruns (chain12, macgate rerun) never entered a table, and their logits were deleted at 09:10 to free disk. All noise-tied2/3 numbers come from the 21 Nov runs.
+
+### Addendum H, H1-H5 results (2026-11-22, ~09:30; a record)
+
+`results/pilot/perpass-h1-h5.md` (`scripts/perpass-summary.py`; every number from `results/pilot`): all five groups complete. H1 rule met (pass split r 0.748 [0.732, 0.761] against layer split 1.108 [1.074, 1.145]); H2 descriptive (tied noise KL all/sum 1.141 [1.119, 1.162], like the 2-bit split's 1.135); H3 ratio 0.953 [0.934, 0.971], CI excludes 1, so not "about additive" by the registered rule (about 5% sub-additive); H4 rule met (all 9 ratios above 1, 1.167 to 1.223; the 9 share three draws); H5 descriptive (B3 KL all/sum 1.226 [1.209, 1.244], pass 3 dominates). Across visit splits KL all/sum runs from 0.87 to 1.23, against about 0.33 for "counts once" and about 3 for fully aligned visits.
