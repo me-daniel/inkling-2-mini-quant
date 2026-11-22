@@ -1,6 +1,6 @@
 """Full-Gram weight error of the gate_up experts, UD-IQ3_XXS against ours (v2a) at the same type (Addendum H amendment 7).
 
-    python scripts/gram-error.py [--layers 6 20] [--experts 0:128:1]
+    python scripts/gram-error.py [--layers 6 20] [--experts 0:128:1] [--extra NAME=GGUF ...]
 
 Inputs (layout of the Gram files from the sibling repo's patch 0010: cblas_ssyrk(RowMajor, Upper, Trans) into
 g[ex * ne0 * ne0 + row * ne0 + col], so index [expert][row][col] with row <= col filled and the rest left at 0):
@@ -18,6 +18,10 @@ Aggregated over experts unweighted, weighted by counts[e], and weighted by trace
 Paired bootstrap over experts (10,000 resamples, seed 0) of the count-weighted mean of UD minus ours on full.
 
 Writes results/pilot/gram-error.tsv (one row per layer, expert, half, file) and results/pilot/gram-error.md.
+--extra NAME=GGUF adds further encodings of the same tensors (same type as ours, no .scale; e.g. the refined
+gate_up of scripts/refine-codes.py, amendment 9) as extra columns, with paired bootstraps against ours and UD; if
+GGUF.json is a refine-codes log, its runtime and its own before/after objectives are summarised and checked
+against the errors computed here. Without --extra the output is unchanged.
 """
 
 import argparse
@@ -36,6 +40,7 @@ GRAMS = "models/grams/gu-6-20"
 N_EXP, N_IN, N_OUT = 128, 2304, 2304
 HALVES = {"gate": slice(0, 1152), "up": slice(1152, 2304), "both": slice(0, 2304)}
 METRICS = ("full", "diag", "plain")
+EXTRA: dict[str, str] = {}  # name -> path, from --extra
 SPLIT = ("bias", "rest")  # full = bias + rest, needs the per-expert input mean (in_sum / count)
 AGGS = ("unweighted", "count-weighted", "trace-weighted")
 
@@ -117,7 +122,8 @@ def free_pct() -> int:
 
 
 def check_inputs(layers: list[int]):
-    tens = {k: {t.name: t for t in gguf.GGUFReader(p).tensors} for k, p in (("bf16", BF16), ("ours", OURS), ("ud", UD))}
+    tens = {k: {t.name: t for t in gguf.GGUFReader(p).tensors}
+            for k, p in (("bf16", BF16), ("ours", OURS), ("ud", UD), *EXTRA.items())}
     facts = []
     for l in layers:
         n = f"blk.{l}.ffn_gate_up_exps.weight"
@@ -132,7 +138,11 @@ def check_inputs(layers: list[int]):
         sc = tens["ud"].get(f"blk.{l}.ffn_gate_up_exps.scale")
         if sc is not None and [int(x) for x in sc.shape] not in ([N_EXP], [1, N_EXP], [N_EXP, 1]):
             sys.exit(f"STOP: UD scale of layer {l} has shape {list(sc.shape)}")
-        for k in ("ours",):
+        for k in ("ours", *EXTRA):
+            if k in EXTRA:
+                tx = tens[k].get(n)
+                if tx is None or [int(x) for x in tx.shape] != [N_IN, N_OUT, N_EXP] or tx.tensor_type != to.tensor_type:
+                    sys.exit(f"STOP: {EXTRA[k]} lacks {n} with ours' shape and type")
             if tens[k].get(f"blk.{l}.ffn_gate_up_exps.scale") is not None:
                 sys.exit(f"STOP: {k} has a gate_up .scale in layer {l}")
         facts.append((l, to.tensor_type.name, None if sc is None else np.asarray(sc.data, dtype=np.float64).reshape(-1)))
@@ -217,17 +227,19 @@ def run(layers, experts, tsv):
                 qu = qu * np.float32(scale[e])
             kw = {} if means is None else {"mean": means[e], "count": float(counts[e])}
             res[e] = {"ours": rel_errors(w, qo, g, **kw), "ud": rel_errors(w, qu, g, **kw)}
+            for k in EXTRA:
+                res[e][k] = rel_errors(w, deq(tens[k][n], e), g, **kw)
             del g, w, qo, qu
         print(f"layer {l}: {len(experts)} experts in {time.time() - t0:.0f} s", flush=True)
         if means is not None:  # the centred scatter is PSD, so rest >= 0 if in_sum and the Gram saw the same rows
-            q = min(res[e][f]["rest"][h] / res[e][f]["full"][h] for e in experts for f in ("ours", "ud") for h in HALVES
+            q = min(res[e][f]["rest"][h] / res[e][f]["full"][h] for e in experts for f in ("ours", "ud", *EXTRA) for h in HALVES
                     if res[e][f]["full"][h] > 0)
             notes.append(f"min over experts, files and halves of rest / full = {q:.6f} (must be >= 0 up to rounding)")
         meta[l] = {"type": ty, "scale": scale, "counts": counts, "traces": traces, "notes": notes, "res": res,
                    "mets": mets}
         for e in experts:
             for h in HALVES:
-                for f in ("ours", "ud"):
+                for f in ("ours", "ud", *EXTRA):
                     r = res[e][f]
                     rec.append(f"{l}\t{ty}\t{e}\t{counts[e]}\t{traces[e]:.6e}\t{h}\t{f}\t"
                                + "\t".join(f"{r[m][h]:.6e}" if m in r else "nan" for m in METRICS + SPLIT))
@@ -241,8 +253,12 @@ def fmt(x: float) -> str:
 
 
 def report(meta, experts, md, tsv):
-    out = ["# gate_up error under the full input Gram, UD-IQ3_XXS against ours (v2a)", "",
-           "Written by `scripts/gram-error.py` (Addendum H amendment 7). Per-expert rows: `" + tsv + "`.",
+    title = "# gate_up error under the full input Gram, UD-IQ3_XXS against ours (v2a)"
+    origin = "Written by `scripts/gram-error.py` (Addendum H amendment 7)"
+    if EXTRA:
+        title += " and " + ", ".join(EXTRA)
+        origin += "; extra encodings (amendment 9): " + ", ".join(f"{k} = `{v}`" for k, v in EXTRA.items())
+    out = [title, "", origin + ". Per-expert rows: `" + tsv + "`.",
            f"Grams: `{GRAMS}` (patched llama-imatrix on cand.gguf at P = 3, first 100 chunks of `data/calib-wt.txt`, "
            "pooled over all visits), symmetrised from the upper triangle. dW = dequantized minus BF16; UD's dequantized "
            "values times its per-expert `.scale` where present. full = tr(dW G dW^T) / tr(W G W^T), diag = the same "
@@ -261,22 +277,37 @@ def report(meta, experts, md, tsv):
         nz = int(np.sum(m["counts"][experts] > 0))
         out += [f"- Experts with tokens: {nz} of {len(experts)}; tokens per expert min {int(m['counts'][experts].min())}, "
                 f"median {int(np.median(m['counts'][experts]))}, max {int(m['counts'][experts].max())}", ""]
-        out += ["| metric | half | mean | ours | UD | UD / ours | UD < ours |", "|---|---|---|---|---|---|---|"]
+        out += ["| metric | half | mean | ours | UD | UD / ours | UD < ours |"
+                + "".join(f" {k} | {k} / ours | {k} < ours |" for k in EXTRA),
+                "|---|---|---|---|---|---|---|" + "---|---|---|" * len(EXTRA)]
         arr = {}
         for met in ("full",) + tuple(x for x in m["mets"] if x in SPLIT) + ("diag", "plain"):
             for h in HALVES:
                 o = np.full(N_EXP, np.nan)
                 u = np.full(N_EXP, np.nan)
+                xs = {k: np.full(N_EXP, np.nan) for k in EXTRA}
                 for e in experts:
                     o[e], u[e] = res[e]["ours"][met][h], res[e]["ud"][met][h]
+                    for k in EXTRA:
+                        xs[k][e] = res[e][k][met][h]
                 arr[(met, h)] = (o, u)
                 ok = np.isfinite(o) & np.isfinite(u)
                 win = f"{int(np.sum(u[ok] < o[ok]))} of {int(ok.sum())}"
                 verdict[(l, "win", met, h)] = win
                 ao, au = aggregate(o, counts, traces), aggregate(u, counts, traces)
+                ax = {}
+                for k, x in xs.items():
+                    arr[(met, h, k)] = x
+                    okx = np.isfinite(o) & np.isfinite(x)
+                    verdict[(l, "win", met, h, k)] = f"{int(np.sum(x[okx] < o[okx]))} of {int(okx.sum())}"
+                    ax[k] = aggregate(x, counts, traces)
                 for a in AGGS:
-                    out.append(f"| {met} | {h} | {a} | {fmt(ao[a])} | {fmt(au[a])} | {au[a] / ao[a]:.4f} | {win} |")
+                    out.append(f"| {met} | {h} | {a} | {fmt(ao[a])} | {fmt(au[a])} | {au[a] / ao[a]:.4f} | {win} |"
+                               + "".join(f" {fmt(ax[k][a])} | {ax[k][a] / ao[a]:.4f} | {verdict[(l, 'win', met, h, k)]} |"
+                                         for k in EXTRA))
                     verdict[(l, met, h, a)] = (ao[a], au[a])
+                    for k in EXTRA:
+                        verdict[(l, met, h, a, k)] = ax[k][a]
         out += ["", "Paired bootstrap over experts (10,000 resamples, seed 0), count-weighted mean of UD minus ours, full:", "",
                 "| half | UD - ours | 95% CI |", "|---|---|---|"]
         for h in HALVES:
@@ -284,8 +315,24 @@ def report(meta, experts, md, tsv):
             p, lo, hi = boot_diff(u, o, counts)
             verdict[(l, "boot", h)] = (p, lo, hi)
             out.append(f"| {h} | {p:+.4e} | [{lo:+.4e}, {hi:+.4e}] |")
+        for k in EXTRA:
+            out += ["", f"Paired bootstrap over experts (10,000 resamples, seed 0), count-weighted mean of {k} minus ours "
+                    f"and {k} minus UD:", "", f"| metric | half | {k} - ours | 95% CI | {k} - UD | 95% CI |",
+                    "|---|---|---|---|---|---|"]
+            for met in ("full", "bias", "rest", "diag"):
+                if met not in m["mets"]:
+                    continue
+                for h in HALVES:
+                    o, u = arr[(met, h)]
+                    x = arr[(met, h, k)]
+                    p1, lo1, hi1 = boot_diff(x, o, counts)
+                    p2, lo2, hi2 = boot_diff(x, u, counts)
+                    verdict[(l, "boot", met, h, k)] = ((p1, lo1, hi1), (p2, lo2, hi2))
+                    out.append(f"| {met} | {h} | {p1:+.4e} | [{lo1:+.4e}, {hi1:+.4e}] | {p2:+.4e} | [{lo2:+.4e}, {hi2:+.4e}] |")
         out.append("")
     out += reading(meta, verdict)
+    for k in EXTRA:
+        out += ["", *extra_summary(k, meta, verdict, experts)]
     with open(md, "w", encoding="utf-8") as fh:
         fh.write("\n".join(out) + "\n")
 
@@ -338,6 +385,77 @@ def reading(meta, v) -> list[str]:
     return out
 
 
+def extra_summary(k: str, meta, v, experts) -> list[str]:
+    """Templated sentences on an extra encoding against ours and UD, plus its refine-codes log if one sits next to it."""
+    out = [f"## {k} against ours and UD", ""]
+    s = []
+    for l in meta:
+        fo, fu = v[(l, "full", "both", "count-weighted")]
+        fx = v[(l, "full", "both", "count-weighted", k)]
+        (p1, lo1, hi1), _ = v[(l, "boot", "full", "both", k)]
+        share = (fo - fx) / (fo - fu) if fo != fu else float("nan")
+        s.append(f"In layer {l} (both halves, count-weighted), {k}'s full error is {fmt(fx)} against our {fmt(fo)} and "
+                 f"UD's {fmt(fu)} ({k} - ours {p1:+.3e}, 95% CI [{lo1:+.3e}, {hi1:+.3e}]; (ours - {k}) / (ours - UD) = {share:.3f}; lower than ours in {v[(l, 'win', 'full', 'both', k)]} experts).")
+        if (l, "bias", "both", "count-weighted", k) in v:
+            bo, bu = v[(l, "bias", "both", "count-weighted")]
+            ro, ru = v[(l, "rest", "both", "count-weighted")]
+            bx, rx = v[(l, "bias", "both", "count-weighted", k)], v[(l, "rest", "both", "count-weighted", k)]
+            s.append(f"Bias part {fmt(bx)} (ours {fmt(bo)}, UD {fmt(bu)}), rest {fmt(rx)} (ours {fmt(ro)}, UD {fmt(ru)}).")
+        do, du = v[(l, "diag", "both", "count-weighted")]
+        dx = v[(l, "diag", "both", "count-weighted", k)]
+        po, pu = v[(l, "plain", "both", "count-weighted")]
+        px = v[(l, "plain", "both", "count-weighted", k)]
+        s.append(f"Diagonal {fmt(dx)} (ours {fmt(do)}, UD {fmt(du)}), plain {fmt(px)} (ours {fmt(po)}, UD {fmt(pu)}).")
+    out.append(" ".join(s))
+    # in-sample caveat: an expert with fewer tokens than inputs has a rank-deficient Gram, whose null space a search
+    # under that same Gram can fill at zero measured cost
+    out += ["", f"Full error (both halves) by Gram token count; an expert with fewer than {N_IN} tokens has a "
+            "rank-deficient Gram (the same Gram the search minimised, so these are in-sample errors):", "",
+            f"| layer | tokens | experts | share of tokens | ours (count-w.) | UD (count-w.) | {k} (count-w.) | "
+            f"{k} / ours | {k} / UD |", "|---|---|---|---|---|---|---|---|---|"]
+    for l, m in meta.items():
+        res, c = m["res"], m["counts"].astype(np.float64)
+        ex = np.array(experts)
+        for lab, sel in ((f"< {N_IN}", c[ex] < N_IN), (f">= {N_IN}", c[ex] >= N_IN)):
+            e = ex[sel]
+            if len(e) == 0:
+                continue
+            wt = c[e]
+            f = {x: wmean(np.array([res[i][x]["full"]["both"] for i in e]), wt) for x in ("ours", "ud", k)}
+            out.append(f"| {l} | {lab} | {len(e)} | {wt.sum() / c[ex].sum():.3f} | {fmt(f['ours'])} | {fmt(f['ud'])} | "
+                       f"{fmt(f[k])} | {f[k] / f['ours']:.3f} | {f[k] / f['ud']:.3f} |")
+    logf = EXTRA[k] + ".json"
+    if not os.path.exists(logf):
+        return out
+    import json
+    log = json.load(open(logf, encoding="utf-8"))
+    if log.get("script") != "scripts/refine-codes.py":
+        return out
+    out += ["", f"Refinement log `{logf}` (scripts/refine-codes.py; wall time {log['seconds_total']:.0f} s for "
+            f"{sum(len(x['experts']) for x in log['layers'].values())} expert tensors, "
+            f"workers {log['args'].get('workers')}, sweeps <= {log['args'].get('sweeps')}, tol {log['args'].get('tol')}):", "",
+            "| layer | experts refined | skipped | sweeps used (count) | accepted moves | blocks changed | "
+            "expert seconds (sum) | max abs(log - here), before | max abs(log - here), after | J never rose |",
+            "|---|---|---|---|---|---|---|---|---|---|"]
+    for l in meta:
+        recs = [r for r in log["layers"].get(str(l), {}).get("experts", []) if r["expert"] in experts]
+        done = [r for r in recs if r["sweeps"]]
+        nsw: dict[int, int] = {}
+        for r in done:
+            nsw[len(r["sweeps"])] = nsw.get(len(r["sweeps"]), 0) + 1
+        res = meta[l]["res"]
+        db = max((abs(r["sweeps"][0]["rel_before"] - res[r["expert"]]["ours"]["full"]["both"]) for r in done), default=0.0)
+        da = max((abs(r["sweeps"][-1]["rel_after"] - res[r["expert"]][k]["full"]["both"]) for r in done), default=0.0)
+        mono = all(sw["J_after"] <= sw["J_before"] for r in done for sw in r["sweeps"])
+        nblk = N_OUT * N_IN // 256
+        out.append(f"| {l} | {len(done)} | {len(recs) - len(done)} | "
+                   + ", ".join(f"{a}: {b}" for a, b in sorted(nsw.items())) + " | "
+                   f"{sum(sw['accepted'] for r in done for sw in r['sweeps'])} | "
+                   f"{sum(r.get('blocks_changed', 0) for r in done)} of {nblk * len(done)} | "
+                   f"{sum(r['seconds'] for r in done):.0f} | {db:.2e} | {da:.2e} | {'yes' if mono else 'no'} |")
+    return out
+
+
 def main() -> None:
     global GRAMS
     ap = argparse.ArgumentParser()
@@ -347,8 +465,15 @@ def main() -> None:
     ap.add_argument("--md", default="results/pilot/gram-error.md")
     ap.add_argument("--grams", default=GRAMS, help="Gram directory (default the amendment 7 capture)")
     ap.add_argument("--min-free", type=int, default=30, help="memory_pressure free percentage required to start")
+    ap.add_argument("--extra", action="append", default=[], metavar="NAME=GGUF",
+                    help="another encoding of the same tensors to compare (e.g. refined=models/refined/gu-refined-6-20.gguf)")
     args = ap.parse_args()
     GRAMS = args.grams
+    for x in args.extra:
+        k, _, path = x.partition("=")
+        if not path or k in ("ours", "ud", "bf16") or k in EXTRA:
+            sys.exit(f"STOP: bad --extra {x}")
+        EXTRA[k] = path
     if not os.path.exists(f"{GRAMS}/done"):
         sys.exit(f"STOP: {GRAMS}/done missing (capture not finished)")
     fp = free_pct()
