@@ -204,3 +204,16 @@ Also split the full error into a mean (bias) part, count * ||dW m||^2 with m = i
 ### Addendum H, amendment 6 result (2026-11-22, ~05:05; a record)
 
 `logs/ppl-cal-wt1200-S-P3.log`, paired on S: cal-wt1200 (1,200 WikiText-2 train chunks) scores 0.026430. Against cal-wt (300 chunks of the same text): +0.00019 [-0.00020, +0.00060], CI includes 0. Against gu-v2a: +0.00074 [+0.00016, +0.00131]; UD's own gate_up stays +0.00522 [+0.00448, +0.00595] better. By the registered rule, imatrix quantity at this scale is not the lever. With domain (amendment 5) and source (sibling repo: bartowski, own capture) also near zero, no diagonal importance input we can build closes more than about an eighth of UD's encoding edge. Remaining candidates: UD's quantizer build or objective (amendment 7 tests one version of the latter), which the file alone does not reveal.
+
+### Addendum H, amendment 7 result (2026-11-22, ~05:40; a record)
+
+`results/pilot/gram-error.md` (`scripts/gram-error.py`, CPU, under the shared CPU lock), count-weighted over 128 experts, both halves:
+
+| Layer (type) | Full Gram: ours / UD | Diagonal: ours / UD | Experts with UD lower, full / diag |
+|---|---|---|---|
+| 6 (IQ2_S) | 0.03487 / 0.02252 | 0.06207 / 0.06609 | 128 / 0 |
+| 20 (IQ3_XXS) | 0.02472 / 0.02047 | 0.03300 / 0.03542 | 128 / 0 |
+
+UD minus ours on the full error, bootstrap over experts: layer 6 -0.01236 [-0.01276, -0.01197], layer 20 -0.00425 [-0.00440, -0.00409]; gate and up halves each below 0. By the registered reading, the hypothesis is supported in both layers: UD's codes are better under the full input second moment and worse under its diagonal, so a diagonal metric ranks the two encodings the wrong way round.
+Bias/rest split (the addition): most of UD's edge is in the input-mean direction. Bias term ours / UD: layer 6 0.00643 / 0.00128, layer 20 0.00419 / 0.00170; rest 0.02844 / 0.02124 and 0.02053 / 0.01877. The experts' mean input carries about 20% of the input energy (count-weighted ||m||^2 / E||x||^2: 0.209 in layer 6, 0.190 in layer 20), spread over many columns (the top 5 hold 6-12% of ||m||^2), so errors that add up along m matter and a per-column importance cannot see them.
+Limits: one capture (100 WikiText-2 train chunks, cand forward), two layers, a layer-local linear metric. The sibling repo showed that a held-out output-error gain can turn into a KL loss under domain shift, so any encoder built on this needs S and T2.
