@@ -1,4 +1,4 @@
-"""From the sibling repo (inkling-2-mini-under10, scripts/degain2.py), copied 22 Nov with IQ3_XXS and IQ4_NL added.
+"""Shared with the sibling repo (same author); IQ3_XXS and IQ4_NL added here.
 Rescale every output row of an expert tensor to gain 1 against BF16 (codes unchanged): block fp16 d *= 1/gain_row.
     python scripts/degain2.py SRC.gguf OUT.gguf LAYER --kind ffn_down_exps|ffn_gate_up_exps
 Supports Q2_0 (64-weight blocks) and IQ1_S / IQ2_XXS / IQ2_XS / IQ2_S (256-weight blocks); d is the first 2 bytes of
