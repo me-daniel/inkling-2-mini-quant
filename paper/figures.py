@@ -47,7 +47,7 @@ def style() -> None:
 
 
 def save(fig, name: str) -> None:
-    fig.savefig(OUT / f"{name}.pdf")
+    fig.savefig(OUT / f"{name}.pdf", metadata={"CreationDate": None})  # same bytes on rebuild
     fig.savefig(OUT / f"{name}.png", dpi=200)  # for paper.md
 
 
