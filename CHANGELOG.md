@@ -553,3 +553,10 @@ Daniel approved amendment 1 (T3) on 23 Nov, together with lifting the code-revie
 - Release test (amendment 12's rule): v2m beats UD-IQ3_XXS if v2m minus UD has its 95% CI below 0 and top-1 not lower. Expected to fail (on T1 the CI includes 0, inferred), and it does not decide shipping: amendment 15 made v2m against v1 the v1.1 bar.
 - v1.1 reading (amendment 15's ship rule): v2m minus v1 with its CI below 0 and top-1 not lower confirms the gain on unseen text. Failure plan, added now and stricter than amendment 15: if v2m minus v1 has its CI above 0, v2m does not ship and v1 stays as published. Otherwise amendment 15's verdict stands, and v2m ships as an alternative file with v1 the default.
 - The card reports both T3 contrasts whatever they show, next to the T2 and fresh-domain deficits against UD.
+
+### Addendum H amendment 1, T3 result (2026-11-23, 20:55; a record, T3 now used)
+
+`scripts/t3.sh` (`logs/t3.out`), table by `analysis/compare.py --sets=T3` in `results/pilot/t3.txt`, as frozen above.
+- v1.1 reading: v2m minus v1 is -0.00766 [-0.00898, -0.00631], top-1 94.31% against 93.17%. The CI is below 0 and top-1 is higher, so v2m's gain over v1 holds on unseen WikiText. The failure plan does not apply, and amendment 15's verdict stands: v2m ships as an alternative file, v1 stays the default.
+- Release test (amendment 12's rule): v2m minus UD-IQ3_XXS is +0.00094 [+0.00029, +0.00155], so v2m does not beat UD on T3 (FAIL, as expected). Top-1 is 94.31% against 94.21%, within each other's standard errors. The `quality gate: FAIL` line in the output is compare.py's all-baselines summary and reflects this contrast.
+- T3 is WikiText-2 like S and T1, where v2m's refinement transfers best (record of 18:45). It says nothing new about code or reasoning text.
