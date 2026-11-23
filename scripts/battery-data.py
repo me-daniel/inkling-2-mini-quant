@@ -46,7 +46,8 @@ REPOS = {
              ("tokio-rs/axum", "MIT"), ("bevyengine/bevy", "MIT/Apache-2.0")],
 }
 EXT = {"python": ".py", "rust": ".rs"}
-SKIP = re.compile(r"(^|/)(tests?|docs?|examples?|benches|vendor|third_party|fixtures|scripts)(/|$)|_test\.|test_|generated")
+SKIP = re.compile(r"(^|/)(tests?|docs?|examples?|benches|vendor|third_party|fixtures|scripts)(/|$)|_test\.|test_|generated"
+                  r"|\.d\.ts$|\.(test|spec)\.ts$")  # the last two only for amendment 16's TypeScript
 
 
 def get(url: str) -> bytes:
@@ -93,7 +94,7 @@ def code_doc(domain: str, repo: str, recent: bool) -> tuple[str, dict]:
     files.sort(key=lambda x: (-x[0], x[1]))
     parts, used = [], []
     for _, path in files:
-        parts.append(f"// {path}\n" if domain == "rust" else f"# {path}\n")
+        parts.append(f"# {path}\n" if domain == "python" else f"// {path}\n")
         parts.append(src[path])
         used.append(path)
         text = cut("".join(parts))
@@ -102,11 +103,11 @@ def code_doc(domain: str, repo: str, recent: bool) -> tuple[str, dict]:
     raise SystemExit(f"{repo}: fewer than {NTOK} tokens in eligible files")
 
 
-def german_docs() -> list[tuple[str, dict]]:
+def german_docs(protocols=range(101, 109)) -> list[tuple[str, dict]]:
     page = get("https://www.bundestag.de/ajax/filterlist/de/services/opendata/1058442-1058442?limit=40&noFilterSet=true").decode()
     urls = dict((int(m.group(2)), m.group(1)) for m in re.finditer(r'href="(https://www\.bundestag\.de/resource/blob/\d+/21(\d{3})\.xml)"', page))
     out = []
-    for n in range(101, 109):
+    for n in protocols:
         f = RAW / "bundestag" / f"21{n:03d}.xml"
         if not f.exists():
             f.parent.mkdir(parents=True, exist_ok=True)

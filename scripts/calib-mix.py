@@ -3,12 +3,15 @@ conversations (rendered with the model's own chat template, as the file's format
 interleaved in blocks of about 6,000 characters, round robin, so the first 300 chunks of 512 tokens hold roughly
 equal parts of each. The conversations carry special-token strings: llama-imatrix needs --parse-special.
 
-    python -I scripts/calib-mix.py   (prints block counts, characters per source and the sha256)
+    python -I scripts/calib-mix.py          (prints block counts, characters per source and the sha256)
+    python -I scripts/calib-mix.py --code   (amendment 16: data/calib-mixc.txt, the same three sources plus
+                                             data/calib-code.txt (scripts/a16-data.py) as a fourth, same round robin)
 """
 
 import hashlib
 import json
 import re
+import sys
 from pathlib import Path
 
 import gguf
@@ -61,12 +64,15 @@ def main() -> None:
         "v6-conversations": [b for c in conversations() for b in blocks(c + "\n")],
         "v6-prose": blocks((RAW / "bartowski-v6_prose.txt").read_text(encoding="utf-8")),
     }
+    code = "--code" in sys.argv[1:]
+    if code:
+        src["code"] = blocks((ROOT / "data/calib-code.txt").read_text(encoding="utf-8"))
     order, i = [], 0
     while any(i < len(v) for v in src.values()):
         order += [v[i] for v in src.values() if i < len(v)]
         i += 1
     text = "".join(order)
-    out = ROOT / "data/calib-mix.txt"
+    out = ROOT / ("data/calib-mixc.txt" if code else "data/calib-mix.txt")
     out.write_text(text, encoding="utf-8")
     for k, v in src.items():
         print(f"{k}: {len(v)} blocks, {sum(map(len, v)):,} characters")
