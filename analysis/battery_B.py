@@ -203,6 +203,14 @@ def main() -> None:
         print(f"| {t} | {len(ids)} | " + " | ".join(
             f"{sum(cache[n].get(i, False) for i in ids)}" + ("" if all(i in cache[n] for i in ids) else " (incomplete)") for n in names) + " |")
     if "cand" in cache and "v2m" in cache:
+        print("\n| task | v2m right, v1 wrong | v1 right, v2m wrong | capped replies v1 / v2m |\n|---|---|---|---|")
+        caps = {n: {json.loads(x)["id"] for x in (RES / f"B-{n}.jsonl").read_text().splitlines()
+                    if json.loads(x).get("finish_reason") == "length"} for n in ("cand", "v2m")}
+        for t in ("B1", "B2", "B3", "B4"):
+            ids = [i for i in its if its[i]["task"] == t]
+            w = sum(cache["v2m"].get(i, False) and not cache["cand"].get(i, False) for i in ids)
+            l = sum(cache["cand"].get(i, False) and not cache["v2m"].get(i, False) for i in ids)
+            print(f"| {t} | {w} | {l} | {len(caps['cand'] & set(ids))} / {len(caps['v2m'] & set(ids))} |")
         ids = [i for i in its if its[i]["task"] in ("B1", "B3", "B4")]
         if all(i in cache["cand"] and i in cache["v2m"] for i in ids):
             d, lo, hi, w, l = h3([cache["v2m"][i] for i in ids], [cache["cand"][i] for i in ids])

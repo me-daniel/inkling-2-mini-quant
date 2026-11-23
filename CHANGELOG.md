@@ -469,3 +469,29 @@ Timing: edits to refine-codes.py, gram-error.py and splice.py wait until the sib
 H1 (python, rust, german): R = 0.905 [0.881, 0.932]. **Partial transfer** by the registered rule (upper bound in (0.90, 1.0]). v2m is closer to the original than v1 on every fresh domain, with the interval below 1 for python and german and touching it for rust, but it keeps less of its gain than on T2 (0.79) or T1 (0.74).
 Against UD-IQ3_XXS (descriptive): UD's lead grows off the calibration domains. v2m / UD is 1.20 to 1.30 on the fresh domains and 1.17 on math, against 1.03 on T1 and 1.12 on T2. So UD's encoding generalises across domains better than our calibration-driven refinement. This is the strongest evidence yet that the refiner fits its calibration domain, and it belongs in any headline.
 Ship rule so far: with H1 partial, v2m can at best ship as an alternative file (H3 decides between that and not shipping; the registered rule makes it the default only if H1 passes).
+
+### Amendment 15, component B result (2026-11-23, ~16:15; a record, H3 and the ship verdict)
+
+`scripts/battery-B.sh` (`logs/battery-B.out`, replies in `results/battery/B-{q8,cand,v2m}.jsonl`), scored by `analysis/battery_B.py` into `results/battery/B.md`. Before any v1 or v2m reply was scored, the scorer was checked on the references: 60 of 60 canonical MBPP+ solutions pass and 100 of 100 BFCL ground truths pass (two fixes, commit c0e3d22).
+
+| task | n | v1 | Q8_0 | v2m |
+|---|---|---|---|---|
+| B1 GSM8K | 80 | 78 | 78 | 78 |
+| B2 BFCL live_simple | 100 | 75 | 78 | 78 |
+| B3 MBPP+ | 60 | 47 | 47 | 49 |
+| B4 JSONSchemaBench | 60 | 53 | 57 | 57 |
+
+| task | v2m right, v1 wrong | v1 right, v2m wrong | capped replies v1 / v2m |
+|---|---|---|---|
+| B1 | 0 | 0 | 0 / 0 |
+| B2 | 8 | 5 | 0 / 0 |
+| B3 | 2 | 0 | 1 / 3 |
+| B4 | 4 | 0 | 2 / 0 |
+
+H3 (B1+B3+B4, n = 200): v2m minus v1 = +3.0 points, one-sided 95% bounds [+1.1, +3.0], discordant 6 for v2m and 0 for v1. **Pass** (lower bound above -5 points).
+- Each of the 6 discordant H3 items is one Q8_0 also gets right. Two of v1's four B4 losses are capped replies (2,048 tokens), the other two are real errors (a pattern violation and broken JSON).
+- One v2m B4 pass is the reply `{}`, valid because that schema requires nothing (Q8_0 gives the same reply). Validity is what JSONSchemaBench scores, so it stays.
+- B2 is descriptive (not in H3): v2m 78 against v1 75, discordant 8 against 5.
+- At this size the tasks can show a regression; they cannot show small differences. v2m matches Q8_0 on all four task counts.
+
+Ship verdict by the registered rule: H1 partial (component A) and H3 pass. The default needs both to pass, so v2m qualifies as an alternative file next to v1, and v1 stays the default. The rule names "H1 partial with H3 inconclusive" for that outcome; H3 passing is the stronger result and leads to the same place. Nothing is published before Daniel's go. Component C (task-trace KL) and v2m's own speed bench are still to come; neither changes this verdict.
