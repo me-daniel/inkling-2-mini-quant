@@ -443,3 +443,14 @@ Order: calibration-content check, data build and hashes (`scripts/battery-data.p
 - Freshness ruling by the registered 2% rule: in `data/calib-mix.txt`, 4.76% of non-empty lines hold inline LaTeX (`$...$`; the calibration conversations include competition maths written in LaTeX), 1.86% look like code, 0.26% German. So math is near-calibration and leaves H1. H1 is the mean over python, rust and german. Math is reported as a secondary.
 - Added before data, descriptive only: UD-IQ3_XXS is scored on the same texts, so the card can state v2m against UD on fresh domains.
 - Scoring: `scripts/battery-A.sh`, report `analysis/battery_A.py` (tested in `tests/test_battery_A.py`).
+
+### Record: pipeline code review by Astra and Fable (2026-11-23, ~10:40; run by the sibling repo, reviews in its `reviews/2026-11-23-code-pipeline-{astra,fable}.md`)
+
+Neither reviewer found a byte-level error in `scripts/refine-codes.py`. Fable re-ran the decode round trip (bit-equal to gguf-py, parity enforced, d and scales unchanged, tracked J equal to recomputed J, gain floor held). Findings in our files and our answer:
+- refine-codes 18 (the gain-feasibility ranking can skip a legal zero-change move) and 19 (IQ3_XXS moves keep each half-word's sign parity, so a paired cross-half sign flip is never proposed): accepted as limits of the search, not errors. The search can miss improvements; it cannot write a worse or invalid code. They are documented, and fixing them changes future outputs only. v2m stays as built.
+- refine-codes 20 (a negative fp16 d would fail validate and flip the sign rule): checked on v2m. 0 of 58,392,576 refined blocks have a negative d. A guard (skip such experts) goes in with the next edit.
+- refine-codes 32 (ridge 0 can make solve raise; sweep 2 logs ogain_before from the start numerators) and 33 (the GGUF and JSON are renamed separately): accepted, low impact (default ridge 1e-6; every v2m group finished and was checked).
+- gram-error 28-30 (float32 cancellation, labels, layout checks): accepted for the offline tables, which are descriptive only.
+- splice 8, 26, 27, 34 (OUT may alias a source and is not atomic; a --take regex that matches nothing still verifies; donor byte order unchecked; repacking without options is not byte-identical): accepted. Our scripts write to `.part` and rename, and the build checks (`v2m-check-final.txt`: size, names, types, layer coverage) would catch a regex that matched nothing.
+- Shared locks (stale-lock removal is check-then-rm; a crash leaves an empty lock): accepted. The switch to kernel locks (`lockf`) is agreed in principle, done in both repos at once when neither holds a lock.
+Timing: edits to refine-codes.py, gram-error.py and splice.py wait until the sibling's c1r run, which uses refine-codes.py unchanged, is through.
