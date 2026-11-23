@@ -1,4 +1,4 @@
-"""Amendment 15, component A: fresh-domain KL of v2m against v1 (H1) and, descriptive, against UD-IQ3_XXS.
+"""Amendment 15, component A: fresh-domain KL of v2m against v1 (H1) and, descriptive, v2m and v1 against UD-IQ3_XXS.
 
     python -I analysis/battery_A.py   (reads results/pilot/kl.tsv rows batA-<domain>-<model>-P3; prints Markdown)
 
@@ -48,15 +48,16 @@ def verdict(lo: float, hi: float) -> str:
 def main() -> None:
     runs = load()
     get = lambda d, n: runs[f"batA-{d}-{n}-P3"]  # noqa: E731
-    print("| domain | v1 KL | v2m KL | UD KL | v2m / v1 [95% CI] | v2m / UD [95% CI] | top-1 v1 / v2m / UD |")
-    print("|---|---|---|---|---|---|---|")
+    print("| domain | v1 KL | v2m KL | UD KL | v2m / v1 [95% CI] | v2m / UD [95% CI] | v1 / UD [95% CI] | top-1 v1 / v2m / UD |")
+    print("|---|---|---|---|---|---|---|---|")
     for d in ALL:
         c, m, u = get(d, "cand"), get(d, "v2m"), get(d, "UD-IQ3_XXS")
         r1 = ratio_ci({d: (m["chunks"], c["chunks"])})
         r2 = ratio_ci({d: (m["chunks"], u["chunks"])})
+        r3 = ratio_ci({d: (c["chunks"], u["chunks"])})
         tag = "" if d in H1_DOMAINS else " (near-calibration)"
         print(f"| {d}{tag} | {c['chunks'].mean():.5f} | {m['chunks'].mean():.5f} | {u['chunks'].mean():.5f} | "
-              f"{r1[0]:.3f} [{r1[1]:.3f}, {r1[2]:.3f}] | {r2[0]:.3f} [{r2[1]:.3f}, {r2[2]:.3f}] | "
+              f"{r1[0]:.3f} [{r1[1]:.3f}, {r1[2]:.3f}] | {r2[0]:.3f} [{r2[1]:.3f}, {r2[2]:.3f}] | {r3[0]:.3f} [{r3[1]:.3f}, {r3[2]:.3f}] | "
               f"{c['top']:.2f} / {m['top']:.2f} / {u['top']:.2f} |")
     R, lo, hi = ratio_ci({d: (get(d, "v2m")["chunks"], get(d, "cand")["chunks"]) for d in H1_DOMAINS})
     print(f"\nH1 ({', '.join(H1_DOMAINS)}): R = {R:.3f} [{lo:.3f}, {hi:.3f}] -> {verdict(lo, hi)}")

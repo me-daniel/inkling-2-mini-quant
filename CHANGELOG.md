@@ -534,3 +534,12 @@ Speed bench (`scripts/bench-v2m.sh`, 16:26-16:34): not used. It ran while my own
 ### Record: kernel locks for the shared GPU and CPU locks (2026-11-23, 18:30)
 
 `scripts/gpu-lock.sh` now takes `~/GitHub/.gpu.lock` and `.cpu.lock` with BSD `lockf(1)` instead of pid files made with `set -C`. A background `lockf -k` holds the lock and watches the script's pid, and the kernel drops the lock when that holder ends. A killed job therefore frees its lock within about 2 s without anyone removing a stale file, which closes the race between a stale-lock `rm` and a new `set -C`. The files stay on disk and only name the last holder. `gpu_try` and `cpu_try` take a lock only if it is free right now, and `scripts/bench-v2m.sh` uses them instead of testing whether the files exist. Switched while neither repo had a job running or queued, together with the sibling repo's `lib.sh`, since old and new code don't see each other's locks. Tested on scratch lock files: a second job waits, try-take fails while the lock is held, a job retakes after giving, and kill -9 frees the lock within 3 s.
+
+### Record: how much of v1's gap to UD v2m closes, by set (2026-11-23, 18:45; descriptive)
+
+`analysis/gap_ud.py`, table in `results/battery/gap-ud.md`; `analysis/battery_A.py` gains a v1 / UD column. Prompted by the sibling repo's battery A reading: its c1 trails UD-IQ2_XXS by about the same off-domain as on T1/T2 (1.03 to 1.13 against 1.015 and 1.144), while v2m's trail grows to 1.20 to 1.30. Geometric-mean KL ratios at P = 3, "gap closed" = 1 - log(v2m / UD) / log(v1 / UD).
+- v1's gap to UD is roughly flat across sets, 1.33 to 1.75, so the layout itself does not fall behind off-domain.
+- v2m closes 91% of that gap on T1 (WikiText; WikiText-2 train is a third of the calibration), 69% on T2, 27% to 77% on Q8_0's task replies, 62% on maths and 49% on German, but only 30% on Python and 15% on Rust.
+- So most of what the code refinement gains is tied to text like its calibration. The H1 partial verdict already says this; the table shows where it holds least, code. The card must not say v2m is close to UD in general, only on text like its calibration.
+- A refinement calibrated with code as well would likely transfer better (inferred, not tested). Testing that needs a new amendment with new fresh data, since battery A would no longer be fresh once used to choose.
+- The battery C rows of `results/pilot/kl.tsv`, which `results/battery/C.md` was built from, were missing from the component C commit; they are committed with this record.
