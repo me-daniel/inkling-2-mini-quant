@@ -21,11 +21,11 @@ ALL = H1_DOMAINS + ("math",)
 CHUNKS_PER_DOC = 4
 
 
-def ratio_ci(pairs: dict[str, tuple[np.ndarray, np.ndarray]], n_boot: int = 10000, seed: int = 0):
+def ratio_ci(pairs: dict[str, tuple[np.ndarray, np.ndarray]], n_boot: int = 10000, seed: int = 0, per_doc: int = CHUNKS_PER_DOC):
     """pairs: domain -> (KL of the candidate, KL of the base) per chunk. Returns (R, lo, hi): the mean over domains
     of the per-domain geometric-mean ratio, with a percentile CI from resampling documents within each domain."""
     rng = np.random.default_rng(seed)
-    logs = {d: np.log(a / b).reshape(-1, CHUNKS_PER_DOC) for d, (a, b) in pairs.items()}
+    logs = {d: np.log(a / b).reshape(-1, per_doc) for d, (a, b) in pairs.items()}
     point = float(np.mean([np.exp(x.mean()) for x in logs.values()]))
     boots = np.zeros(n_boot)
     for x in logs.values():
