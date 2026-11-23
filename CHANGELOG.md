@@ -454,3 +454,18 @@ Neither reviewer found a byte-level error in `scripts/refine-codes.py`. Fable re
 - splice 8, 26, 27, 34 (OUT may alias a source and is not atomic; a --take regex that matches nothing still verifies; donor byte order unchecked; repacking without options is not byte-identical): accepted. Our scripts write to `.part` and rename, and the build checks (`v2m-check-final.txt`: size, names, types, layer coverage) would catch a regex that matched nothing.
 - Shared locks (stale-lock removal is check-then-rm; a crash leaves an empty lock): accepted. The switch to kernel locks (`lockf`) is agreed in principle, done in both repos at once when neither holds a lock.
 Timing: edits to refine-codes.py, gram-error.py and splice.py wait until the sibling's c1r run, which uses refine-codes.py unchanged, is through.
+
+### Amendment 15, component A result (2026-11-23, ~11:45; a record, H1)
+
+`scripts/battery-A.sh` (`logs/battery-A.out`), `analysis/battery_A.py`, table in `results/battery/A.md`. Ratios are geometric means over chunk pairs; CIs from resampling documents within domain.
+
+| domain | v1 KL | v2m KL | UD KL | v2m / v1 [95% CI] | v2m / UD [95% CI] | top-1 v1 / v2m / UD |
+|---|---|---|---|---|---|---|
+| python | 0.01668 | 0.01529 | 0.01261 | 0.917 [0.869, 0.973] | 1.223 [1.140, 1.303] | 96.55 / 96.56 / 96.97 |
+| rust | 0.01703 | 0.01641 | 0.01269 | 0.955 [0.910, 1.009] | 1.300 [1.236, 1.384] | 96.67 / 96.85 / 97.22 |
+| german | 0.03626 | 0.03073 | 0.02571 | 0.844 [0.822, 0.866] | 1.197 [1.162, 1.233] | 90.84 / 91.89 / 92.42 |
+| math (near-calibration) | 0.02370 | 0.01845 | 0.01579 | 0.780 [0.733, 0.835] | 1.165 [1.119, 1.213] | 94.98 / 95.62 / 95.71 |
+
+H1 (python, rust, german): R = 0.905 [0.881, 0.932]. **Partial transfer** by the registered rule (upper bound in (0.90, 1.0]). v2m is closer to the original than v1 on every fresh domain, with the interval below 1 for python and german and touching it for rust, but it keeps less of its gain than on T2 (0.79) or T1 (0.74).
+Against UD-IQ3_XXS (descriptive): UD's lead grows off the calibration domains. v2m / UD is 1.20 to 1.30 on the fresh domains and 1.17 on math, against 1.03 on T1 and 1.12 on T2. So UD's encoding generalises across domains better than our calibration-driven refinement. This is the strongest evidence yet that the refiner fits its calibration domain, and it belongs in any headline.
+Ship rule so far: with H1 partial, v2m can at best ship as an alternative file (H3 decides between that and not shipping; the registered rule makes it the default only if H1 passes).
