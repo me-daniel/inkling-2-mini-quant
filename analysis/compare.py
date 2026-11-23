@@ -1,6 +1,7 @@
 """Upload-gate comparison (CHANGELOG.md): paired per-chunk KL of the candidate against each baseline on T1 and T2.
 
-    python analysis/compare.py CAND BASELINE [BASELINE ...]   (run names in results/pilot/kl.tsv without the -T1/-T2 suffix)
+    python analysis/compare.py [--sets=T3] CAND BASELINE [BASELINE ...]   (run names in results/pilot/kl.tsv without the
+    -T1/-T2 suffix; --sets picks the test sets, comma-separated, default T1,T2)
 
 Prints, per test set and baseline, the mean KL of both, the paired difference (candidate - baseline) with a 95%
 bootstrap interval over chunks, and the top-1 agreement of both. The gate needs the interval below zero for every
@@ -31,10 +32,14 @@ def paired(a: np.ndarray, b: np.ndarray, n_boot: int = 10000, seed: int = 0) -> 
 
 
 def main() -> None:
-    cand, *bases = sys.argv[1:]
+    args = sys.argv[1:]
+    sets = ("T1", "T2")
+    if args and args[0].startswith("--sets="):
+        sets = tuple(args.pop(0).removeprefix("--sets=").split(","))
+    cand, *bases = args
     runs = load()
     ok = True
-    for t in ("T1", "T2"):
+    for t in sets:
         c = runs[f"final-{cand}-{t}-P3"]
         for b in bases:
             o = runs[f"final-{b}-{t}-P3"]

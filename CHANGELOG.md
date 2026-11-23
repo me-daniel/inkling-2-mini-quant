@@ -543,3 +543,13 @@ Speed bench (`scripts/bench-v2m.sh`, 16:26-16:34): not used. It ran while my own
 - So most of what the code refinement gains is tied to text like its calibration. The H1 partial verdict already says this; the table shows where it holds least, code. The card must not say v2m is close to UD in general, only on text like its calibration.
 - A refinement calibrated with code as well would likely transfer better (inferred, not tested). Testing that needs a new amendment with new fresh data, since battery A would no longer be fresh once used to choose.
 - The battery C rows of `results/pilot/kl.tsv`, which `results/battery/C.md` was built from, were missing from the component C commit; they are committed with this record.
+
+### Addendum H amendment 1 approved; T3 frozen (2026-11-23, 20:33 by its commit, before T3 is opened)
+
+Daniel approved amendment 1 (T3) on 23 Nov, together with lifting the code-review block on `scripts/refine-codes.py`, the release of v2m as an alternative file, and a code-calibrated refiner test. T3 is opened once, by `scripts/t3.sh`, after this entry is committed. Nothing below is chosen on T3 data.
+- Data: `data/T3.txt`, sha256 `5a26eea1...89a7` (checked by the script before it runs), 16 chunks of 4,096 tokens, P = 3, the T1 protocol.
+- Files (sha256): reference `models/Inkling-2-Mini-Q8_0.gguf` `b63f8566...11e0`; v1 `models/cand.gguf` `7ac1dbfd...5973`; v2m `models/v2m.gguf` `9b69eb96...5995`; UD-IQ3_XXS `fd9cceda...1657`. Engine: the build in `results/env.md` (patched HEAD 9f5b9d6b7). Only these three models are scored.
+- Analysis: `analysis/compare.py --sets=T3 v2m UD-IQ3_XXS cand`, paired per chunk, 10,000 bootstrap resamples, seed 0, output in `results/pilot/t3.txt`.
+- Release test (amendment 12's rule): v2m beats UD-IQ3_XXS if v2m minus UD has its 95% CI below 0 and top-1 not lower. Expected to fail (on T1 the CI includes 0, inferred), and it does not decide shipping: amendment 15 made v2m against v1 the v1.1 bar.
+- v1.1 reading (amendment 15's ship rule): v2m minus v1 with its CI below 0 and top-1 not lower confirms the gain on unseen text. Failure plan, added now and stricter than amendment 15: if v2m minus v1 has its CI above 0, v2m does not ship and v1 stays as published. Otherwise amendment 15's verdict stands, and v2m ships as an alternative file with v1 the default.
+- The card reports both T3 contrasts whatever they show, next to the T2 and fresh-domain deficits against UD.
