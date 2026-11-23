@@ -875,6 +875,73 @@ def usage_section(v: dict) -> list[str]:
     return out + [""]
 
 
+REFINED = "Inkling-2-Mini-Metal-refined.gguf"
+MACAQ = "[MACaQ](https://arxiv.org/abs/2611.10649)"
+
+
+def refined_section() -> list[str]:
+    """v1.1 alternative file (amendments 13, 15 and 1): v2m against v1 and UD-IQ3_XXS on T3, battery A and B, bench3.
+    Empty until T3 has been scored."""
+    runs = compare.load()
+    if "final-v2m-T3-P3" not in runs:
+        return []
+    import battery_A
+    t3 = {k: runs[f"final-{k}-T3-P3"] for k in ("cand", "v2m", "UD-IQ3_XXS")}
+    d1, lo1, hi1 = compare.paired(t3["v2m"]["chunks"], t3["cand"]["chunks"])
+    du, lou, hiu = compare.paired(t3["v2m"]["chunks"], t3["UD-IQ3_XXS"]["chunks"])
+    assert hi1 < 0 and t3["v2m"]["top"] >= t3["cand"]["top"], "T3: v2m must beat v1 to be described as closer"
+    fresh = {d: {k: runs[f"batA-{d}-{k}-P3"]["chunks"] for k in ("cand", "v2m", "UD-IQ3_XXS")} for d in ("python", "rust", "german")}
+    rat = {d: battery_A.ratio_ci({d: (f["v2m"], f["cand"])}) for d, f in fresh.items()}
+    rud = {d: battery_A.ratio_ci({d: (f["v2m"], f["UD-IQ3_XXS"])}) for d, f in fresh.items()}
+    h1 = battery_A.ratio_ci({d: (f["v2m"], f["cand"]) for d, f in fresh.items()})
+    assert battery_A.verdict(h1[1], h1[2]) == "PARTIAL transfer", "card wording assumes amendment 15's partial H1"
+    t3r = float(np.exp(np.mean(np.log(t3["v2m"]["chunks"] / t3["cand"]["chunks"]))))
+    t3u = float(np.exp(np.mean(np.log(t3["v2m"]["chunks"] / t3["UD-IQ3_XXS"]["chunks"]))))
+    sc = json.loads(text(ROOT / "results/battery/B-scores.json"))
+    tasks = {"B1": "maths", "B2": "tool calls", "B3": "code", "B4": "JSON"}
+    task_of = {json.loads(x)["id"]: json.loads(x)["task"] for x in text(ROOT / "results/battery/B-cand.jsonl").splitlines()}
+    cnt = {m: {t: (sum(sc[m][i] for i in task_of if task_of[i] == t), sum(1 for i in task_of if task_of[i] == t))
+               for t in tasks} for m in ("cand", "v2m")}
+    h3 = [i for i in task_of if task_of[i] in ("B1", "B3", "B4")]
+    win = sum(sc["v2m"][i] and not sc["cand"][i] for i in h3)
+    loss = sum(sc["cand"][i] and not sc["v2m"][i] for i in h3)
+    b = {m[1]: (float(m[2]), float(m[3])) for m in re.finditer(r"\| (pp512|tg128) \| ([\d.]+) ± [\d.]+ \| ([\d.]+) ± [\d.]+ \|", text(R / "bench3.md"))}
+    size = (ROOT / "models/v2m.gguf").stat().st_size
+    pct = lambda r: f"{(1 - r) * 100:.0f}%"  # noqa: E731
+    out = [f"## Second file: {REFINED} ({size / 1e9:.2f} GB)", "",
+           "Same tensor types, size class and speed as the main file, with the expert weights of 22 layers re-encoded. "
+           "Our code refiner keeps llama-quantize's block scales and picks, for each small group of weights, the grid "
+           "code that keeps the layer's output closest to the original on calibration text (WikiText, chat "
+           f"conversations and prose). {MACAQ} (Appendix C) published the same idea for dense models.", "",
+           "| Test | Main file | Refined file | UD-IQ3_XXS |", "|---|---|---|---|",
+           f"| KL on T3, a sealed WikiText set opened once | {t3['cand']['chunks'].mean():.5f} | "
+           f"{t3['v2m']['chunks'].mean():.5f} | {t3['UD-IQ3_XXS']['chunks'].mean():.5f} |"]
+    for d, f in fresh.items():
+        label = {"python": "Python source", "rust": "Rust source", "german": "German parliament speeches"}[d]
+        out.append(f"| KL on new {label} | {f['cand'].mean():.5f} | {f['v2m'].mean():.5f} | {f['UD-IQ3_XXS'].mean():.5f} |")
+    out += [f"| Tasks right ({join_and([v for v in tasks.values()])}) | "
+            f"{sum(c for c, _ in cnt['cand'].values())} of {sum(n for _, n in cnt['cand'].values())} | "
+            f"{sum(c for c, _ in cnt['v2m'].values())} of {sum(n for _, n in cnt['v2m'].values())} | not run |",
+            f"| Prompt / generation t/s (same run) | {b['pp512'][0]:.0f} / {b['tg128'][0]:.1f} | "
+            f"{b['pp512'][1]:.0f} / {b['tg128'][1]:.1f} | |", "",
+            f"- Closer to the original on every text we tried, though on Rust the difference is within noise "
+            f"(ratio {rat['rust'][0]:.3f} [{rat['rust'][1]:.3f}, {rat['rust'][2]:.3f}]). On T3 its KL is {pct(t3r)} lower than the main file's "
+            f"({d1:+.5f} [{lo1:+.5f}, {hi1:+.5f}]). On new code the gain is smaller: {pct(rat['python'][0])} on Python "
+            f"and {pct(rat['rust'][0])} on Rust ({pct(rat['german'][0])} on German). The refiner partly fits its "
+            "calibration text, and that text holds almost no code.",
+            f"- Unsloth's UD-IQ3_XXS stays closer to the original: by {(t3u - 1) * 100:.0f}% on T3 ({du:+.5f} "
+            f"[{lou:+.5f}, {hiu:+.5f}]) and by {(rud['german'][0] - 1) * 100:.0f}% to "
+            f"{(max(r[0] for r in rud.values()) - 1) * 100:.0f}% on the new texts.",
+            f"- No task type got worse: of the {len(h3)} maths, code and JSON tasks, the two files disagree on {win + loss}, "
+            f"and the refined file is right on {win} of them. {len(h3)} tasks can rule out a large drop but can't "
+            "measure a small gain.",
+            "- Why it isn't the default: before testing we required KL at least 10% lower than the main file's on new "
+            f"Python, Rust and German together, with 95% confidence. It came out {pct(h1[0])} lower (95% CI "
+            f"{pct(h1[2])} to {pct(h1[1])}), so the rule we registered keeps the main file as the default. For "
+            "code-heavy use the two are close.", ""]
+    return out
+
+
 def lean_card(v: dict, cand_bytes: int) -> list[str]:
     """Short release README: what the file is, what is different, one table, use, research, limits, provenance.
     The full numbers go to DETAILS.md (the Addendum G card)."""
@@ -921,6 +988,7 @@ def lean_card(v: dict, cand_bytes: int) -> list[str]:
          f"{f['vs_ud']['pp512'][0]:.1f}× slower at reading prompts and {f['vs_ud']['tg128'][0]:.2f}× slower at "
          "generating text." + depth_gap() + lean_gap() + " For all files, both test sets, confidence intervals and stability checks, "
          "see [DETAILS.md](DETAILS.md).", "",
+         *refined_section(),
          "## Use", "",
          "Use a llama.cpp build with Inkling 2 support (upstream after 20 Nov 2026).", "",
          "```sh",
@@ -1035,7 +1103,28 @@ def check(name: str, s: str) -> list[str]:
             for p in FORBIDDEN for m in re.finditer(p, s, re.I)]
 
 
+def refined_insert(live: Path, out: Path, before: str = "## Use") -> None:
+    """--refined LIVE OUT [HEADING]: put refined_section() into the README as published (LIVE, which may carry hand
+    edits) before its HEADING (default "## Use"), replacing an earlier copy of the section; only the inserted lines are scanned."""
+    sec = refined_section()
+    assert sec, "T3 not scored"
+    sec += ["Run it with the same commands as the main file, with `-m " + REFINED + "`.", ""]
+    bad = check("refined section", "\n".join(sec))
+    if bad:
+        print("\n".join(bad), file=sys.stderr)
+        raise SystemExit(1)
+    t = text(live)
+    t = re.sub(r"## Second file: .*?(?=" + re.escape(before) + ")", "", t, flags=re.S)
+    h = "\n" + before + "\n"
+    assert t.count(h) == 1, f"README needs exactly one {before} heading"
+    out.write_text(t.replace(h, "\n" + "\n".join(sec) + h, 1), encoding="utf-8")
+    print(f"wrote {out} ({len(sec)} section lines)")
+
+
 def main() -> None:
+    if sys.argv[1:2] == ["--refined"]:
+        refined_insert(Path(sys.argv[2]), Path(sys.argv[3]), *sys.argv[4:5])
+        return
     v = load()
     if v["verdict"] == "PASS":
         raise SystemExit("gate PASS: the full card needs stability-*.json and bench-*.txt; not drafted by this script")

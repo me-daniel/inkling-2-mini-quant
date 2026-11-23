@@ -18,7 +18,7 @@ Unsloth's UD-IQ3_XXS is a 149 MB larger file and stays closer to the original mo
 With stock llama.cpp, this GGUF keeps the whole model on the Mac GPU instead. There it currently reads prompts 3.3× faster and generates 1.75× faster than UD-IQ3_XXS. Among the all-Metal GGUFs under 11.7 GB we tested (AtomicChat AD-IQ2_S, bartowski IQ2_S, mudler APEX-I-Nano), it stays closest to the original model on both held-out sets.
 
 - Pre-registered gate: FAIL. The candidate (11,514,054,944 bytes) has higher KL than Unsloth UD-IQ3_XXS (11,663,310,784 bytes) on both held-out sets. The difference is +0.00747 [+0.00654, +0.00845] on T1 and +0.00581 [+0.00513, +0.00673] on T2. The FAIL stands.
-- The candidate passes a narrower, post hoc comparison that we registered after the FAIL. We scored 3 comparison files under the size limit that keep all expert tensors in Metal-supported types (bartowski IQ2_S, AtomicChat AD-IQ2_S, mudler APEX-I-Nano). The candidate has lower KL than each on T1 and T2, with the 95% CI for each difference below zero. We registered two more files under the limit (IsValorum APEX-I-NanoPlus-V2.1, prithivMLmods Q2_K) but have yet to score them.
+- The candidate passes a narrower, post hoc comparison that we registered after the FAIL. We scored 3 comparison files under the size limit that keep all expert tensors in Metal-supported types (bartowski IQ2_S, AtomicChat AD-IQ2_S, mudler APEX-I-Nano). The candidate has lower KL than each on T1 and T2, with the 95% CI for each difference below zero. We registered two more files under the limit (IsValorum APEX-I-NanoPlus-V2.1, prithivMLmods Q2_K) and later scored them with three more (amendment 11): the candidate has lower KL than each of the 8 on both sets (`results/pilot/under116-quality.txt`).
 - With stock llama.cpp, UD-IQ3_XXS is slower on our Mac. It keeps 20 expert tensors in NVFP4, which stock llama.cpp's Metal backend cannot multiply yet. On an Apple M5 Pro with llama-bench (llama.cpp `29b52d3` plus our patches), UD-IQ3_XXS generated at 10.87 t/s and the candidate at 18.97 t/s. The candidate was 1.75 times as fast. The all-Metal files we tested at this size ran at about the same speed. Builds that run NVFP4 on Metal don't have the CPU fallback, so the gap applies to stock llama.cpp.
 
 ![KL on T1 and T2 for the seven files](figures/mac-comparison.png)
@@ -38,6 +38,26 @@ With 16K tokens already in context, the speed gap to UD-IQ3_XXS narrows to 2.1×
 How the test is built:
 
 ![Physical layers, cache slots and the five conditions of the per-pass test](figures/loop-diagram.svg)
+
+## Second file: Inkling-2-Mini-Metal-refined.gguf (11.57 GB)
+
+Same tensor types, size class and speed as the main file, with the expert weights of 22 layers re-encoded. Our code refiner keeps llama-quantize's block scales and picks, for each small group of weights, the grid code that keeps the layer's output closest to the original on calibration text (WikiText, chat conversations and prose). [MACaQ](https://arxiv.org/abs/2611.10649) (Appendix C) published the same idea for dense models.
+
+| Test | Main file | Refined file | UD-IQ3_XXS |
+|---|---|---|---|
+| KL on T3, a sealed WikiText set opened once | 0.02847 | 0.02081 | 0.01987 |
+| KL on new Python source | 0.01668 | 0.01529 | 0.01261 |
+| KL on new Rust source | 0.01703 | 0.01641 | 0.01269 |
+| KL on new German parliament speeches | 0.03626 | 0.03073 | 0.02571 |
+| Tasks right (maths, tool calls, code and JSON) | 253 of 300 | 262 of 300 | not run |
+| Prompt / generation t/s (same run) | 265 / 20.7 | 272 / 20.9 | |
+
+- Closer to the original on every text we tried, though on Rust the difference is within noise (ratio 0.955 [0.910, 1.009]). On T3 its KL is 26% lower than the main file's (-0.00766 [-0.00898, -0.00631]). On new code the gain is smaller: 8% on Python and 5% on Rust (16% on German). The refiner partly fits its calibration text, and that text holds almost no code.
+- Unsloth's UD-IQ3_XXS stays closer to the original: by 6% on T3 (+0.00094 [+0.00029, +0.00155]) and by 20% to 30% on the new texts.
+- No task type got worse: of the 200 maths, code and JSON tasks, the two files disagree on 6, and the refined file is right on 6 of them. 200 tasks can rule out a large drop but can't measure a small gain.
+- Why it isn't the default: before testing we required KL at least 10% lower than the main file's on new Python, Rust and German together, with 95% confidence. It came out 9% lower (95% CI 7% to 12%), so the rule we registered keeps the main file as the default. For code-heavy use the two are close.
+
+Run it with the same commands as the main file, with `-m Inkling-2-Mini-Metal-refined.gguf`.
 
 ## Run the model
 

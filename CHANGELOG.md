@@ -573,3 +573,10 @@ Why: v2m closes 91% of v1's KL gap to UD-IQ3_XXS on T1 but only 30% on fresh Pyt
 - Secondary H-C2: the same over A2 go and typescript. Upper bound below 1 reads as transfer to code languages that are absent from the calibration.
 - Guards: v2c / v2m on German, T1 and T2, each with upper bound at most 1.05. Tasks: amendment 15's H3 rule for v2c against v1 (one-sided 95% lower bound above -5 points on the 200 B1, B3 and B4 items).
 - Decision: H-C1 passes, every guard holds and the task rule passes, then v2c is proposed to replace v2m as the alternative file (publishing needs Daniel's go). Otherwise v2m stays. Descriptive: v2c against UD and v1 per domain.
+
+### Record: v1.1 release, v2m as an alternative file (2026-11-23, ~21:20; Daniel's go the same day)
+
+- Hugging Face `Me-Daniel/Inkling-2-Mini-Metal-GGUF`: `models/v2m.gguf` (sha256 `9b69eb96...5995`, the file T3 scored) uploaded as `Inkling-2-Mini-Metal-refined.gguf`, next to the unchanged main file. The card gets a "Second file" section rendered by `scripts/card.py --refined` into the card as published (it carries hand edits), from `results/pilot/kl.tsv` (T3, battery A), `results/battery/B-scores.json` and `results/pilot/bench3.md`.
+- GitHub README: the same section, and the comparator bullet now says the two files registered on 21 Nov were scored in amendment 11 (8 files under the limit, 16 of 16 contrasts in favour of v1).
+- The card keeps v1 as the default, as amendment 15's rule requires, and states the T3 and fresh-domain deficits against UD-IQ3_XXS, the smaller gain on code and the MACaQ prior art.
+- Before the push, one unpushed review file held a local scratchpad path. The unpushed commits from `26000b2` on were rewritten to drop it (trees otherwise identical; old commits kept on branch `backup/pre-path-rewrite`). Daniel's README edit on GitHub (`aa2afff`) was merged, not rebased.
