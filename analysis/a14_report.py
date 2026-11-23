@@ -16,8 +16,8 @@ OTHERS = ("mirror", "v2m-ud04", "UD-IQ3_XXS")
 
 def main() -> None:
     runs = load()
-    print("| set | v2m | " + " | ".join(OTHERS) + " | " + " | ".join(f"v2m - {o}" for o in OTHERS) + " |")
-    print("|---" * (2 + 2 * len(OTHERS)) + "|")
+    print("| set | v2m | " + " | ".join(OTHERS) + " | " + " | ".join(f"v2m - {o}" for o in OTHERS) + " | mirror - UD-IQ3_XXS |")
+    print("|---" * (3 + 2 * len(OTHERS)) + "|")
     for t, pat in RUN.items():
         m = runs[pat.format("v2m")]
         cells, diffs = [], []
@@ -25,6 +25,8 @@ def main() -> None:
             r = runs.get(pat.format(o))
             cells.append(f"{r['chunks'].mean():.5f} ({r['top']:.2f}%)" if r else "n/a")
             diffs.append("{:+.5f} [{:+.5f}, {:+.5f}]".format(*paired(m["chunks"], r["chunks"])) if r else "n/a")
+        mi, ud = runs.get(pat.format("mirror")), runs[pat.format("UD-IQ3_XXS")]
+        diffs.append("{:+.5f} [{:+.5f}, {:+.5f}]".format(*paired(mi["chunks"], ud["chunks"])) if mi else "n/a")
         print(f"| {t} | {m['chunks'].mean():.5f} ({m['top']:.2f}%) | " + " | ".join(cells) + " | " + " | ".join(diffs) + " |")
 
 

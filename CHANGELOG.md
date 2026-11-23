@@ -388,3 +388,18 @@ Builds (`scripts/a14.sh`, splices only, deleted after scoring):
 Readings, paired, all three sets seen:
 - v2m minus mirror: our all-Metal file against UD's encoding made all-Metal. If v2m's T2 deficit against UD is mostly the down format, v2m minus mirror on T2 is near zero or below.
 - v2m minus v2m-ud04: what UD's encoding still holds in the two unsupported layers. IQ2_XXS and IQ2_XS support is added to the refiner next if this is above 0 with its CI on T2 or T1 (a lever of our own); otherwise layers 0 and 4 are left.
+
+### Addendum H, amendment 14 result (2026-11-23, ~06:40; a record, S, T1 and T2 all seen)
+
+`scripts/a14.sh` (`logs/a14.out`), `analysis/a14_report.py` on `results/pilot/kl.tsv`, table in `results/pilot/a14.md`. Both builds had 0 tensors off Metal and were deleted after scoring.
+
+| set | v2m - mirror | v2m - v2m-ud04 | v2m - UD-IQ3_XXS | mirror - UD-IQ3_XXS |
+|---|---|---|---|---|
+| S | -0.00059 [-0.00137, +0.00020] | +0.00066 [+0.00029, +0.00109] | +0.00040 [-0.00029, +0.00112] | +0.00099 [+0.00070, +0.00125] |
+| T1 | -0.00065 [-0.00136, +0.00006] | +0.00009 [-0.00023, +0.00040] | +0.00053 [-0.00017, +0.00123] | +0.00118 [+0.00100, +0.00137] |
+| T2 | +0.00094 [-0.00008, +0.00208] | +0.00018 [-0.00018, +0.00073] | +0.00169 [+0.00039, +0.00299] | +0.00075 [+0.00016, +0.00117] |
+
+Readings:
+- Layers 0 and 4: UD's gate_up there helps on S only; on T1 and T2 the CI contains 0. By the registered rule, IQ2_XXS and IQ2_XS support is not added; layers 0 and 4 are left.
+- The down format: replacing UD's NVFP4 down in layers 0-19 by our IQ4_NL (mirror) costs UD 0.00099 (S), 0.00118 (T1) and 0.00075 (T2), all resolved. Against UD's encoding made all-Metal, v2m shows no resolved difference on any set (point estimates lower on S and T1, higher on T2). About 45% of v2m's T2 deficit against UD is the down format, which an all-Metal file cannot use on stock llama.cpp today.
+- What is left on T2 (+0.00094 against mirror, unresolved) is not located. Mirror has 96,595,072 more tensor bytes than v2m (UD's Q8_0 non-expert tensors against our Q6_K; `logs/types-*.txt`); ne-ud did not help cand on S (amendment 3), so that part is open, not ruled out.
