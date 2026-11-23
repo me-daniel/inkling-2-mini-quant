@@ -378,3 +378,13 @@ Reading: the order of the two files flips between runs 1 and 2 and the run-to-ru
 Rule: T2 share 0.70 against 2 x 0.18; v2m - v2r on T2 below zero; S and T1 shares 0.95 and 0.90. **The hypothesis is supported**: the calibration domain of the Grams was v2r's limit on T2.
 Against v1 (cand, `analysis/compare.py`): lower KL on T1 and T2 with both intervals below zero, top-1 93.14% to 94.23% (T1) and 95.29% to 95.48% (T2); 52,648,704 bytes (0.46%) larger. Against UD-IQ3_XXS: no difference resolved on S and T1, worse on T2 (+0.00169, interval above zero).
 Limits: S, T1 and T2 are seen (T2 has 5 chunks); the calibration conversations have 0 shared 13-grams with T2 but are closer to it in kind than WikiText; amendment 12's release test (v2m minus UD on T3) waits for amendment 1 and Daniel's review of `scripts/refine-codes.py`, and on T1 the UD contrast does not resolve, so T3 passing is uncertain (inferred). Speed not benched: v2m has v2r's types and bytes per tensor, and v2r ran at v1's speed (record of 22 Nov).
+
+### Addendum H amendment 14: where v2m's remaining gap to UD lives (2026-11-23, ~06:30, before any of its data; diagnostics, not release candidates)
+
+Why: v2m ties UD-IQ3_XXS on S and T1 and trails it on T2 (+0.00169). Two known parts of UD's lead are out of our encoder's reach in v2m: UD's down projections in layers 0-19 are NVFP4, which Metal cannot run (our IQ4_NL down replaces them), and v2m's gate_up in layers 0 (IQ2_XXS) and 4 (IQ2_XS) is v2a's plain llama-quantize output because the refiner does not support those types.
+Builds (`scripts/a14.sh`, splices only, deleted after scoring):
+- mirror: UD-IQ3_XXS with our IQ4_NL down in layers 0-19 and those `.scale` tensors dropped (amendment 2's build, already 0.02149 on S); now also on T1 and T2. It is UD's own encoding under the all-Metal constraint.
+- v2m-ud04: v2m with UD's gate_up (and its `.scale`) in layers 0 and 4. S, T1 and T2.
+Readings, paired, all three sets seen:
+- v2m minus mirror: our all-Metal file against UD's encoding made all-Metal. If v2m's T2 deficit against UD is mostly the down format, v2m minus mirror on T2 is near zero or below.
+- v2m minus v2m-ud04: what UD's encoding still holds in the two unsupported layers. IQ2_XXS and IQ2_XS support is added to the refiner next if this is above 0 with its CI on T2 or T1 (a lever of our own); otherwise layers 0 and 4 are left.
