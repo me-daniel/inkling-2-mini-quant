@@ -523,3 +523,10 @@ The fixes accepted in the pipeline code-review record above. No result changes: 
 - No change to the ship verdict (component B entry).
 
 Speed bench (`scripts/bench-v2m.sh`, 16:26-16:34): not used. It ran while my own test suite and two refine-codes smoke runs were using the CPU next to it (a breach of the small-job rule on my side), so its numbers are not from a quiet machine. Rerun queued; the files `results/pilot/bench3-*` and `depth3-*` will be overwritten by the rerun.
+
+### Record: v2m speed and memory against v1 (2026-11-23, 17:10-17:17; the clean rerun)
+
+`scripts/bench-v2m.sh` with both locks held and nothing else running (memory 85% free at start), table by `analysis/bench_v2m.py` in `results/pilot/bench3.md`.
+- v2m runs at v1's speed. Every row differs by at most about 4%, and so do v1's own two pp512 runs at depth 0 (265 and 276 t/s). Generation: 20.9 against 20.7 t/s at depth 0, 18.6 against 18.7 at 16K depth.
+- Peak memory footprint is 2.80 GB against 2.81 GB, max resident set 14.27 GB for both (it counts the mapped weights).
+- That is what the same tensor types predict. The card may quote v2m's speed from this table only, as amendment 15 requires.
