@@ -403,3 +403,12 @@ Readings:
 - Layers 0 and 4: UD's gate_up there helps on S only; on T1 and T2 the CI contains 0. By the registered rule, IQ2_XXS and IQ2_XS support is not added; layers 0 and 4 are left.
 - The down format: replacing UD's NVFP4 down in layers 0-19 by our IQ4_NL (mirror) costs UD 0.00099 (S), 0.00118 (T1) and 0.00075 (T2), all resolved. Against UD's encoding made all-Metal, v2m shows no resolved difference on any set (point estimates lower on S and T1, higher on T2). About 45% of v2m's T2 deficit against UD is the down format, which an all-Metal file cannot use on stock llama.cpp today.
 - What is left on T2 (+0.00094 against mirror, unresolved) is not located. Mirror has 96,595,072 more tensor bytes than v2m (UD's Q8_0 non-expert tensors against our Q6_K; `logs/types-*.txt`); ne-ud did not help cand on S (amendment 3), so that part is open, not ruled out.
+
+### Record: what the refiner did in v2m (2026-11-23, ~07:50; review points of the Astra and Fable decision reviews)
+
+`analysis/refine_stats.py` on the six JSON logs of `models/refined/gu-refined-mix-*.gguf.json`, table in `results/pilot/v2m-refine-stats.md`:
+- 2,748 of 2,816 experts refined; 68 (2.4%) left unchanged, all under the 2,304-token minimum (at most 8 per layer, in layers 17, 18 and 22).
+- The output-gain floor (amendment 9c) almost never binds: 115 moves blocked against 1,530,834,648 accepted. The refinement raises each layer's median output gain from 0.993-0.999 to 1.005-1.011, so the floor is a safeguard, not a constraint that shaped v2m.
+- In-sample relative error (J under G over tr(W G W^T)) falls by about half per layer, e.g. layer 9 0.0201 to 0.0109, layer 18 0.0432 to 0.0178 (medians over experts).
+- The tracked J (sum of accepted dJ) matches J recomputed from E to within 6.2e-15 relative in every sweep, so the incremental update is exact.
+Limit: the error figures are in-sample on the calibration Grams (deleted after each group), so they say nothing about transfer; that is the battery's job. Gains above 1 after refinement are noted for the attenuation story (the loop compounds gain errors in either direction), not acted on.
