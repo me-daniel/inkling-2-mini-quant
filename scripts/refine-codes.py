@@ -8,7 +8,8 @@ Keeps every block's fp16 d and 4-bit sub-block scales; changes only grid indices
 E = dequantized minus BF16 (all 2304 rows at once, float64) and the full symmetric Gram G (gram-error.py's
 symmetrise of the upper triangle), the objective is J = tr(E H E^T) with H = G + shrink * Diag(G), separable over
 rows; R = E H. Amendment 9b guards (defaults): shrink = 0.1, and only experts with at least --min-tokens = 2304
-Gram tokens are refined (fewer tokens than inputs means a rank-deficient G); the others keep --quant's bytes.
+Gram tokens are refined (fewer tokens than inputs means a rank-deficient G); the others keep --quant's bytes, as do
+experts with any negative fp16 block scale d (legal, but the IQ2_S sign rule assumes d > 0; none occur in v2m).
 Amendment 9c (default; --no-gain-guard drops it): a move is accepted only if dJ < 0 and the row's output gain
 (q_r H w_r^T) / (w_r H w_r^T) does not fall below its llama-quantize value; candidates that would break it are left
 out of the ranking, so each row takes its best feasible candidate (H w_r^T is precomputed per expert; a move
@@ -46,9 +47,10 @@ parallel; experts in ascending index. A sweep visits every group once; R and J a
 sweep start; sweeps repeat until (J_before - J_after) / J_before < 1e-4 or 4 sweeps (J under H).
 
 Outputs: a GGUF holding only blk.L.ffn_gate_up_exps.weight for the given layers (type, shape and byte layout as in
---quant; written to .part, then renamed) and a JSON log next to it (per layer and expert: J under H and under G,
+--quant; written to a per-process .part, then renamed) and a JSON log next to it, both carrying the same run id (the
+GGUF as refine.run_id), so a log is attributed to a file only when they match (per layer and expert: J under H and under G,
 J / tr(W H W^T) as relreg_*, J_G / tr(W G W^T) as rel_*, null where the denominator is not > 0 (Astra review point 2),
-before/after each sweep, accepted moves, the tracked J from the summed accepted dJ, seconds). Every expert is
+before/after each sweep, the output gain at the start and end of each sweep, accepted moves, the tracked J from the summed accepted dJ, seconds). Every expert is
 checked: the decoder equals gguf-py's dequantize bit for bit before and after, d and scale bits are unchanged,
 and every group decodes to a representable code.
 """
@@ -186,7 +188,7 @@ def validate(f: Fmt, raw: np.ndarray, ref: np.ndarray | None = None) -> None:
     if not np.all(np.isfinite(mine)):
         raise AssertionError("non-finite values")
     lv = np.abs(mine).reshape(*db.shape, f.k)
-    cand = db[..., None, None] * f.levels  # [rows, ngroups, 1, n_levels]
+    cand = np.abs(db)[..., None, None] * f.levels  # [rows, ngroups, 1, n_levels]; |d|, as a negative fp16 d is legal
     if not np.all(np.any(lv[..., None] == cand, axis=-1)):
         raise AssertionError("a value is not db * level")
     if f.qtype == Q.IQ3_XXS:
@@ -211,7 +213,10 @@ def _iq2s_sign_patterns(Gb, Rg, cur, db, neg_cur, ridge):
     """The documented IQ2_S sign patterns [target, separable, current], each bool [rows, k] (True = minus)."""
     k = Gb.shape[0]
     with np.errstate(all="ignore"):
-        delta = -np.linalg.solve(Gb + ridge * np.eye(k), Rg.T).T
+        try:
+            delta = -np.linalg.solve(Gb + ridge * np.eye(k), Rg.T).T
+        except np.linalg.LinAlgError:  # singular group (possible with --ridge 0): least-squares target instead
+            delta = -np.linalg.lstsq(Gb + ridge * np.eye(k), Rg.T, rcond=None)[0].T
     tgt = cur + delta
     negt = np.where(tgt == 0, neg_cur, tgt < 0)
     lin = db.astype(np.float64)[:, None] * (Rg - np.diag(Gb) * cur)  # sign s_i minimises 2 s_i * lin_i
@@ -339,6 +344,7 @@ def refine(f: Fmt, raw: np.ndarray, w: np.ndarray, g: np.ndarray, max_sweeps: in
         if g_report is not None:
             with np.errstate(all="ignore"):
                 jg0 = float(np.sum(E * (E @ g_report)))
+        num_start = np.einsum("ri,ri->r", dq.astype(np.float64), U)  # this sweep's starting numerators
         tracked, acc_n, blocked = j0, 0, 0
         for gi in range(ngroups):
             c = slice(gi * k, gi * k + k)
@@ -377,7 +383,7 @@ def refine(f: Fmt, raw: np.ndarray, w: np.ndarray, g: np.ndarray, max_sweeps: in
         num_now = np.einsum("ri,ri->r", dq.astype(np.float64), U)  # recomputed, not tracked
         pos = den_r > 0
         sweeps.append({"sweep": s + 1, "J_before": j0, "J_after": j1, "J_tracked": tracked, "accepted": acc_n,
-                       "gain_blocked": blocked, "ogain_before": _ratio(num0.sum(), den_r.sum()),
+                       "gain_blocked": blocked, "ogain_before": _ratio(num_start.sum(), den_r.sum()),
                        "ogain_after": _ratio(num_now.sum(), den_r.sum()),
                        "min_row_ogain_change": float(np.min((num_now[pos] - num0[pos]) / den_r[pos])) if pos.any() else 0.0,
                        "seconds": round(time.time() - t0, 2)})
@@ -437,8 +443,10 @@ def _one(job):
     with np.errstate(all="ignore"):
         den_h = float(np.sum(w64 * (w64 @ h)))
     rec = {"expert": e, "count": int(counts[e]), "tr_WGWt": den, "tr_WHWt": den_h}
-    if not np.trace(g) > 0 or counts[e] < min_tokens:
-        why = "empty Gram" if not np.trace(g) > 0 else f"{int(counts[e])} tokens < {min_tokens}"
+    neg_d = int(np.sum(fields(f, raw0)[0] < 0))
+    if not np.trace(g) > 0 or counts[e] < min_tokens or neg_d:
+        why = ("empty Gram" if not np.trace(g) > 0 else f"{int(counts[e])} tokens < {min_tokens}" if counts[e] < min_tokens
+               else f"{neg_d} blocks with negative d (sign rule assumes d > 0)")
         rec.update(skipped=why, sweeps=[], seconds=round(time.time() - t0, 2))
         return layer, e, raw0, rec
     raw1, dq1, sw = refine(f, raw0, w, h, sweeps, tol, ridge_rel, g_report=g, gain_guard=gain_guard)
@@ -491,7 +499,10 @@ def main() -> None:
         if f"blk.{l}.ffn_gate_up_exps.scale" in qt:
             sys.exit(f"STOP: {args.quant} has a .scale for layer {l} (not supported)")
     out = {l: np.array(qt[f"blk.{l}.ffn_gate_up_exps.weight"].data, dtype=np.uint8) for l in args.layers}
-    log = {"script": "scripts/refine-codes.py", "args": vars(args), "numpy": np.__version__,
+    run_id = f"{time.strftime('%Y%m%dT%H%M%S')}-{os.getpid()}"
+    st = os.stat(args.quant)
+    log = {"script": "scripts/refine-codes.py", "run_id": run_id, "args": vars(args), "numpy": np.__version__,
+           "source": {"path": args.quant, "bytes": st.st_size, "mtime": int(st.st_mtime)},
            "order": "experts ascending; groups by ascending input column; all rows in parallel",
            "layers": {str(l): {"type": qt[f"blk.{l}.ffn_gate_up_exps.weight"].tensor_type.name, "experts": []}
                       for l in args.layers}}
@@ -522,8 +533,9 @@ def main() -> None:
     log["seconds_total"] = round(time.time() - t0, 1)
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-    part = args.out + ".part"
+    part = f"{args.out}.part{os.getpid()}"
     wr = gguf.GGUFWriter(part, arch="inkling2_loop")
+    wr.add_string("refine.run_id", run_id)  # the log carries the same id; gram-error.py uses a log only on a match
     wr.add_string("refine.source", args.quant)
     wr.add_string("refine.grams", args.grams)
     for l in args.layers:
@@ -541,9 +553,10 @@ def main() -> None:
                 or not np.array_equal(np.asarray(t.data), out[l])):
             sys.exit(f"STOP: re-read of {part} differs for {n}")
     del chk
+    jpart = f"{args.out}.json.part{os.getpid()}"
+    Path(jpart).write_text(json.dumps(log, indent=1) + "\n", encoding="utf-8")
     os.replace(part, args.out)
-    Path(args.out + ".json.part").write_text(json.dumps(log, indent=1) + "\n", encoding="utf-8")
-    os.replace(args.out + ".json.part", args.out + ".json")
+    os.replace(jpart, args.out + ".json")  # a crash between the two renames leaves mismatched run ids, never a silent pair
     print(f"wrote {args.out} and {args.out}.json in {log['seconds_total']} s")
 
 

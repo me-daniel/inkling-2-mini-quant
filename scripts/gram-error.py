@@ -44,6 +44,7 @@ EXTRA: dict[str, str] = {}  # name -> path, from --extra
 REG: float | None = None  # --reg s adds metric "reg": the full error under G + s * Diag(G) (amendment 9b)
 SPLIT = ("bias", "rest")  # full = bias + rest, needs the per-expert input mean (in_sum / count)
 AGGS = ("unweighted", "count-weighted", "trace-weighted")
+MOMENT_TOL = 1e-5  # max |diag(G) - in_sum2| / max |in_sum2| for one capture; the recorded captures show <= 1.1e-7
 
 
 def symmetrise(u: np.ndarray) -> np.ndarray:
@@ -55,17 +56,17 @@ def symmetrise(u: np.ndarray) -> np.ndarray:
 def row_forms(x: np.ndarray, g: np.ndarray, mean=None, count: float = 0) -> dict[str, np.ndarray]:
     """Per-row quadratic forms of x [rows, n_in] under the symmetric Gram g: x_r G x_r^T, x_r diag(G) x_r^T, x_r x_r^T,
     and with a mean m and token count n also n (x_r m)^2, the part of x_r G x_r^T carried by the input mean
-    (G = C + n m m^T with C the centred scatter). float32 matmul, float64 accumulation."""
-    x = np.ascontiguousarray(x, dtype=np.float32)
+    (G = C + n m m^T with C the centred scatter). All in float64: a float32 product can cancel a nonzero form to 0."""
+    x = np.ascontiguousarray(x, dtype=np.float64)
     with np.errstate(all="ignore"):  # Accelerate's BLAS raises spurious FP flags under numpy on macOS; checked below
-        y = x @ g.astype(np.float32, copy=False)
-        full = np.einsum("ij,ij->i", y.astype(np.float64), x.astype(np.float64))
-        x2 = x.astype(np.float64) ** 2
+        y = x @ g.astype(np.float64, copy=False)
+        full = np.einsum("ij,ij->i", y, x)
+        x2 = x ** 2
         out = {"full": full, "diag": x2 @ np.diag(g).astype(np.float64), "plain": x2.sum(axis=1)}
         if REG is not None:
             out["reg"] = full + REG * out["diag"]
         if mean is not None:
-            out["bias"] = float(count) * (x.astype(np.float64) @ np.asarray(mean, dtype=np.float64)) ** 2
+            out["bias"] = float(count) * (x @ np.asarray(mean, dtype=np.float64)) ** 2
     for k, v in out.items():
         if not np.all(np.isfinite(v)):
             raise FloatingPointError(f"non-finite {k} forms")
@@ -99,7 +100,7 @@ def gains(w: np.ndarray, wq: np.ndarray, g: np.ndarray, halves=HALVES) -> dict[s
     ogain = sum q H w^T / sum w H w^T with H = G + REG * Diag(G)."""
     w64, q64 = w.astype(np.float64), wq.astype(np.float64)
     with np.errstate(all="ignore"):
-        u = (np.ascontiguousarray(w, dtype=np.float32) @ g.astype(np.float32, copy=False)).astype(np.float64)
+        u = w64 @ g.astype(np.float64, copy=False)
     u += REG * w64 * np.diag(g).astype(np.float64)
     if not np.all(np.isfinite(u)):
         raise FloatingPointError("non-finite H w^T")
@@ -124,6 +125,8 @@ def boot_diff(ud: np.ndarray, ours: np.ndarray, wt: np.ndarray, n: int = 10_000,
     """Paired bootstrap over experts of the weighted mean of ud - ours. Returns (point, lo, hi) with a 95% percentile CI."""
     ok = np.isfinite(ud) & np.isfinite(ours) & (wt > 0)
     d, w = (ud - ours)[ok], wt[ok].astype(np.float64)
+    if len(d) == 0:
+        return float("nan"), float("nan"), float("nan")
     idx = np.random.default_rng(seed).integers(0, len(d), size=(n, len(d)))
     bs = (d[idx] * w[idx]).sum(axis=1) / w[idx].sum(axis=1)
     lo, hi = np.percentile(bs, [2.5, 97.5])
@@ -185,12 +188,13 @@ def load_gram(l: int):
 
 
 def layout_check(l: int, u: np.memmap, counts: np.ndarray) -> list[str]:
-    """Strict lower triangle is zero, upper is not; diag(G_e) and counts against the capture's own imatrix (in_sum2)."""
+    """Strict lower triangle is zero (the upper one may be zero too, for uncorrelated inputs); diag(G_e) and counts
+    against the capture's own imatrix (in_sum2)."""
     notes = []
     for e in [int(x) for x in np.argsort(-counts)[:3]]:
         a = np.asarray(u[e])
         lo, up = np.abs(np.tril(a, -1)).max(), np.abs(np.triu(a, 1)).max()
-        if lo != 0 or up == 0:
+        if lo != 0:
             sys.exit(f"STOP: layer {l} expert {e}: max |strict lower| {lo}, max |strict upper| {up}")
         notes.append(f"expert {e}: max |strict lower| = {lo:g}, max |strict upper| = {up:.4g}")
     imf = f"{GRAMS}/imatrix.gguf"
@@ -223,6 +227,12 @@ def load_means(l: int, counts: np.ndarray):
     if not np.array_equal(ic, counts.astype(np.float64)):
         bad = int(np.sum(ic != counts))
         return None, f"imatrix counts differ from Gram counts in {bad} of {N_EXP} experts: split skipped"
+    u, _ = load_gram(l)
+    s2 = np.asarray(im[n + ".in_sum2"].data, dtype=np.float64).reshape(N_EXP, N_IN)
+    d = np.stack([np.diag(np.asarray(u[e])) for e in range(N_EXP)]).astype(np.float64)
+    rel = np.abs(d - s2).max() / np.abs(s2).max() if np.abs(s2).max() > 0 else np.inf
+    if not rel <= MOMENT_TOL:  # a different capture with equal counts: its means would not belong to this Gram
+        return None, f"diag(G) differs from imatrix in_sum2 by {rel:.3g} (> {MOMENT_TOL:g}, not the same capture): split skipped"
     with np.errstate(all="ignore"):
         m = np.where(ic[:, None] > 0, s1 / np.maximum(ic, 1)[:, None], 0.0)
     return m, f"input means from {n}.in_sum (gguf shape [{N_IN}, {N_EXP}]) / counts; counts equal the Gram's"
@@ -257,8 +267,8 @@ def run(layers, experts, tsv):
             del g, w, qo, qu
         print(f"layer {l}: {len(experts)} experts in {time.time() - t0:.0f} s", flush=True)
         if means is not None:  # the centred scatter is PSD, so rest >= 0 if in_sum and the Gram saw the same rows
-            q = min(res[e][f]["rest"][h] / res[e][f]["full"][h] for e in experts for f in ("ours", "ud", *EXTRA) for h in HALVES
-                    if res[e][f]["full"][h] > 0)
+            q = min((res[e][f]["rest"][h] / res[e][f]["full"][h] for e in experts for f in ("ours", "ud", *EXTRA) for h in HALVES
+                     if res[e][f]["full"][h] > 0), default=float("nan"))
             notes.append(f"min over experts, files and halves of rest / full = {q:.6f} (must be >= 0 up to rounding)")
         meta[l] = {"type": ty, "scale": scale, "counts": counts, "traces": traces, "notes": notes, "res": res,
                    "mets": mets}
@@ -279,6 +289,11 @@ def tsv_cols() -> tuple[str, ...]:
 
 def fmt(x: float) -> str:
     return f"{x:.5f}" if abs(x) >= 1e-3 else f"{x:.3e}"
+
+
+def ratio(a: float, b: float, digits: int = 4) -> str:
+    """a / b, or n/a where b is 0 or either is undefined."""
+    return f"{a / b:.{digits}f}" if b != 0 and np.isfinite(a) and np.isfinite(b) else "n/a"
 
 
 def report(meta, experts, md, tsv):
@@ -339,8 +354,8 @@ def report(meta, experts, md, tsv):
                     verdict[(l, "win", met, h, k)] = f"{int(np.sum(x[okx] < o[okx]))} of {int(okx.sum())}"
                     ax[k] = aggregate(x, counts, traces)
                 for a in AGGS:
-                    out.append(f"| {met} | {h} | {a} | {fmt(ao[a])} | {fmt(au[a])} | {au[a] / ao[a]:.4f} | {win} |"
-                               + "".join(f" {fmt(ax[k][a])} | {ax[k][a] / ao[a]:.4f} | {verdict[(l, 'win', met, h, k)]} |"
+                    out.append(f"| {met} | {h} | {a} | {fmt(ao[a])} | {fmt(au[a])} | {ratio(au[a], ao[a])} | {win} |"
+                               + "".join(f" {fmt(ax[k][a])} | {ratio(ax[k][a], ao[a])} | {verdict[(l, 'win', met, h, k)]} |"
                                          for k in EXTRA))
                     verdict[(l, met, h, a)] = (ao[a], au[a])
                     for k in EXTRA:
@@ -376,7 +391,7 @@ def report(meta, experts, md, tsv):
 
 def reading(meta, v) -> list[str]:
     """Amendment 7's rule, applied literally: supported if in both layers UD < ours on full and UD >= ours on diag;
-    'downstream' if UD is also worse (>) on full in both layers; otherwise neither branch fires."""
+    'downstream' if UD is strictly worse (>) on full in both layers; otherwise (ties, undefined values) neither fires."""
     layers = list(meta)
     out = ["## Reading (amendment 7 rule, applied literally)", "",
            "Rule: supported if UD is lower than ours on the full error and higher or equal on the diagonal one in both "
@@ -388,9 +403,10 @@ def reading(meta, v) -> list[str]:
         for h in HALVES:
             fl = [v[(l, "full", h, a)][1] < v[(l, "full", h, a)][0] for l in layers]
             dg = [v[(l, "diag", h, a)][1] >= v[(l, "diag", h, a)][0] for l in layers]
+            fw = [v[(l, "full", h, a)][1] > v[(l, "full", h, a)][0] for l in layers]
             if all(fl) and all(dg):
                 b = "supported"
-            elif not any(fl):
+            elif all(fw):
                 b = "UD worse on full: downstream"
             else:
                 b = "neither"
@@ -405,15 +421,15 @@ def reading(meta, v) -> list[str]:
         do, du = v[(l, "diag", "both", "count-weighted")]
         p, lo, hi = v[(l, "boot", "both")]
         s.append(f"In layer {l} (both halves, count-weighted), UD's full error is {fmt(fu)} against our {fmt(fo)} "
-                 f"(ratio {fu / fo:.3f}; UD - ours {p:+.3e}, 95% CI [{lo:+.3e}, {hi:+.3e}]) and its diagonal error "
-                 f"{fmt(du)} against our {fmt(do)} (ratio {du / do:.3f}); UD is lower in {v[(l, 'win', 'full', 'both')]} "
+                 f"(ratio {ratio(fu, fo, 3)}; UD - ours {p:+.3e}, 95% CI [{lo:+.3e}, {hi:+.3e}]) and its diagonal error "
+                 f"{fmt(du)} against our {fmt(do)} (ratio {ratio(du, do, 3)}); UD is lower in {v[(l, 'win', 'full', 'both')]} "
                  f"experts on full and {v[(l, 'win', 'diag', 'both')]} on diag.")
         if (l, "bias", "both", "count-weighted") in v:
             bo, bu = v[(l, "bias", "both", "count-weighted")]
             ro, ru = v[(l, "rest", "both", "count-weighted")]
             s.append(f"Split of the full error in layer {l} (added after registration, not part of the rule): the input-mean "
-                     f"part is {fmt(bo)} ours against {fmt(bu)} UD (ratio {bu / bo:.3f}), the centred rest {fmt(ro)} "
-                     f"against {fmt(ru)} (ratio {ru / ro:.3f}).")
+                     f"part is {fmt(bo)} ours against {fmt(bu)} UD (ratio {ratio(bu, bo, 3)}), the centred rest {fmt(ro)} "
+                     f"against {fmt(ru)} (ratio {ratio(ru, ro, 3)}).")
     b = branches[("count-weighted", "both")]
     allb = sorted(set(branches.values()))
     s.append(f"Under the registered rule this is \"{b}\" for both halves together, count-weighted; across the three "
@@ -469,7 +485,7 @@ def extra_summary(k: str, meta, v, experts) -> list[str]:
             wt = c[e]
             f = {x: wmean(np.array([res[i][x]["full"]["both"] for i in e]), wt) for x in ("ours", "ud", k)}
             out.append(f"| {l} | {lab} | {len(e)} | {wt.sum() / c[ex].sum():.3f} | {fmt(f['ours'])} | {fmt(f['ud'])} | "
-                       f"{fmt(f[k])} | {f[k] / f['ours']:.3f} | {f[k] / f['ud']:.3f} |")
+                       f"{fmt(f[k])} | {ratio(f[k], f['ours'], 3)} | {ratio(f[k], f['ud'], 3)} |")
     logf = EXTRA[k] + ".json"
     if not os.path.exists(logf):
         return out
@@ -477,6 +493,13 @@ def extra_summary(k: str, meta, v, experts) -> list[str]:
     log = json.load(open(logf, encoding="utf-8"))
     if log.get("script") != "scripts/refine-codes.py":
         return out
+    rid = gguf.GGUFReader(EXTRA[k]).fields.get("refine.run_id")
+    file_rid = None if rid is None else rid.contents()
+    if log.get("run_id") != file_rid:
+        return out + ["", f"Refinement log `{logf}` not used: its run id {log.get('run_id')} differs from the file's {file_rid}."]
+    if REG is not None and log["args"].get("shrink") != REG:
+        return out + ["", f"Refinement log `{logf}` not used: it searched with shrink {log['args'].get('shrink')}, "
+                      f"this report uses --reg {REG}."]
     out += ["", f"Refinement log `{logf}` (scripts/refine-codes.py; wall time {log['seconds_total']:.0f} s for "
             f"{sum(len(x['experts']) for x in log['layers'].values())} expert tensors, "
             f"workers {log['args'].get('workers')}, sweeps <= {log['args'].get('sweeps')}, tol {log['args'].get('tol')}):", "",

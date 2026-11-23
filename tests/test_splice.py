@@ -1,6 +1,7 @@
 """splice.py on a tiny GGUF pair built with gguf-py: --add appends donor tensors byte for byte, refuses names that
 exist, and leaves --take unchanged."""
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -119,3 +120,29 @@ def test_drop_refuses_empty_match(pair, tmp_path):
     base, _ = pair
     r = splice(base, tmp_path / "out.gguf", "--drop", r"^nothing$")
     assert r.returncode != 0 and "matches nothing" in r.stderr
+
+
+def test_refuses_output_that_is_an_input(pair, tmp_path):
+    base, donor = pair
+    before = donor.read_bytes()
+    r = splice(base, donor, "--take", donor, TAKE)
+    assert r.returncode != 0 and "is one of the input files" in r.stderr
+    assert donor.read_bytes() == before
+
+
+def test_take_that_supplies_nothing_fails_and_leaves_no_output(pair, tmp_path):
+    base, donor = pair
+    out = tmp_path / "out.gguf"
+    for rx in (r"^blk\.9\.", TAKE):  # no match at all; every match already won by the first --take
+        r = splice(base, out, "--take", donor, TAKE, "--take", donor, rx) if rx == TAKE else splice(base, out, "--take", donor, rx)
+        assert r.returncode != 0 and "supplies no tensor" in r.stderr
+    assert not out.exists() and list(tmp_path.glob("out.gguf.tmp*")) == []
+
+
+def test_add_after_drop_is_counted_as_added(pair, tmp_path):
+    base, donor = pair
+    out = tmp_path / "out.gguf"
+    r = splice(base, out, "--drop", r"^token_embd\.", "--add", donor, ADD, "--verify")
+    assert r.returncode == 0, r.stderr
+    counts = json.loads((tmp_path / "out.gguf.json").read_text())["tensors_from"]
+    assert counts == {"base": 6, f"{donor} (added)": 2}

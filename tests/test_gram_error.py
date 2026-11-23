@@ -111,3 +111,30 @@ def test_bias_rest_split():
         assert r["rest"][h] == pytest.approx(np.trace(d[s] @ c @ d[s].T) / den, rel=1e-4)
         assert r["bias"][h] + r["rest"][h] == pytest.approx(r["full"][h], rel=1e-12)
     assert "bias" not in ge.rel_errors(w, dq, g, HALVES)
+
+
+def test_row_forms_keep_a_form_float32_would_cancel():
+    # Astra review point 28: (2^24, 1, -2^24) under the all-ones Gram is (sum x)^2 = 1; a float32 product gives 0
+    x = np.array([[2.0 ** 24, 1.0, -(2.0 ** 24)]])
+    assert ge.row_forms(x, np.ones((3, 3), dtype=np.float32))["full"][0] == 1.0
+
+
+def test_reading_treats_ties_as_neither():
+    # Astra review point 29: equal full errors in both layers are not "UD worse on full"
+    v = {}
+    for l in (6, 20):
+        for a in ge.AGGS:
+            for h in ge.HALVES:
+                v[(l, "full", h, a)] = (0.01, 0.01)
+                v[(l, "diag", h, a)] = (0.01, 0.01)
+        v[(l, "boot", "both")] = (0.0, 0.0, 0.0)
+        v[(l, "win", "full", "both")] = v[(l, "win", "diag", "both")] = "0 of 128"
+    text = "\n".join(ge.reading({6: {}, 20: {}}, v))
+    assert "downstream" not in text
+    assert "\"neither\"" in text
+
+
+def test_empty_bootstrap_and_zero_ratio_are_undefined():
+    nan = np.full(3, np.nan)
+    assert all(np.isnan(x) for x in ge.boot_diff(nan, nan, np.ones(3)))
+    assert ge.ratio(1.0, 0.0) == "n/a" and ge.ratio(1.0, 2.0) == "0.5000"

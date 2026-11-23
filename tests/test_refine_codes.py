@@ -383,3 +383,23 @@ def test_iq2s_ranked_winner_over_all_documented_sign_patterns(guarded):
             if not guarded or df[1] >= 0:
                 assert df[0] >= d1[0] - 1e-9 * abs(d1[0]) - 1e-18
     assert improved >= 1
+
+
+@pytest.mark.parametrize("qt", TYPES)
+def test_validate_accepts_negative_d_astra_point20(qt):
+    f = rc.FMTS[qt]
+    raw = random_raw(f, 4, 2, np.random.default_rng(3)).reshape(4, 2, f.bsize)
+    d = raw[..., :2].copy().view(np.float16)
+    raw[..., :2] = (-d).view(np.uint8)
+    raw = raw.reshape(4, -1)
+    rc.validate(f, raw)  # decode equals gguf-py and every value is |d| * level * (+-1)
+    assert np.all(rc.fields(f, raw)[0] < 0)
+
+
+def test_singular_group_with_zero_ridge_astra_point32():
+    k = rc.FMTS[Q.IQ2_S].k
+    Gb = np.ones((k, k))  # rank 1
+    rng = np.random.default_rng(4)
+    Rg, cur = rng.standard_normal((3, k)), rng.standard_normal((3, k))
+    pats = rc._iq2s_sign_patterns(Gb, Rg, cur, np.full(3, 1e-3), np.zeros((3, k), dtype=bool), 0.0)
+    assert len(pats) == 3 and all(p.shape == (3, k) for p in pats)
