@@ -7,9 +7,8 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd -P); cd "$ROOT"
 BIN=vendor/llama.cpp/build/bin; R=results/pilot; L=logs
 . scripts/gpu-lock.sh
 while :; do
-    if [ ! -e "$GLOCK" ] && [ ! -e "$CLOCK" ] && ! pgrep -x llama-bench > /dev/null && ! pgrep -x llama-perplexity > /dev/null \
-        && ( set -C; echo "$$ inkling-2-mini-quant $(date '+%H:%M:%S')" > "$GLOCK" ) 2>/dev/null; then
-        if ( set -C; echo "$$ inkling-2-mini-quant $(date '+%H:%M:%S')" > "$CLOCK" ) 2>/dev/null; then break; fi
+    if ! pgrep -x llama-bench > /dev/null && ! pgrep -x llama-perplexity > /dev/null && gpu_try; then
+        cpu_try && break
         gpu_give
     fi
     sleep 30

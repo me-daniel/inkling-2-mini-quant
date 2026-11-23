@@ -530,3 +530,7 @@ Speed bench (`scripts/bench-v2m.sh`, 16:26-16:34): not used. It ran while my own
 - v2m runs at v1's speed. Every row differs by at most about 4%, and so do v1's own two pp512 runs at depth 0 (265 and 276 t/s). Generation: 20.9 against 20.7 t/s at depth 0, 18.6 against 18.7 at 16K depth.
 - Peak memory footprint is 2.80 GB against 2.81 GB, max resident set 14.27 GB for both (it counts the mapped weights).
 - That is what the same tensor types predict. The card may quote v2m's speed from this table only, as amendment 15 requires.
+
+### Record: kernel locks for the shared GPU and CPU locks (2026-11-23, 18:30)
+
+`scripts/gpu-lock.sh` now takes `~/GitHub/.gpu.lock` and `.cpu.lock` with BSD `lockf(1)` instead of pid files made with `set -C`. A background `lockf -k` holds the lock and watches the script's pid, and the kernel drops the lock when that holder ends. A killed job therefore frees its lock within about 2 s without anyone removing a stale file, which closes the race between a stale-lock `rm` and a new `set -C`. The files stay on disk and only name the last holder. `gpu_try` and `cpu_try` take a lock only if it is free right now, and `scripts/bench-v2m.sh` uses them instead of testing whether the files exist. Switched while neither repo had a job running or queued, together with the sibling repo's `lib.sh`, since old and new code don't see each other's locks. Tested on scratch lock files: a second job waits, try-take fails while the lock is held, a job retakes after giving, and kill -9 frees the lock within 3 s.
