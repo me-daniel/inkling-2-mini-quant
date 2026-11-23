@@ -505,3 +505,21 @@ The fixes accepted in the pipeline code-review record above. No result changes: 
 - gram-error 28-30: products in float64; the bias/rest split needs diag(G) to match the imatrix's in_sum2 within 1e-5 (recorded captures: at most 1.1e-7), not just equal counts; "UD worse on full" needs UD strictly worse in every layer, ties fall to "neither"; a diagonal-only Gram passes the layout check; empty reductions and bootstraps give NaN, ratios with a zero denominator print n/a.
 - splice 8, 26, 27, 34: OUT may not be an input (samefile); the output goes to a per-process temporary file and is renamed only when complete and verified, and is removed on failure; every --take must supply at least one tensor; every input must be little-endian; --slot checks the donor tensor's shape against the base layer; verify compares name, type, shape and raw bytes; the manifest counts each tensor by its operation (an --add after a --drop was counted as base). The no-option case keeps its test (byte-identical to a packed BASE), and the docstring now says it repacks offsets.
 - Not changed, as recorded: refine-codes 18 and 19 (search limits).
+
+### Amendment 15, component C result (2026-11-23, ~16:50; a record, secondary)
+
+`scripts/battery-C.sh` (`logs/battery-C.out`, texts and hashes in `results/battery/C-data.md`), `analysis/battery_C.py`, table in `results/battery/C.md`. KL on Q8_0's own B1-B4 replies (reasoning plus answer, the T2 format), at most 8 chunks of 1,024 tokens per task; ratios are geometric means over chunk pairs, CIs from resampling chunks.
+
+| task replies | chunks | v1 KL | v2m KL | UD KL | v2m / v1 [95% CI] | v2m / UD [95% CI] |
+|---|---|---|---|---|---|---|
+| B1 GSM8K | 8 | 0.01909 | 0.01443 | 0.01244 | 0.755 [0.708, 0.806] | 1.177 [1.099, 1.252] |
+| B2 BFCL | 7 | 0.02079 | 0.01543 | 0.01384 | 0.731 [0.656, 0.803] | 1.100 [1.008, 1.198] |
+| B3 MBPP+ | 8 | 0.02717 | 0.02039 | 0.01559 | 0.735 [0.641, 0.827] | 1.282 [1.169, 1.413] |
+| B4 JSON | 8 | 0.02819 | 0.02470 | 0.01864 | 0.893 [0.797, 1.027] | 1.359 [1.198, 1.555] |
+
+- B2 has 7 chunks for every model: llama.cpp tokenizes the tool-call replies to fewer tokens than the HF tokenizer the builder counted with. The comparison stays paired.
+- On the model's own chat and reasoning text, v2m keeps about the gain it has on T2 (0.79): 0.73 to 0.76 on maths, tool-call and code replies, less on JSON (0.89, interval touching 1). This is text in the calibration format (chat and reasoning), so it says less about transfer than component A does.
+- UD stays ahead everywhere, by 10% on the tool-call replies up to 36% on JSON, the same picture as T2 and A.
+- No change to the ship verdict (component B entry).
+
+Speed bench (`scripts/bench-v2m.sh`, 16:26-16:34): not used. It ran while my own test suite and two refine-codes smoke runs were using the CPU next to it (a breach of the small-job rule on my side), so its numbers are not from a quiet machine. Rerun queued; the files `results/pilot/bench3-*` and `depth3-*` will be overwritten by the rerun.
