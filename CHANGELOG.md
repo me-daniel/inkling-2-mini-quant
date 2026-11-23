@@ -412,3 +412,25 @@ Readings:
 - In-sample relative error (J under G over tr(W G W^T)) falls by about half per layer, e.g. layer 9 0.0201 to 0.0109, layer 18 0.0432 to 0.0178 (medians over experts).
 - The tracked J (sum of accepted dJ) matches J recomputed from E to within 6.2e-15 relative in every sweep, so the incremental update is exact.
 Limit: the error figures are in-sample on the calibration Grams (deleted after each group), so they say nothing about transfer; that is the battery's job. Gains above 1 after refinement are noted for the attenuation story (the loop compounds gain errors in either direction), not acted on.
+
+### Addendum H amendment 15: the v1.1 battery, v2m against v1 (2026-11-23, ~08:30, before any of its data; Daniel's go for "fresh domain plus task checks, researched, not left to him")
+
+Why: every v2m number is on seen sets (S, T1, T2), T3 is WikiText-2 again, and KL need not track task quality. Both decision reviews (`reviews/2026-11-23-decisions-{astra,fable}.md`) asked for a fresh domain with a written pass rule and task checks as non-regression guards. Design from a research workflow (`reviews/2026-11-23-battery-workflow.md`: three Opus research agents, Fable design, Opus critique, Fable revision), cut down here to what runs with stock tools. All runs: P = 3, the build in `results/env.md`, greedy (temperature 0, seed 0), one model at a time, the Q8_0 reference first, then v1 (`models/cand.gguf`), then v2m (`models/v2m.gguf`, sha256 9b69eb96...5995). Nothing below is selected on v1 or v2m data.
+
+Components:
+- A, fresh-domain KL (primary H1). Four domains absent from both calibration texts: Python source, Rust source (permissive licences; half the files from commits before 2023, half from 2025-2026), German parliamentary prose (Bundestag plenary protocols of 2026, official works) and mathematical LaTeX (bodies of recent CC BY arXiv math papers). 8 documents per domain, 4 chunks of 1,024 tokens each (llama-perplexity scores the second half of each chunk), so 32 chunks per domain. Before freezing, the share of code, LaTeX and German in `data/calib-mix.txt` and `data/calib-wt.txt` is measured; a domain above 2% of either is relabelled near-calibration and leaves H1.
+- B, tasks through llama-server (`--jinja`, reasoning_effort low as in T2 and the stability battery, cap 2,048; capped or unparseable replies count as wrong; raw replies logged; one frozen parser):
+  - B1 math: 80 GSM8K test items (seeded draw), answer against the gold number.
+  - B2 tool calls: 100 BFCL live_simple items, function name and arguments against the ground truth (near-calibration: the calibration conversations hold tool use; secondary only).
+  - B3 code: 60 MBPP+ items, EvalPlus tests run in Docker (CPU).
+  - B4 structured output: 60 JSONSchemaBench schemas, no grammar, valid under `jsonschema`.
+- C, task-trace KL (secondary): the Q8_0 reference's own B1-B4 replies, rendered with the chat template, up to 8 chunks of 1,024 tokens per task, scored for KL like A. This is a fresh reasoning and chat set made before v1 or v2m generate anything (Fable's sealed-set point).
+- Cut: multiple-choice log-prob sets, long-context KL, MATH-500, AIME, IFEval, LiveCodeBench (budget), `-np` batching (equal conditions first).
+
+Endpoints:
+- H1 (primary, transfer): R = mean over the fresh domains of the geometric-mean ratio exp(mean log(KL_v2m / KL_v1)) per chunk pair; 95% CI by cluster bootstrap (resample documents within domain, 10,000 resamples, seed 0). Pass: upper bound at most 0.90, at least about half of v2m's T2 gain kept (T2 ratio 0.79). Partial transfer: upper bound in (0.90, 1.0]. Regression: lower bound above 1.0. Otherwise no evidence of transfer.
+- H3 (primary, no task regression): correct answers on B1 + B3 + B4 pooled (200 items), v2m minus v1, one-sided 95% lower bound from the paired (McNemar, mid-p) difference. Pass: above -5 points. Regression: upper bound below 0. Otherwise inconclusive, not a pass.
+- Secondary, descriptive: per-domain ratios, C per task, B2, agreement with the Q8_0 answers, top-1 agreement and 99th-percentile KL per domain, tokens per item, cap hits.
+
+Ship rule for v1.1 (the failure plan): H1 pass and H3 pass, then v2m is the new default, with T3 (amendment 12's rule against UD, and v2m minus v1 with its CI below 0) reported next to it once Daniel approves amendment 1. H1 pass or partial with H3 inconclusive, then v2m ships only as an alternative file and v1 stays the default. H1 or H3 regression, then v2m does not ship, and v1 stays as published. In every case the card's headline keeps v2m's T2 deficit against UD-IQ3_XXS (Fable's point), and speed is quoted only from v2m's own bench (`scripts/bench-v2m.sh`).
+Order: calibration-content check, data build and hashes (`scripts/battery-data.py`, `results/battery/data.md`), then the Q8_0 runs, then v1 and v2m. GPU estimate about 3 h in total, inside the GPU-lock queue.
