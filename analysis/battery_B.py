@@ -5,7 +5,7 @@
 - B1: the last number in the reply equals the GSM8K gold answer.
 - B2: exactly one tool call, its name equals the ground truth's, its arguments parse, every ground-truth parameter
   takes an allowed value (strings compared as BFCL does: lowercased, spaces and ,./-_*^ removed; numbers by value;
-  a parameter whose allowed list holds "" may be left out), and no argument outside the function's properties.
+  a parameter whose allowed list holds "" may be left out; an empty allowed list means omitted or []), and no argument outside the function's properties.
 - B3: the last ```python block (or the last ``` block) defines the entry point, and on every MBPP+ base and plus input
   it returns what the canonical solution returns (MBPP+'s atol for floats). Run in python:3.12-slim with no
   network, 1 CPU, 1 GB and a 60 s limit per item; any error or timeout is wrong.
@@ -92,6 +92,10 @@ def score_b2(rec, it, gt) -> bool:
     if any(k not in props for k in args):
         return False
     for k, allowed in params.items():
+        if not allowed:  # BFCL writes an expected empty array as an empty list of allowed values
+            if args.get(k, []) != []:
+                return False
+            continue
         if k not in args:
             if "" not in allowed:
                 return False
@@ -111,7 +115,7 @@ def score_b3(rec, mb) -> bool:
         return False
     job = {"canonical": mb["prompt"].split('"""')[0] + mb["canonical_solution"], "candidate": code, "entry": mb["entry_point"],
            "inputs": mb["base_input"] + mb["plus_input"], "atol": mb["atol"] or 0}
-    with tempfile.TemporaryDirectory() as w:
+    with tempfile.TemporaryDirectory(dir=ROOT / "models/tmp") as w:  # under /Users: Docker Desktop cannot mount /var/folders
         Path(w, "job.json").write_text(json.dumps(job))
         Path(w, "h.py").write_text(HARNESS)
         try:
