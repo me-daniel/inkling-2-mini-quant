@@ -434,3 +434,12 @@ Endpoints:
 
 Ship rule for v1.1 (the failure plan): H1 pass and H3 pass, then v2m is the new default, with T3 (amendment 12's rule against UD, and v2m minus v1 with its CI below 0) reported next to it once Daniel approves amendment 1. H1 pass or partial with H3 inconclusive, then v2m ships only as an alternative file and v1 stays the default. H1 or H3 regression, then v2m does not ship, and v1 stays as published. In every case the card's headline keeps v2m's T2 deficit against UD-IQ3_XXS (Fable's point), and speed is quoted only from v2m's own bench (`scripts/bench-v2m.sh`).
 Order: calibration-content check, data build and hashes (`scripts/battery-data.py`, `results/battery/data.md`), then the Q8_0 runs, then v1 and v2m. GPU estimate about 3 h in total, inside the GPU-lock queue.
+
+### Amendment 15: component A data frozen, freshness ruling (2026-11-23, ~09:30, before any model scored these texts)
+
+`scripts/battery-data.py` (`results/battery/data.md`, `results/battery/A-manifest.json`): four files of 8 documents x 4,096 tokens.
+- python sha256 1a779d13...e1e4, rust e9b119cc...6848 (8 repositories each, the first four at their last commit before 2023, the last four from files added since 2025; one or two files per document, chosen by size), german b38fee0f...f4d1 (Bundestag protocols 21/101-21/108, 14 Oct to 12 Nov 2026), math 2a994f1b...6251 (arXiv 2611.00095 to 2611.00217, CC BY 4.0, primary math.*).
+- Two implementation fixes before freezing, no model data involved: GitHub tarballs replace the partial clone's lazy blob fetch (it failed with a commit-graph error), and the math selection now takes new 2611.* papers as the rule states (the first build had taken old papers re-versioned that week).
+- Freshness ruling by the registered 2% rule: in `data/calib-mix.txt`, 4.76% of non-empty lines hold inline LaTeX (`$...$`; the calibration conversations include competition maths written in LaTeX), 1.86% look like code, 0.26% German. So math is near-calibration and leaves H1. H1 is the mean over python, rust and german. Math is reported as a secondary.
+- Added before data, descriptive only: UD-IQ3_XXS is scored on the same texts, so the card can state v2m against UD on fresh domains.
+- Scoring: `scripts/battery-A.sh`, report `analysis/battery_A.py` (tested in `tests/test_battery_A.py`).
