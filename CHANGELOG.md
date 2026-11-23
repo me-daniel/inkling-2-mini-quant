@@ -580,3 +580,11 @@ Why: v2m closes 91% of v1's KL gap to UD-IQ3_XXS on T1 but only 30% on fresh Pyt
 - GitHub README: the same section, and the comparator bullet now says the two files registered on 21 Nov were scored in amendment 11 (8 files under the limit, 16 of 16 contrasts in favour of v1).
 - The card keeps v1 as the default, as amendment 15's rule requires, and states the T3 and fresh-domain deficits against UD-IQ3_XXS, the smaller gain on code and the MACaQ prior art.
 - Before the push, one unpushed review file held a local scratchpad path. The unpushed commits from `26000b2` on were rewritten to drop it (trees otherwise identical; old commits kept on branch `backup/pre-path-rewrite`). Daniel's README edit on GitHub (`aa2afff`) was merged, not rebased.
+
+### Addendum H amendment 17: when the refined file becomes the default (2026-11-23, ~22:00, before any model is scored on A2)
+
+Why: amendment 15's H1 bar (upper bound at most 0.90) asked whether most of v2m's gain transfers to fresh text. It decided between "default" and "alternative file", but a default needs a different question: better than v1 on fresh text, and no worse anywhere. v2m has lower KL than v1 on every set so far (Rust within noise) and passed H3 and T3, but changing the default on those same data would be post hoc. A2 (amendment 16, frozen, unscored) is fresh for v1 and v2m alike, so it decides.
+- Candidate: the alternative file at the time of A2's scoring. That is v2m, or v2c if amendment 16 makes v2c the alternative file.
+- Rule, on A2 python, rust, go and typescript (`analysis/a16.py` data, the same resampler): R = mean over the four domains of the per-domain geometric-mean ratio candidate / v1. Switch if R's 95% upper bound is below 1 and no single domain's upper bound is above 1.05. The candidate must also have passed amendment 15's H3 task rule (v2m: passed; v2c: amendment 16's task run).
+- Effect: the card recommends the refined file first. File names stay as they are, so pinned downloads keep working. Publishing the change needs Daniel's go. If the rule fails, v1 stays the default and the card says so.
+- Reported in `results/battery/a16.md` by `analysis/a16.py`, added before scoring.

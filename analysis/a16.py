@@ -12,6 +12,9 @@ chunks; T1 and T2: single chunks), 10,000 resamples, seed 0.
 - Tasks (H3 rule of amendment 15, v2c against v1 on the same 200 B1, B3 and B4 items): one-sided 95% lower bound above -5.
 - Decision: H-C1 pass, every guard held and the task rule passed: v2c is proposed to replace v2m as the alternative
   file (publishing needs Daniel's go). Otherwise v2m stays.
+- Amendment 17, default: the alternative file (v2c if it replaced v2m, else v2m) against v1, R over A2 python, rust,
+  go and typescript; switch if the upper bound is below 1, no domain's upper bound is above 1.05 and its task rule
+  passed. File names stay; publishing needs Daniel's go.
 """
 
 import json
@@ -81,6 +84,15 @@ def main() -> None:
     else:
         verdict = "v2c replaces v2m as the alternative file (needs Daniel's go to publish)" if h1 and gok and tok else "v2m stays"
     print(f"\nDecision: {verdict}")
+    alt = "v2c" if tok and h1 and gok else "v2m"
+    four = CODE + NEW
+    R = ratio_ci({d: (a2(d, alt), a2(d, "cand")) for d in four})
+    per = {d: ratio_ci({d: (a2(d, alt), a2(d, "cand"))}) for d in four}
+    task_ok = True if alt == "v2m" else tok  # v2m passed amendment 15's H3
+    switch = R[2] < 1 and all(r[2] <= 1.05 for r in per.values()) and task_ok
+    print(f"Amendment 17 ({alt} against v1, A2 code): R = {fmt(R)}; per domain "
+          + ", ".join(f"{d} {fmt(r)}" for d, r in per.items())
+          + f" -> {'switch the default to ' + alt + ' (needs Daniel' + chr(39) + 's go)' if switch else 'v1 stays the default'}")
 
 
 if __name__ == "__main__":
