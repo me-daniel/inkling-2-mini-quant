@@ -364,3 +364,17 @@ Reading (S, T1, T2, all seen; descriptive): v2m minus v2r and v2m minus UD-IQ3_X
 | tg128 at 16K | | | 16.84 ± 0.42 | 16.58 ± 0.56 |
 
 Reading: the order of the two files flips between runs 1 and 2 and the run-to-run spread (up to 7% at depth 0) is larger than any v2r - v1 difference, so the two run at the same speed within this bench's resolution. Both are below v1's gate bench of 21 Nov (18.97 t/s); that bench and this one are not compared. v2r is 52,648,704 bytes (0.46%) larger than v1.
+
+### Addendum H, amendment 13 result (2026-11-23, ~06:05; a record, S, T1 and T2 all seen)
+
+`models/v2m.gguf` (sha256 9b69eb96...5995, `logs/v2m.out`): 22 gate_up layers refined on the mixed-domain Grams, on v2a; 11,566,703,648 bytes (v2a's and v2r's size), 704 tensors with v2a's names and types, 0 expert tensors off Metal, layers 0 and 4 byte-identical to v2a (`logs/v2m-check-final.txt`). Every group check passed. `analysis/v2m_report.py` on `results/pilot/kl.tsv` (paired over chunks):
+
+| set | v2m | v2r | v2a | UD | v2m - v2r | v2m - UD | v2m - v1 | share v2m / v2r | top-1 v2m / v2r / UD |
+|---|---|---|---|---|---|---|---|---|---|
+| S | 0.02090 | 0.02102 | 0.02779 | 0.02050 | -0.00012 [-0.00064, +0.00047] | +0.00040 [-0.00029, +0.00112] | n/a | 0.95 / 0.93 | 94.14 / 94.10 / 94.26 |
+| T1 | 0.01992 | 0.02077 | 0.02462 | 0.01939 | -0.00085 [-0.00132, -0.00039] | +0.00053 [-0.00017, +0.00123] | -0.00694 [-0.00813, -0.00582] | 0.90 / 0.74 | 94.23 / 94.29 / 94.42 |
+| T2 | 0.01530 | 0.01829 | 0.01929 | 0.01361 | -0.00299 [-0.00434, -0.00157] | +0.00169 [+0.00039, +0.00299] | -0.00412 [-0.00598, -0.00257] | 0.70 / 0.18 | 95.48 / 95.39 / 95.95 |
+
+Rule: T2 share 0.70 against 2 x 0.18; v2m - v2r on T2 below zero; S and T1 shares 0.95 and 0.90. **The hypothesis is supported**: the calibration domain of the Grams was v2r's limit on T2.
+Against v1 (cand, `analysis/compare.py`): lower KL on T1 and T2 with both intervals below zero, top-1 93.14% to 94.23% (T1) and 95.29% to 95.48% (T2); 52,648,704 bytes (0.46%) larger. Against UD-IQ3_XXS: no difference resolved on S and T1, worse on T2 (+0.00169, interval above zero).
+Limits: S, T1 and T2 are seen (T2 has 5 chunks); the calibration conversations have 0 shared 13-grams with T2 but are closer to it in kind than WikiText; amendment 12's release test (v2m minus UD on T3) waits for amendment 1 and Daniel's review of `scripts/refine-codes.py`, and on T1 the UD contrast does not resolve, so T3 passing is uncertain (inferred). Speed not benched: v2m has v2r's types and bytes per tensor, and v2r ran at v1's speed (record of 22 Nov).
