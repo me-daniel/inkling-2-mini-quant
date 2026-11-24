@@ -641,3 +641,15 @@ Daniel chose v2c as the default ("v2c as default"), with the German guard overri
   - The tag v1.2 points at 3a8dab9.
 - The card names the override (the German guard was missed at 1.055 against 1.05) and that A2 both selected v2c and decided the default.
 - GitHub: `README.md` gets the same two sections; tag v1.2.
+
+### Record: HF card and file names after v1.2 (2026-11-24, ~22:00, Daniel's requests)
+
+- e18e12e (card):
+  - "21th" → "21st" in Daniel's edit.
+  - The 16 GB line in "Which Mac" now links to `Inkling-2-Mini-Metal-8.9G.gguf`, which the sibling repo inkling-2-mini-under10 published in 5b76341.
+  - That repo's card section (`drafts/hf-section.md`, unchanged) is inserted under "Which Mac".
+- 3fe3e33 (files): Hugging Face's sidebar reads the quant type only from file names (`parseGGUFQuantLabel` in huggingface.js), so it listed none of our files.
+  - Server-side copies under new names: `-IQ3_XXS` for the main file and refined2, `-IQ2_XXS` for the 8.9G file. Size and sha256 are equal to their sources on the Hub. The old names stay.
+  - The labels name the main expert type, not the only one. By bytes, v1 is IQ4_NL 40% (down projections), IQ3_XXS 27%, IQ2_S 11%; v2c is IQ4_NL 40%, IQ3_XXS 29%, IQ2_S 17%. The 8.9G file's file_type is 19 (IQ2_XXS).
+  - The card's Use section says the copies are byte-identical.
+- Tag v1.2 stays at 3a8dab9.
