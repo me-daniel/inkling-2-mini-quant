@@ -629,3 +629,15 @@ Daniel: the German guard miss "doesn't matter". v2c is therefore treated as pass
 - Speed and memory of v2c against v1: `scripts/bench-v2m.sh` with NAMES="cand v2c" T=4, results in `results/pilot/bench4-*` and `depth4-*`.
 - Nothing is published; the default and what ships are Daniel's decision at the end.
 - Bench (`logs/bench4.out`, `logs/bench5.out`; files `results/pilot/bench4-*`, `depth4-*`, `bench5-*`, `depth5-*`): v1 and v2c run back to back in both orders. In each run the file benched first is faster, so the differences are drift (thermal or power; the Mac was on battery), not the file; v2c has v2m's tensor types and byte size. Absolute speeds are not comparable with the 23 Nov bench3 numbers (different machine state, same llama.cpp build).
+
+### Record: v1.2 release (2026-11-24, ~21:10, Daniel's go)
+
+Daniel chose v2c as the default ("v2c as default"), with the German guard override recorded above.
+- Hugging Face, `Me-Daniel/Inkling-2-Mini-Metal-GGUF`:
+  - b0f8cae adds `Inkling-2-Mini-Metal-refined2.gguf` (v2c): 11,566,703,648 bytes, sha256 `8771750193bb14c444f381e5b6fb779d8c2cf8f4407c93a54667379cdedfc52f` (`results/pilot/v2c-sha256.txt`). The size and sha256 on the Hub match the local file.
+  - `Inkling-2-Mini-Metal.gguf` (v1) and `Inkling-2-Mini-Metal-refined.gguf` (v2m) are unchanged.
+  - 9adc6cc is Daniel's hand edit of the card.
+  - 3a8dab9 is the card built on it with `scripts/card.py --refined` then `--refined2` (section "Recommended file", the `llama-cli` command now points at refined2). Daniel's cut of the HF-only paragraph "Of the 4 all-Metal GGUFs under 11.7 GB …" was made by exact string.
+  - The tag v1.2 points at 3a8dab9.
+- The card names the override (the German guard was missed at 1.055 against 1.05) and that A2 both selected v2c and decided the default.
+- GitHub: `README.md` gets the same two sections; tag v1.2.

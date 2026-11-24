@@ -935,10 +935,9 @@ def refined_section() -> list[str]:
             f"- No task type got worse: of the {len(h3)} maths, code and JSON tasks, the two files disagree on {win + loss}, "
             f"and the refined file is right on {win} of them. {len(h3)} tasks can rule out a large drop but can't "
             "measure a small gain.",
-            "- Why it isn't the default: before testing we required KL at least 10% lower than the main file's on new "
-            f"Python, Rust and German together, with 95% confidence. It came out {pct(h1[0])} lower (95% CI "
-            f"{pct(h1[2])} to {pct(h1[1])}), so the rule we registered keeps the main file as the default. For "
-            "code-heavy use the two are close.", ""]
+            "- Why it was not made the default on 23 Nov: before testing we required KL at least 10% lower than the main "
+            f"file's on new Python, Rust and German together, with 95% confidence. It came out {pct(h1[0])} lower (95% CI "
+            f"{pct(h1[2])} to {pct(h1[1])}), so the rule we registered kept the main file as the default.", ""]
     return out
 
 
@@ -1098,6 +1097,83 @@ def mac_card(v: dict, label: dict, cand_bytes: int, ud_bytes: int, ud: list, s: 
     return C
 
 
+REFINED2 = "Inkling-2-Mini-Metal-refined2.gguf"
+
+
+def refined2_section() -> list[str]:
+    """v1.2 recommended file (amendments 16 and 17, Daniel's guard override of 24 Nov): v2c against v1, v2m and
+    UD-IQ3_XXS on A2 and the German guard text, battery B, and the two-order bench (bench4, bench5)."""
+    import battery_A
+    runs = compare.load()
+    M = ("cand", "v2m", "v2c", "UD-IQ3_XXS")
+    code, guard = ("python", "rust", "go", "typescript"), "german"
+    a2 = {d: {m: runs[f"a2-{d}-{m}-P3"]["chunks"] for m in M} for d in code + (guard,)}
+    rc = lambda a, b, ds: battery_A.ratio_ci({d: (a2[d][a], a2[d][b]) for d in ds})  # noqa: E731
+    R1, Rm = rc("v2c", "cand", code), rc("v2m", "cand", code)
+    g1, gm = rc("v2c", "cand", (guard,)), rc("v2c", "v2m", (guard,))
+    c1, c2 = rc("v2c", "v2m", ("python", "rust")), rc("v2c", "v2m", ("go", "typescript"))
+    ud = [rc("v2c", "UD-IQ3_XXS", (d,))[0] for d in code]
+    assert R1[2] < 1 and Rm[2] < 1 and c1[2] < 1 and g1[2] < 1 and gm[2] > 1.05, "wording assumes the A2 result of 24 Nov"
+    sc = json.loads(text(ROOT / "results/battery/B-scores.json"))
+    task_of = {json.loads(x)["id"]: json.loads(x)["task"] for x in text(ROOT / "results/battery/B-cand.jsonl").splitlines()}
+    h3 = [i for i in task_of if task_of[i] in ("B1", "B3", "B4")]
+    win = sum(sc["v2c"][i] and not sc["cand"][i] for i in h3)
+    loss = sum(sc["cand"][i] and not sc["v2c"][i] for i in h3)
+    right = {m: sum(sc[m][i] for i in task_of) for m in ("cand", "v2m", "v2c")}
+    tg = {n: {m: float(re.search(r"tg128 \| +([\d.]+) ±", text(R / f"bench{n}-{m}.txt")).group(1)) for m in ("cand", "v2c")}
+          for n in (4, 5)}
+    assert (tg[4]["cand"] > tg[4]["v2c"]) and (tg[5]["v2c"] > tg[5]["cand"]), "speed wording assumes the order effect"
+    size = (ROOT / "models/v2c.gguf").stat().st_size
+    pct = lambda r: f"{abs(1 - r) * 100:.0f}%"  # noqa: E731
+    ci = lambda r: f"[{r[1]:.3f}, {r[2]:.3f}]"  # noqa: E731
+    label = {"python": "Python source", "rust": "Rust source", "go": "Go source (in no calibration text)",
+             "typescript": "TypeScript source (in no calibration text)", "german": "German parliament speeches"}
+    out = [f"## Recommended file: {REFINED2} ({size / 1e9:.2f} GB)", "",
+           "Since 24 Nov 2026 this is the file we recommend. It is the refined file described below with one change: "
+           "the refiner's calibration text now also holds Python and Rust source from 16 other repositories. "
+           "Tensor types, size and speed are the same as the other two files.", "",
+           "| KL on new text | Main file | Refined file | Refined2 | UD-IQ3_XXS |", "|---|---|---|---|---|"]
+    out += [f"| {label[d]} | " + " | ".join(f"{a2[d][m].mean():.5f}" for m in M) + " |" for d in code + (guard,)]
+    out += [f"| Tasks right of {len(task_of)} (maths, tool calls, code and JSON) | {right['cand']} | {right['v2m']} | "
+            f"{right['v2c']} | not run |", "",
+            f"- Against the main file: KL {pct(R1[0])} lower on new code in four languages (ratio {R1[0]:.3f} {ci(R1)}) "
+            f"and {pct(g1[0])} lower on German ({g1[0]:.3f} {ci(g1)}).",
+            f"- Against the refined file: {pct(c1[0])} lower on Python and Rust ({c1[0]:.3f} {ci(c1)}) and {pct(c2[0])} "
+            f"lower on Go and TypeScript ({c2[0]:.3f} {ci(c2)}), but {pct(gm[0])} higher on German ({gm[0]:.3f} {ci(gm)}). "
+            "Before testing we allowed German to get at most 5% worse, judged by that upper bound, which this "
+            "narrowly misses. By our registered rule the refined file would have stayed; we decided the German "
+            "difference does not outweigh the gain on code and say so here.",
+            f"- The same new texts chose this file over the refined one and then measured it, so its numbers are a little "
+            f"optimistic. The refined file was not chosen on them: against the main file it is {pct(Rm[0])} lower on "
+            f"the same code ({Rm[0]:.3f} {ci(Rm)}).",
+            f"- Unsloth's UD-IQ3_XXS is still {pct(min(ud))} to {pct(max(ud))} closer to the original on new code, and it "
+            "does not run fully on the Mac GPU.",
+            f"- Tasks: of the {len(h3)} maths, code and JSON tasks, this file and the main file disagree on {win + loss}, "
+            f"and this file is right on {win} of them.",
+            "- Speed and memory match the main file: in two back-to-back runs, whichever file ran earlier was faster.",
+            "- Not scored on T3, which was opened once, for the refined file.", "",
+            f"Run it with the same commands as the main file, with `-m {REFINED2}`.", ""]
+    return out
+
+
+def refined2_insert(live: Path, out: Path, before: str = "## How we made and tested it") -> None:
+    """--refined2 LIVE OUT [HEADING]: put refined2_section() into the README as published before HEADING, replacing
+    an earlier copy, and point the Use command at the recommended file; only the inserted lines are scanned."""
+    sec = refined2_section()
+    bad = check("refined2 section", "\n".join(sec))
+    if bad:
+        print("\n".join(bad), file=sys.stderr)
+        raise SystemExit(1)
+    t = re.sub(r"## Recommended file: .*?(?=" + re.escape(before) + ")", "", text(live), flags=re.S)
+    h = "\n" + before + "\n"
+    assert t.count(h) == 1, f"README needs exactly one {before} heading"
+    t = t.replace(h, "\n" + "\n".join(sec) + h, 1)
+    old = "llama-cli -m Inkling-2-Mini-Metal.gguf "
+    assert t.count(old) == 1, "expected one llama-cli command for the main file"
+    out.write_text(t.replace(old, f"llama-cli -m {REFINED2} "), encoding="utf-8")
+    print(f"wrote {out} ({len(sec)} section lines)")
+
+
 def check(name: str, s: str) -> list[str]:
     return [f"{name}: '{m.group(0)}' near: {s[max(0, m.start() - 40):m.end() + 40]!r}"
             for p in FORBIDDEN for m in re.finditer(p, s, re.I)]
@@ -1124,6 +1200,9 @@ def refined_insert(live: Path, out: Path, before: str = "## Use") -> None:
 def main() -> None:
     if sys.argv[1:2] == ["--refined"]:
         refined_insert(Path(sys.argv[2]), Path(sys.argv[3]), *sys.argv[4:5])
+        return
+    if sys.argv[1:2] == ["--refined2"]:
+        refined2_insert(Path(sys.argv[2]), Path(sys.argv[3]), *sys.argv[4:5])
         return
     v = load()
     if v["verdict"] == "PASS":

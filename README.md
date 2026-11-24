@@ -7,6 +7,29 @@ Inkling 2 Mini is a mixture-of-experts model with a loop. Layers 6 to 17 run thr
 - Full write-up: [docs/report.md](docs/report.md)
 - Model on Hugging Face: [Me-Daniel/Inkling-2-Mini-Metal-GGUF](https://huggingface.co/Me-Daniel/Inkling-2-Mini-Metal-GGUF)
 
+## Recommended file: Inkling-2-Mini-Metal-refined2.gguf (11.57 GB)
+
+Since 24 Nov 2026 this is the file we recommend. It is the refined file described below with one change: the refiner's calibration text now also holds Python and Rust source from 16 other repositories. Tensor types, size and speed are the same as the other two files.
+
+| KL on new text | Main file | Refined file | Refined2 | UD-IQ3_XXS |
+|---|---|---|---|---|
+| Python source | 0.01944 | 0.01659 | 0.01489 | 0.01409 |
+| Rust source | 0.01144 | 0.01013 | 0.00896 | 0.00840 |
+| Go source (in no calibration text) | 0.01799 | 0.01653 | 0.01417 | 0.01324 |
+| TypeScript source (in no calibration text) | 0.01980 | 0.01697 | 0.01511 | 0.01335 |
+| German parliament speeches | 0.03626 | 0.03073 | 0.03149 | 0.02571 |
+| Tasks right of 300 (maths, tool calls, code and JSON) | 253 | 262 | 264 | not run |
+
+- Against the main file: KL 23% lower on new code in four languages (ratio 0.773 [0.745, 0.803]) and 13% lower on German (0.868 [0.842, 0.895]).
+- Against the refined file: 9% lower on Python and Rust (0.905 [0.862, 0.958]) and 12% lower on Go and TypeScript (0.879 [0.852, 0.904]), but 3% higher on German (1.028 [0.999, 1.055]). Before testing we allowed German to get at most 5% worse, judged by that upper bound, which this narrowly misses. By our registered rule the refined file would have stayed; we decided the German difference does not outweigh the gain on code and say so here.
+- The same new texts chose this file over the refined one and then measured it, so its numbers are a little optimistic. The refined file was not chosen on them: against the main file it is 13% lower on the same code (0.867 [0.834, 0.902]).
+- Unsloth's UD-IQ3_XXS is still 5% to 12% closer to the original on new code, and it does not run fully on the Mac GPU.
+- Tasks: of the 200 maths, code and JSON tasks, this file and the main file disagree on 5, and this file is right on 5 of them.
+- Speed and memory match the main file: in two back-to-back runs, whichever file ran earlier was faster.
+- Not scored on T3, which was opened once, for the refined file.
+
+Run it with the same commands as the main file, with `-m Inkling-2-Mini-Metal-refined2.gguf`.
+
 ## Results
 
 Every number comes from `results/pilot/`. KL is measured against a Q8_0 reference at P = 3 passes. T1 and T2 are held-out sets.
@@ -55,7 +78,7 @@ Same tensor types, size class and speed as the main file, with the expert weight
 - Closer to the original on every text we tried, though on Rust the difference is within noise (ratio 0.955 [0.910, 1.009]). On T3 its KL is 26% lower than the main file's (-0.00766 [-0.00898, -0.00631]). On new code the gain is smaller: 8% on Python and 5% on Rust (16% on German). The refiner partly fits its calibration text, and that text holds almost no code.
 - Unsloth's UD-IQ3_XXS stays closer to the original: by 6% on T3 (+0.00094 [+0.00029, +0.00155]) and by 20% to 30% on the new texts.
 - No task type got worse: of the 200 maths, code and JSON tasks, the two files disagree on 6, and the refined file is right on 6 of them. 200 tasks can rule out a large drop but can't measure a small gain.
-- Why it isn't the default: before testing we required KL at least 10% lower than the main file's on new Python, Rust and German together, with 95% confidence. It came out 9% lower (95% CI 7% to 12%), so the rule we registered keeps the main file as the default. For code-heavy use the two are close.
+- Why it was not made the default on 23 Nov: before testing we required KL at least 10% lower than the main file's on new Python, Rust and German together, with 95% confidence. It came out 9% lower (95% CI 7% to 12%), so the rule we registered kept the main file as the default.
 
 Run it with the same commands as the main file, with `-m Inkling-2-Mini-Metal-refined.gguf`.
 
@@ -64,7 +87,7 @@ Run it with the same commands as the main file, with `-m Inkling-2-Mini-Metal-re
 The model needs a llama.cpp build with Inkling 2 support (upstream after 20 Nov 2026). Homebrew's llama.cpp releases as of that date could not load it.
 
 ```sh
-llama-cli -m Inkling-2-Mini-Metal.gguf -ngl 99 --jinja -c 32768 --temp 1.0 --reasoning-budget 16384
+llama-cli -m Inkling-2-Mini-Metal-refined2.gguf -ngl 99 --jinja -c 32768 --temp 1.0 --reasoning-budget 16384
 llama-server -m Inkling-2-Mini-Metal.gguf -ngl 99 --jinja -c 32768 --temp 1.0 --reasoning-budget 16384 --port 8080
 ```
 
