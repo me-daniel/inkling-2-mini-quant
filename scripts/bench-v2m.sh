@@ -4,6 +4,7 @@
 # so it never holds an idle GPU (the sibling's bench2.sh pattern). Same settings as bench-v2r.sh, plus peak memory.
 set -eu
 ROOT=$(cd "$(dirname "$0")/.." && pwd -P); cd "$ROOT"
+NAMES=${NAMES:-cand v2m}; T=${T:-3}  # e.g. NAMES="cand v2c" T=4 writes bench4-* and depth4-*
 BIN=vendor/llama.cpp/build/bin; R=results/pilot; L=logs
 . scripts/gpu-lock.sh
 while :; do
@@ -15,15 +16,15 @@ while :; do
 done
 mem_wait
 echo "[$(date '+%H:%M:%S')] both locks held; memory: $(memory_pressure | grep -o 'free percentage: [0-9]*%')"
-git -C vendor/llama.cpp rev-parse --short HEAD > $R/bench3-commit.txt
-for name in cand v2m; do
+git -C vendor/llama.cpp rev-parse --short HEAD > $R/bench$T-commit.txt
+for name in $NAMES; do
     echo "[$(date '+%H:%M:%S')] bench $name"
-    $BIN/llama-bench -m models/$name.gguf -ngl 99 -p 512 -n 128 -r 3 -o md > $R/bench3-$name.txt 2> $L/bench3-$name.log
-    cat $R/bench3-$name.txt
+    $BIN/llama-bench -m models/$name.gguf -ngl 99 -p 512 -n 128 -r 3 -o md > $R/bench$T-$name.txt 2> $L/bench$T-$name.log
+    cat $R/bench$T-$name.txt
 done
-for name in cand v2m; do
+for name in $NAMES; do
     echo "[$(date '+%H:%M:%S')] depth bench and peak memory $name"
-    /usr/bin/time -l $BIN/llama-bench -m models/$name.gguf -ngl 99 -p 512 -n 128 -d 0,4096,16384 -r 2 -o md > $R/depth3-$name.txt 2> $L/depth3-$name.log
-    cat $R/depth3-$name.txt; grep -E "maximum resident set size|peak memory footprint" $L/depth3-$name.log
+    /usr/bin/time -l $BIN/llama-bench -m models/$name.gguf -ngl 99 -p 512 -n 128 -d 0,4096,16384 -r 2 -o md > $R/depth$T-$name.txt 2> $L/depth$T-$name.log
+    cat $R/depth$T-$name.txt; grep -E "maximum resident set size|peak memory footprint" $L/depth$T-$name.log
 done
 echo "[$(date '+%H:%M:%S')] bench done"

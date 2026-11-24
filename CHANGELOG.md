@@ -614,3 +614,18 @@ From `results/battery/a16.md` (`analysis/a16.py`; lines below copied from it by 
 - Amendment 16: v2c is better than v2m on all four A2 code domains, but the German guard misses its bar (upper bound above 1.05), so v2m stays the alternative file as registered. v2c is not published.
 - Amendment 17: the candidate is v2m (amendment 16 did not replace it), so A2 did not select it and the reuse caveat does not arise. The rule says switch the default to v2m. Daniel decides at the end (record of 24 Nov, ~06:00); nothing is published yet.
 - Dropped, as not needed for these decisions (Daniel, 24 Nov): the tensor-class swap diagnostic and the down-projection pilot named in the ~06:00 record.
+
+### Record: Daniel overrides amendment 16's German guard (2026-11-24, ~13:55; after the A2 result)
+
+Daniel: the German guard miss "doesn't matter". v2c is therefore treated as passing amendment 16. This departs from the registered rule (guard upper bound 1.055 against the bar 1.05) and is the owner's decision, not the rule's; the card has to say so if v2c ships.
+- Amendment 17 for v2c against v1 (`results/battery/a16-v2c-default.md`; A2 also selected v2c, so its data are reused):
+  - R (v2c / v1, A2 python, rust, go, typescript) = 0.773 [0.745, 0.803]
+  - python: 0.767 [0.732, 0.803]
+  - rust: 0.785 [0.722, 0.860]
+  - go: 0.782 [0.728, 0.831]
+  - typescript: 0.760 [0.691, 0.827]
+  - german (guard text, battery A): 0.868 [0.842, 0.895]
+  - rule (upper bound below 1, no code domain above 1.05, tasks passed +2.5 points): met
+- Speed and memory of v2c against v1: `scripts/bench-v2m.sh` with NAMES="cand v2c" T=4, results in `results/pilot/bench4-*` and `depth4-*`.
+- Nothing is published; the default and what ships are Daniel's decision at the end.
+- Bench (`logs/bench4.out`, `logs/bench5.out`; files `results/pilot/bench4-*`, `depth4-*`, `bench5-*`, `depth5-*`): v1 and v2c run back to back in both orders. In each run the file benched first is faster, so the differences are drift (thermal or power; the Mac was on battery), not the file; v2c has v2m's tensor types and byte size. Absolute speeds are not comparable with the 23 Nov bench3 numbers (different machine state, same llama.cpp build).
