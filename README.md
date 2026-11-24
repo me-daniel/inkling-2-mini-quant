@@ -98,13 +98,13 @@ Stock upstream llama.cpp (`c661033`, no patches) gives this file the same scores
 ### Which Mac
 
 - 24 GB or more: the model fits with room for a 16K context and other apps.
-- 16 GB: the model can run after you raise the GPU memory limit, with a short context and little RAM left for other apps. By default, macOS lets the GPU use only about two thirds of RAM, which is less than the model needs. To raise the limit:
+- 16 GB: use [Inkling-2-Mini-Metal-8.9G.gguf](https://huggingface.co/Me-Daniel/Inkling-2-Mini-Metal-GGUF/blob/main/Inkling-2-Mini-Metal-8.9G.gguf) (8.93 GB; method and tests in [inkling-2-mini-under10](https://github.com/me-daniel/inkling-2-mini-under10)). The larger files can run after you raise the GPU memory limit, with a short context and little RAM left for other apps. By default, macOS lets the GPU use only about two thirds of RAM, which is less than they need. To raise the limit:
 
 ```sh
 sudo sysctl iogpu.wired_limit_mb=13000   # resets on reboot
 ```
 
-On our Mac, memory use for the whole process peaked at 13.9 GB with the context filled to 16K tokens (`results/pilot/memory-cand.txt`).
+On our Mac, with the main file, memory use for the whole process peaked at 13.9 GB with the context filled to 16K tokens (`results/pilot/memory-cand.txt`).
 
 ## Reproduce
 
