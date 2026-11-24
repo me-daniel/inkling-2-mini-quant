@@ -588,3 +588,14 @@ Why: amendment 15's H1 bar (upper bound at most 0.90) asked whether most of v2m'
 - Rule, on A2 python, rust, go and typescript (`analysis/a16.py` data, the same resampler): R = mean over the four domains of the per-domain geometric-mean ratio candidate / v1. Switch if R's 95% upper bound is below 1 and no single domain's upper bound is above 1.05. The candidate must also have passed amendment 15's H3 task rule (v2m: passed; v2c: amendment 16's task run).
 - Effect: the card recommends the refined file first. File names stay as they are, so pinned downloads keep working. Publishing the change needs Daniel's go. If the rule fails, v1 stays the default and the card says so.
 - Reported in `results/battery/a16.md` by `analysis/a16.py`, added before scoring.
+
+### Record: second opinions on the remaining decisions; Daniel decides the default (2026-11-24, ~06:00, before any model is scored on A2)
+
+Daniel: he decides the default switch himself at the very end; the open decisions until then go to GPT-6.2 Astra (high) and Claude Fable 5.2 (medium). Reviews and the point-by-point response: `reviews/2026-11-24-decisions-{astra,fable}.md`.
+- Default: amendment 17's rule still runs and its verdict is published either way, as one input to Daniel's decision. If the decision departs from the rule, the card says so.
+- v2c's task run goes ahead as registered, whatever A2 shows.
+- If v2c qualifies, it ships under a new file name next to the existing two (no name ever gets new bytes), after Daniel's go.
+- T3 is not used for v2c.
+- `analysis/a16.py`: when v2c is amendment 17's candidate, v2m's amendment 17 line is printed too, marked descriptive, because A2 then both selected v2c and judges it.
+- Reading rules fixed now: H-C1 rests on 16 documents, so a fail means no evidence of a gain, not evidence against code; a pass is credited to the larger calibration with code, not to code alone (no token-matched control); the task check screens for large drops on 200 items and is not a no-regression guarantee.
+- Next, after A2: a decision table (fresh, seen and descriptive rows marked; KL, tasks, size, speed, memory), then a diagnostic on battery A's code text that swaps one tensor class at a time between v2m and UD-IQ3_XXS. A down-projection search follows only if that diagnostic points there, under its own registration and a fresh set.

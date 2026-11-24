@@ -86,13 +86,19 @@ def main() -> None:
     print(f"\nDecision: {verdict}")
     alt = "v2c" if tok and h1 and gok else "v2m"
     four = CODE + NEW
-    R = ratio_ci({d: (a2(d, alt), a2(d, "cand")) for d in four})
-    per = {d: ratio_ci({d: (a2(d, alt), a2(d, "cand"))}) for d in four}
-    task_ok = True if alt == "v2m" else tok  # v2m passed amendment 15's H3
-    switch = R[2] < 1 and all(r[2] <= 1.05 for r in per.values()) and task_ok
-    print(f"Amendment 17 ({alt} against v1, A2 code): R = {fmt(R)}; per domain "
-          + ", ".join(f"{d} {fmt(r)}" for d, r in per.items())
-          + f" -> {'switch the default to ' + alt + ' (needs Daniel' + chr(39) + 's go)' if switch else 'v1 stays the default'}")
+    for cand in [alt] + (["v2m"] if alt == "v2c" else []):  # v2c was picked on A2 python and rust: show v2m too
+        R = ratio_ci({d: (a2(d, cand), a2(d, "cand")) for d in four})
+        per = {d: ratio_ci({d: (a2(d, cand), a2(d, "cand"))}) for d in four}
+        if cand != alt:
+            print(f"Amendment 17, descriptive ({cand} against v1; A2 also selected v2c, so the line above reuses its data): "
+                  f"R = {fmt(R)}; per domain " + ", ".join(f"{d} {fmt(r)}" for d, r in per.items()))
+            continue
+        task_ok = True if alt == "v2m" else tok  # v2m passed amendment 15's H3
+        switch = R[2] < 1 and all(r[2] <= 1.05 for r in per.values()) and task_ok
+        print(f"Amendment 17 ({alt} against v1, A2 code): R = {fmt(R)}; per domain "
+              + ", ".join(f"{d} {fmt(r)}" for d, r in per.items())
+              + f" -> {'rule says switch the default to ' + alt if switch else 'rule says v1 stays the default'}"
+              + " (Daniel decides at the end; the rule is one input)")
 
 
 if __name__ == "__main__":
