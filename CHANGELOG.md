@@ -599,3 +599,18 @@ Daniel: he decides the default switch himself at the very end; the open decision
 - `analysis/a16.py`: when v2c is amendment 17's candidate, v2m's amendment 17 line is printed too, marked descriptive, because A2 then both selected v2c and judges it.
 - Reading rules fixed now: H-C1 rests on 16 documents, so a fail means no evidence of a gain, not evidence against code; a pass is credited to the larger calibration with code, not to code alone (no token-matched control); the task check screens for large drops on 200 items and is not a no-regression guarantee.
 - Next, after A2: a decision table (fresh, seen and descriptive rows marked; KL, tasks, size, speed, memory), then a diagnostic on battery A's code text that swaps one tensor class at a time between v2m and UD-IQ3_XXS. A down-projection search follows only if that diagnostic points there, under its own registration and a fresh set.
+
+### Addendum H amendments 16 and 17, A2 result (2026-11-24, 13:43; a record; A2 now used)
+
+From `results/battery/a16.md` (`analysis/a16.py`; lines below copied from it by script). v2c: `models/v2c.gguf`, 11566703648 bytes, sha256 `87717501...c52f` (`results/pilot/v2c-sha256.txt`). Every A2 run has 32 chunks; v2m on the German guard text reproduces battery A's mean KL exactly.
+- H-C1 (A2 python, rust): v2c / v2m = 0.905 [0.862, 0.958] -> PASS
+- H-C2 (A2 go, typescript): v2c / v2m = 0.879 [0.852, 0.904] -> transfer
+- guard T1 (seen): v2c / v2m = 1.001 [0.980, 1.023] -> held
+- guard T2 (seen): v2c / v2m = 0.976 [0.930, 1.040] -> held
+- guard A2 german: v2c / v2m = 1.028 [0.999, 1.055] -> BROKEN
+- tasks (B1+B3+B4, n=200): v2c - v1 = +2.5 points, one-sided 95% bounds [+0.7, +2.5], discordant 5 / 0 -> PASS
+- Decision: v2m stays
+- Amendment 17 (v2m against v1, A2 code): R = 0.867 [0.834, 0.902]; per domain python 0.856 [0.824, 0.889], rust 0.858 [0.754, 0.958], go 0.891 [0.834, 0.941], typescript 0.864 [0.799, 0.932] -> rule says switch the default to v2m (Daniel decides at the end; the rule is one input)
+- Amendment 16: v2c is better than v2m on all four A2 code domains, but the German guard misses its bar (upper bound above 1.05), so v2m stays the alternative file as registered. v2c is not published.
+- Amendment 17: the candidate is v2m (amendment 16 did not replace it), so A2 did not select it and the reuse caveat does not arise. The rule says switch the default to v2m. Daniel decides at the end (record of 24 Nov, ~06:00); nothing is published yet.
+- Dropped, as not needed for these decisions (Daniel, 24 Nov): the tensor-class swap diagnostic and the down-projection pilot named in the ~06:00 record.
