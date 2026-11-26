@@ -1008,7 +1008,7 @@ def lean_card(v: dict, cand_bytes: int) -> list[str]:
         C += [f"Measured on our Mac, the whole process peaked at {mem['rss'] / 1e9:.1f} GB with the context filled to "
               "16K tokens.", ""]
     C += ["## Research background", "",
-         "We made this file as part of a master's thesis pilot on looped models. Inkling 2 Mini runs layers 6 to 17 "
+         "We made this file alongside a research pilot on looped models. Inkling 2 Mini runs layers 6 to 17 "
          "three times with the same weights. We enabled quantization error on one pass at a time to measure how the "
          "errors add up across passes. We chose the file's layout independently of it.", "",
          "![How the per-pass test is built](figures/loop-diagram.svg)", "",
