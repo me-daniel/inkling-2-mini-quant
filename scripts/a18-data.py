@@ -34,6 +34,23 @@ spec2 = importlib.util.spec_from_file_location("a16", ROOT / "scripts/a16-data.p
 a16 = importlib.util.module_from_spec(spec2)
 spec2.loader.exec_module(a16)
 bd.EXT["javascript"] = ".js"
+
+
+def _get(url: str) -> bytes:
+    """battery-data's get() with a 30-minute cap (large tarballs timed out at 300 s) and 5 tries with backoff;
+    Wikipedia answered HTTP 429 to back-to-back requests, so its calls also wait 1 s first."""
+    import subprocess
+    import time
+    for k in range(5):
+        if "wikipedia.org" in url:
+            time.sleep(1 + 10 * k)
+        r = subprocess.run(["curl", "-sfL", "--max-time", "1800", "-A", bd.UA["User-Agent"], url], capture_output=True)
+        if r.returncode == 0:
+            return r.stdout
+    raise subprocess.CalledProcessError(r.returncode, url)
+
+
+bd.get = _get
 JS_SKIP = re.compile(r"(^|/)(dist|build|node_modules|lib/vendor|packages/.*/test)(/|$)|\.min\.js$|\.bundle\.js$")
 NDOC = 12
 REP = ROOT / "results/a18"
