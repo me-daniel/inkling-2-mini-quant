@@ -316,8 +316,124 @@ def _pick_iq3xxs_(f, Gb, Rg, cur, db, neg_partner, uw, thr):
     return cidx, cneg
 
 
+# ---- scale step (amendment 20, --scales) --------------------------------------------------------------------------
+# value = ((d * (0.5 + s) * c) * grid) * sign in float32, c = 0.25 (IQ2_S, s per 16 values) or 0.5 (IQ3_XXS, s per
+# 32 values, the top nibble of each aux word). The step changes only s nibbles and fp16 d, never codes or signs.
+
+def _sub_len(f: Fmt) -> int:
+    return 16 if f.qtype == Q.IQ2_S else 32
+
+
+def _set_scale(f: Fmt, raw: np.ndarray, rows: np.ndarray, m: int, s: np.ndarray) -> None:
+    """In place: sub-block scale m (global along the row) of the given rows := s (0..15)."""
+    per = QK_K // _sub_len(f)
+    blk, j = divmod(m, per)
+    s = np.asarray(s, dtype=np.uint8) & 0x0F
+    if f.qtype == Q.IQ2_S:
+        b, sh = blk * f.bsize + 74 + j // 2, 4 * (j % 2)
+        raw[rows, b] = (raw[rows, b] & np.uint8(~(0x0F << sh) & 0xFF)) | (s << np.uint8(sh))
+    else:
+        b = blk * f.bsize + 66 + 4 * j + 3  # top byte of the little-endian aux word
+        raw[rows, b] = (raw[rows, b] & np.uint8(0x0F)) | (s << np.uint8(4))
+
+
+def _set_d(f: Fmt, raw: np.ndarray, rows: np.ndarray, blk: int, d16: np.ndarray) -> None:
+    o = blk * f.bsize
+    raw[rows, o:o + 2] = np.asarray(d16, dtype=np.float16).reshape(-1, 1).view(np.uint8)
+
+
+def _block_values(f: Fmt, raw_rows: np.ndarray, blk: int) -> np.ndarray:
+    """Exact float32 values [rows, 256] of block blk, through the same decode as everywhere else."""
+    return decode(f, np.ascontiguousarray(raw_rows[:, blk * f.bsize:(blk + 1) * f.bsize]))
+
+
+def _accept(ok, dj, dnum, gch, gain_guard):
+    if gain_guard:
+        keep = gch + dnum >= 0
+        return ok & keep, int(np.sum(ok & ~keep))
+    return ok, 0
+
+
+def scale_step(f: Fmt, raw, dq, E, R, U, w64, g, gch, gain_guard=True):
+    """One pass over every sub-block scale (all 16 nibble values scored exactly), then every block's fp16 d (the
+    closed-form optimum d* = d - (y.R)/(y g y) with y = dv/dd, then the fp16 values next to d* scored exactly).
+    A move is taken if its exact dJ < 0 and (guarded) the row's tracked output-gain change stays >= 0.
+    raw, dq, E, R, gch are updated in place. Returns (sub-block moves, d moves, d moves blocked by the gain floor,
+    summed exact dJ of the accepted moves)."""
+    rows, cols = dq.shape
+    nb, L = cols // QK_K, _sub_len(f)
+    acc_s = acc_d = blocked = 0
+    dj_sum = 0.0
+    for m in range(cols // L):
+        blk, c = m * L // QK_K, slice(m * L, (m + 1) * L)
+        cur = dq[:, c].astype(np.float64)
+        best_dj, best_s, best_v, best_dn = np.zeros(rows), np.full(rows, -1), None, np.zeros(rows)
+        for s in range(16):
+            trial = raw[:, blk * f.bsize:(blk + 1) * f.bsize].copy()
+            _set_scale(f, trial, np.arange(rows), m - blk * (QK_K // L), np.full(rows, s))
+            v = decode(f, trial)[:, (m * L) % QK_K:(m * L) % QK_K + L]
+            dd = v.astype(np.float64) - cur
+            with np.errstate(all="ignore"):
+                dj = 2 * np.sum(dd * R[:, c], axis=1) + np.einsum("ri,ri->r", dd @ g[c, c], dd)
+            dn = np.einsum("ri,ri->r", dd, U[:, c])
+            ok, _ = _accept(dj < best_dj, dj, dn, gch, gain_guard)
+            if best_v is None:
+                best_v = np.array(v)
+            best_dj, best_s, best_dn = np.where(ok, dj, best_dj), np.where(ok, s, best_s), np.where(ok, dn, best_dn)
+            best_v[ok] = v[ok]
+        a = np.nonzero(best_s >= 0)[0]
+        if len(a):
+            dd = best_v[a].astype(np.float64) - cur[a]
+            _set_scale(f, raw, a, m, best_s[a])
+            dq[a, c] = best_v[a]
+            E[a, c] = best_v[a].astype(np.float64) - w64[a, c]
+            with np.errstate(all="ignore"):
+                R[a] += dd @ g[c, :]
+            gch[a] += best_dn[a]
+            dj_sum += float(best_dj[a].sum())
+            acc_s += len(a)
+    for blk in range(nb):
+        c = slice(blk * QK_K, (blk + 1) * QK_K)
+        cur = dq[:, c].astype(np.float64)
+        d0 = raw[:, blk * f.bsize:blk * f.bsize + 2].copy().view(np.float16).reshape(-1)
+        d32 = d0.astype(np.float64)
+        y = np.where(d32[:, None] != 0, cur / np.where(d32 == 0, 1, d32)[:, None], 0.0)  # dv/dd (values are linear in d)
+        with np.errstate(all="ignore"):
+            yg = y @ g[c, c]
+            curv = np.einsum("ri,ri->r", yg, y)
+            dstar = d32 - np.einsum("ri,ri->r", y, R[:, c]) / np.where(curv > 0, curv, np.inf)
+        near = dstar.astype(np.float16)
+        cands = [near, np.nextafter(near, np.float16(np.inf)), np.nextafter(near, np.float16(-np.inf))]
+        best_dj, best_d, best_v, best_dn = np.zeros(len(d0)), d0.copy(), cur.astype(np.float32), np.zeros(len(d0))
+        for dc in cands:
+            valid = np.isfinite(dc) & (dc > 0) & (dc != d0) & (curv > 0)
+            trial = raw[:, blk * f.bsize:(blk + 1) * f.bsize].copy()
+            _set_d(f, trial, np.arange(rows), 0, np.where(valid, dc, d0))
+            v = decode(f, trial)
+            dd = v.astype(np.float64) - cur
+            with np.errstate(all="ignore"):
+                dj = 2 * np.sum(dd * R[:, c], axis=1) + np.einsum("ri,ri->r", dd @ g[c, c], dd)
+            dn = np.einsum("ri,ri->r", dd, U[:, c])
+            ok, b = _accept(valid & (dj < best_dj), dj, dn, gch, gain_guard)
+            blocked += b
+            best_dj, best_dn = np.where(ok, dj, best_dj), np.where(ok, dn, best_dn)
+            best_d[ok], best_v[ok] = dc[ok], v[ok]
+        a = np.nonzero(best_d != d0)[0]
+        if len(a):
+            dd = best_v[a].astype(np.float64) - cur[a]
+            _set_d(f, raw, a, blk, best_d[a])
+            dq[a, c] = best_v[a]
+            E[a, c] = best_v[a].astype(np.float64) - w64[a, c]
+            with np.errstate(all="ignore"):
+                R[a] += dd @ g[c, :]
+            gch[a] += best_dn[a]
+            dj_sum += float(best_dj[a].sum())
+            acc_d += len(a)
+    return acc_s, acc_d, blocked, dj_sum
+
+
 def refine(f: Fmt, raw: np.ndarray, w: np.ndarray, g: np.ndarray, max_sweeps: int = 4, tol: float = 1e-4,
-           ridge_rel: float = 1e-6, g_report: np.ndarray | None = None, gain_guard: bool = True):
+           ridge_rel: float = 1e-6, g_report: np.ndarray | None = None, gain_guard: bool = True, scales: bool = False):
     """raw uint8 [rows, row_bytes] (not modified), w float32 [rows, cols] (the target), g float64 [cols, cols]
     symmetric, the matrix of the objective. With g_report, also logs J under that matrix (JG_before/after).
     gain_guard (amendment 9c): a move is accepted only if dJ < 0 and the row's output gain
@@ -378,12 +494,17 @@ def refine(f: Fmt, raw: np.ndarray, w: np.ndarray, g: np.ndarray, max_sweeps: in
             gch[a] += dnum[a]
             tracked += float(dj[a].sum())
             acc_n += len(a)
+        sc_s = sc_d = sc_b = 0
+        if scales:
+            sc_s, sc_d, sc_b, sc_dj = scale_step(f, raw, dq, E, R, U, w64, g, gch, gain_guard)
+            tracked += sc_dj
+            db, idx, neg = fields(f, raw)  # the code search of the next sweep uses the new scales
         with np.errstate(all="ignore"):
             j1 = float(np.sum(E * (E @ g)))
         num_now = np.einsum("ri,ri->r", dq.astype(np.float64), U)  # recomputed, not tracked
         pos = den_r > 0
         sweeps.append({"sweep": s + 1, "J_before": j0, "J_after": j1, "J_tracked": tracked, "accepted": acc_n,
-                       "gain_blocked": blocked, "ogain_before": _ratio(num_start.sum(), den_r.sum()),
+                       "gain_blocked": blocked, "scale_moves": sc_s, "d_moves": sc_d, "scale_gain_blocked": sc_b, "ogain_before": _ratio(num_start.sum(), den_r.sum()),
                        "ogain_after": _ratio(num_now.sum(), den_r.sum()),
                        "min_row_ogain_change": float(np.min((num_now[pos] - num0[pos]) / den_r[pos])) if pos.any() else 0.0,
                        "seconds": round(time.time() - t0, 2)})
@@ -425,7 +546,8 @@ def _worker_init(quant, bf16, grams):
 
 
 def _one(job):
-    layer, e, sweeps, tol, ridge_rel, shrink, min_tokens, gain_guard = job
+    layer, e, sweeps, tol, ridge_rel, shrink, min_tokens, gain_guard, *rest = job
+    scales = bool(rest and rest[0])  # amendment 20; 8-field jobs (older callers) run codes only
     n = f"blk.{layer}.ffn_gate_up_exps.weight"
     tq, tb = _W["q"][n], _W["b"][n]
     f = FMTS[tq.tensor_type]
@@ -449,12 +571,12 @@ def _one(job):
                else f"{neg_d} blocks with negative d (sign rule assumes d > 0)")
         rec.update(skipped=why, sweeps=[], seconds=round(time.time() - t0, 2))
         return layer, e, raw0, rec
-    raw1, dq1, sw = refine(f, raw0, w, h, sweeps, tol, ridge_rel, g_report=g, gain_guard=gain_guard)
+    raw1, dq1, sw = refine(f, raw0, w, h, sweeps, tol, ridge_rel, g_report=g, gain_guard=gain_guard, scales=scales)
     if gain_guard and sw and sw[-1]["min_row_ogain_change"] < -1e-9:
         raise AssertionError(f"layer {layer} expert {e}: a row's output gain fell by {sw[-1]['min_row_ogain_change']:.3g}")
     validate(f, raw1, dq1)
     mask = fixed_bits_mask(f, raw0.shape[1])
-    if not np.array_equal(raw0 & mask, raw1 & mask):
+    if not scales and not np.array_equal(raw0 & mask, raw1 & mask):
         raise AssertionError(f"layer {layer} expert {e}: d or scale bits changed")
     for x in sw:
         x["relreg_before"], x["relreg_after"] = _ratio(x["J_before"], den_h), _ratio(x["J_after"], den_h)
@@ -478,6 +600,8 @@ def main() -> None:
     ap.add_argument("--min-tokens", type=int, default=2304, help="refine only experts with at least this many Gram tokens")
     ap.add_argument("--no-gain-guard", dest="gain_guard", action="store_false",
                     help="drop amendment 9c's per-row output-gain floor (offline record only)")
+    ap.add_argument("--scales", action="store_true",
+                    help="amendment 20: after each sweep's code moves, also move sub-block scales and fp16 d (scale_step)")
     ap.add_argument("--workers", type=int, default=1, help="experts refined in parallel processes")
     ap.add_argument("--out", default="models/refined/gu-refined-6-20.gguf")
     ap.add_argument("--min-free", type=int, default=30)
@@ -507,7 +631,7 @@ def main() -> None:
            "layers": {str(l): {"type": qt[f"blk.{l}.ffn_gate_up_exps.weight"].tensor_type.name, "experts": []}
                       for l in args.layers}}
     del qt
-    jobs = [(l, e, args.sweeps, args.tol, args.ridge, args.shrink, args.min_tokens, args.gain_guard)
+    jobs = [(l, e, args.sweeps, args.tol, args.ridge, args.shrink, args.min_tokens, args.gain_guard, args.scales)
             for l in args.layers for e in experts]
     t0 = time.time()
 

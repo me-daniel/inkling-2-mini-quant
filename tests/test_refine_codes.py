@@ -403,3 +403,51 @@ def test_singular_group_with_zero_ridge_astra_point32():
     Rg, cur = rng.standard_normal((3, k)), rng.standard_normal((3, k))
     pats = rc._iq2s_sign_patterns(Gb, Rg, cur, np.full(3, 1e-3), np.zeros((3, k), dtype=bool), 0.0)
     assert len(pats) == 3 and all(p.shape == (3, k) for p in pats)
+
+
+# (amendment 20) the scale step: nibble and fp16 d writes decode as documented; the objective falls; codes stay
+@pytest.mark.parametrize("qt", TYPES)
+def test_set_scale_changes_only_its_sub_block(qt):
+    f = rc.FMTS[qt]
+    rng = np.random.default_rng(5)
+    raw = random_raw(f, 3, 2, rng)
+    L = rc._sub_len(f)
+    for m in (0, 3, 256 // L + 1):
+        out = raw.copy()
+        rc._set_scale(f, out, np.arange(3), m, np.full(3, 11))
+        db0, idx0, neg0 = rc.fields(f, raw)
+        db1, idx1, neg1 = rc.fields(f, out)
+        gs = np.arange(m * L // f.k, (m + 1) * L // f.k)
+        d = raw.reshape(3, 2, f.bsize)[:, m * L // 256, :2].copy().view(np.float16).reshape(3).astype(np.float32)
+        c = np.float32(0.25 if qt == Q.IQ2_S else 0.5)
+        np.testing.assert_array_equal(db1[:, gs], np.repeat((d * (np.float32(0.5) + np.float32(11)) * c)[:, None], len(gs), 1))
+        other = np.setdiff1d(np.arange(db0.shape[1]), gs)
+        np.testing.assert_array_equal(db1[:, other], db0[:, other])
+        np.testing.assert_array_equal(idx1, idx0)
+        np.testing.assert_array_equal(neg1, neg0)
+        rc.validate(f, out)
+
+
+@pytest.mark.parametrize("guard", [False, True])
+@pytest.mark.parametrize("qt", TYPES)
+def test_refine_with_scales_moves_scales_and_tracks_the_objective(qt, guard):
+    f = rc.FMTS[qt]
+    rng = np.random.default_rng(3)
+    rows, nb = 12, 2
+    raw = random_raw(f, rows, nb, rng)
+    dq = rc.decode(f, raw)
+    w = (1.15 * dq + 0.004 * rng.standard_normal(dq.shape)).astype(np.float32)  # scales are off by 15%
+    g = correlated_gram(dq.shape[1], 2000, rng)
+    out0, dq0, sw0 = rc.refine(f, raw, w, g, max_sweeps=3, tol=0.0, gain_guard=guard)
+    out1, dq1, sw1 = rc.refine(f, raw, w, g, max_sweeps=3, tol=0.0, gain_guard=guard, scales=True)
+    assert sum(s["scale_moves"] + s["d_moves"] for s in sw1) > 0
+    js = [sw1[0]["J_before"]] + [s["J_after"] for s in sw1]
+    assert all(b <= a for a, b in zip(js, js[1:]))
+    for s in sw1:
+        assert s["J_tracked"] == pytest.approx(s["J_after"], rel=1e-8)
+    assert sw1[-1]["J_after"] < sw0[-1]["J_after"]  # a 15% scale error is what codes alone cannot fix
+    if guard:
+        u = w.astype(np.float64) @ g
+        gain = lambda q: np.einsum("ri,ri->r", q.astype(np.float64), u) / np.einsum("ri,ri->r", w.astype(np.float64), u)
+        assert np.all(gain(dq1) >= gain(dq) - 1e-12)
+    rc.validate(f, out1, dq1)

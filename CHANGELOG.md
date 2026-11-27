@@ -759,3 +759,28 @@ Selection rule, written now:
 Not in this amendment:
 - Joint scale and code refinement (backlog T2; Astra's closed-form block-scale step plus exact nibble search under the row gain floor). It needs its own registration with a matched control. The sibling's record (22 Nov) shows that scale refits without a gain constraint lowered the Gram error and raised KL.
 - The c2 exchanges at c1's size (Astra: IQ4_NL downs moved from 5, 18, 19, 21 to the core layers 10, 14, 15, 16, plus a gate exchange). c1 belongs to the sibling project, so they go there as a proposal.
+
+### Addendum H amendment 20: pilot of joint scale and code refinement (backlog T2) (2026-11-27, ~11:30, before any of its data)
+
+Why: GSQ's central idea is to learn scales together with codes. Our refiner keeps llama-quantize's fp16 d and 4-bit sub-block scales. Astra (amendment 19 review, point 3) called the joint version well posed: the closed-form block scale, then the representable values next to it, and an exact search over the 16 nibble values, all under the full-Gram objective and the row gain floor. The sibling's record (22 Nov) is the warning: a scale refit without a gain constraint lowered the Gram error and raised KL.
+
+Change: `scripts/refine-codes.py --scales`, off by default.
+- After each sweep's code moves, `scale_step` visits every sub-block scale (16 values each, scored exactly) and then every block's fp16 d (d* = d - (y·R)/(y H y) with y = dv/dd, then the fp16 value nearest d* and its two neighbours, scored exactly; d stays > 0).
+- A move is taken only if its exact dJ < 0 and the row's tracked output-gain change stays ≥ 0 (amendment 9c's floor).
+- Codes and signs are never changed by the scale step. Every expert is still checked: our decode equals gguf-py's bit for bit, and every value is db × level.
+- Tests: `tests/test_refine_codes.py` (a nibble write changes only its sub-block; J falls monotonically and the tracked dJ equals the recomputed J; the gain floor holds; with a 15% scale error, codes plus scales end below codes alone).
+
+Pilot, layers 6 (IQ2_S, looped core) and 20 (IQ3_XXS):
+- Grams: `scripts/gram-gu.sh` with v2c's settings (calib-mixc, 400 chunks, cand.gguf at P = 3).
+- Arm A (matched control): `refine-codes.py --quant models/v2c.gguf` codes only, v2c's settings (4 sweeps, tol 1e-4, shrink 0.1, min-tokens 2304, gain floor).
+- Arm B: the same with `--scales`.
+- Both start from v2c's released codes, so the gain floor is relative to v2c's rows, not llama-quantize's. That difference is stated, not corrected.
+- Offline readout per layer: summed J under G after A and after B (from the JSON logs).
+- KL readout: v2c with layers 6 and 20 from B against v2c with them from A, on S (P = 3, 16 chunks). Paired chunk-bootstrap CI, as in amendment 19.
+
+Decision, written now:
+- If B's J under G is at least 2% below A's in both layers and KL(B) - KL(A) on S is below 0 (point estimate; CI reported): register the full-file run (all 22 refined layers, with S selecting, T1 confirming and A4 as the fresh set) as the next amendment.
+- If J falls but KL does not: report it as a second case where the local objective does not carry, and stop T2 here.
+- If J does not fall by 2%: stop T2 here.
+
+GPU and CPU order: after amendment 18's parts A-C. The Gram capture and both arms share the locks with amendment 19.
