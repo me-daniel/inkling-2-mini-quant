@@ -906,3 +906,12 @@ Why: llama.cpp master runs NVFP4 on Metal since 23 Nov (#32825), so the all-Meta
 Build: `scripts/splice.py` on v2c, `--take` UD-IQ3_XXS's NVFP4 `ffn_down_exps.weight` in layers 0-19 and `--add` their `.scale` tensors (+10 KB; NVFP4 and IQ4_NL are both 4.5 bpw). Name `a22-nv`. A donor build: a diagnostic, never a release candidate.
 Scoring (T2 at -c 2048 as its reference): measurement build (NVFP4 on the CPU there; master vs this build on UD-IQ2_XXS +0.00008 [-0.00011, +0.00027], sibling record), P = 3, S, then T1 and T2. Paired chunk bootstrap against v2c (`analysis/a19.py` paired_delta), built by `analysis/a22.py`.
 Rule, on S: KL(a22-nv) - KL(v2c) with CI upper below 0 → register a v3 track with our own NVFP4 downs (Daniel's snap tool), selected on S, confirmed on T1, checked once against UD on a new fresh set. Otherwise the down format is not worth a build-dependent file and the track stops. T1, T2 and the comparison with UD are descriptive.
+
+### Record: amendment 22 result (2026-11-28; `results/a18/a22.md`, built by `analysis/a22.py`)
+
+Splice verified (684 tensors from v2c, 20 NVFP4 downs and 20 `.scale` tensors from UD). KL, paired chunk CI:
+- S: 0.01990 vs v2c 0.02099, −0.00109 [−0.00146, −0.00068]. **By the registered rule a v3 track with our own NVFP4 downs opens.**
+- T1 (descriptive): −0.00099 [−0.00136, −0.00064]. T2 (descriptive, 5 chunks): −0.00101 [−0.00173, −0.00030].
+- Against UD-IQ3_XXS (descriptive): S −0.00060 [−0.00145, +0.00029], T1 −0.00048 [−0.00140, +0.00046], T2 +0.00019 [−0.00107, +0.00145]; none resolved, at 97 MB less.
+
+Reading: the down format is worth about 5% of v2c's KL on every set, the same size as amendment 2's mirror (+0.00099 for UD with IQ4_NL downs). With it, v2c's encoding ties UD's file. The a22-nv file is deleted; it was never a candidate. Next: the v3 track needs its own registration (our NVFP4 encoding via Daniel's snap tool, S select, T1 confirm, A4 once against UD and ISTA).
