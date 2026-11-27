@@ -724,3 +724,38 @@ Actions, written now:
 - P2, ISTA closer: the sibling project corrects c1's claim and stops tuning KL-per-byte promotions.
 - P2, ours closer while P1 is lost or tied: c1's gain-restored Q2_0 downs and per-byte ranking are tried at 11.5 GB.
 - Either way: the shared guidelines' edge claim is rewritten to the measured result. Card changes are Daniel's call.
+
+### Addendum H amendment 19: cherry-picks from ISTA's layout for a v3 (2026-11-27, ~10:40, before any of its data; Daniel: "if you see any small upsides in their architecture, analyze those deeply also with the help of Astra high and cherry pick what we could use")
+
+Why: the header diff (`analysis/a18-layout.py` → `results/a18/layout.md`) shows layout choices of ISTA's files that v2c does not make. Astra (high, with the GSQ and RCO papers and ISTA's card) ranked them before any of this amendment's data; the prompt and reply are in `reviews/2026-11-27-a19-astra.md`. This track is separate from amendment 18 and does not change its outcomes or actions. Amendment 18's A3 results are not used to select anything here.
+
+Found before data (headers and source, not KL):
+- llama.cpp always keeps `token_embd` on the CPU (`src/llama-model.cpp:1822` at our pin; the 248 MiB `CPU_Mapped` buffer in `logs/load-UD-IQ3_XXS-measurement.log`). The embedding costs RAM and disk but not Metal's GPU limit. ISTA spends 0.93 GB there (BF16, fixed outside its search per its card); v2c spends 0.26 GB (Q4_K). Fit claims count Metal bytes as file bytes minus `token_embd`.
+- ISTA IQ3_S against v2c: gate_up IQ1_S in layers 0-2; Q2_0 downs in 0, 1 and 3; IQ3_S gate_up in 9, 10, 15 and 21; mixed attention types with Q8_0 attn_v in 7 core layers; BF16 attn_rel, attn_sink_proj and the conv projections.
+
+Single changes, each on v2c, own encodings only (ISTA's tensors appear only in amendment 18 part C's diagnostics). Byte deltas from the headers:
+- s1: gate_up 0-2 IQ1_S (c1's tensors), -212 MB.
+- s2: downs 0, 1, 3 Q2_0 (c1's gain-restored Q2_0 encoding), -287 MB.
+- s3: attn_v 6-17 Q8_0 (from our Q8_0), +7 MB.
+- s4: token_embd Q8_0 (from our Q8_0), +232 MB file, 0 Metal.
+- s5: gate_up 6, 7, 8, 12, 18 IQ3_XXS (stock, `pool-3bit`), +212 MB.
+- s6: attn_sink_proj and both conv projections BF16 (our BF16 conversion), +2 MB.
+- s7: s6 plus attn_rel BF16, +27 MB in all; s7 against s6 isolates attn_rel.
+- s8: gate_up 9, 10, 15 IQ3_S (stock llama-quantize, ggml-org imatrix as the pools), +96 MB.
+
+Each is scored on S (P = 3, -c 4096, 16 chunks). Per change, Δ = KL(change) - KL(v2c), with a paired chunk-bootstrap 95% CI (10,000 resamples, seed 0). The BF16 rebuild for s6-s8 runs on the CPU lock while amendment 18 holds the GPU; everything here runs on the GPU only after amendment 18's parts A-C.
+
+Selection rule, written now:
+1. Additive prediction: over all subsets of s1-s8 (s7 includes s6), predicted KL = KL(v2c) + sum of their Δ.
+2. Two byte rules:
+   - file: file bytes ≤ v2c's 11,566,703,648;
+   - Metal: Metal bytes ≤ v2c's and file bytes ≤ UD-IQ3_XXS's 11,663,310,784.
+3. Build the two best predicted subsets per rule (at most 4 builds) and score each on S.
+4. A build is a candidate only if measured S is below v2c with the paired CI's upper bound < 0. S selects the lowest measured candidate per rule; then it is frozen.
+5. T1 confirms: Δ on T1 must be < 0. Otherwise the rule's answer is "no v3".
+6. A frozen v3 is scored once on A4, a new fresh set built at freeze time with amendment 18's A3 rules and disjoint picks (Wikipedia: the next 12 articles by page id after A3's; arXiv: 1-12 Nov 2026; other repositories). Report G against v2c and against ISTA IQ3_S with amendment 18's bands.
+7. Release only on Daniel's go.
+
+Not in this amendment:
+- Joint scale and code refinement (backlog T2; Astra's closed-form block-scale step plus exact nibble search under the row gain floor). It needs its own registration with a matched control. The sibling's record (22 Nov) shows that scale refits without a gain constraint lowered the Gram error and raised KL.
+- The c2 exchanges at c1's size (Astra: IQ4_NL downs moved from 5, 18, 19, 21 to the core layers 10, 14, 15, 16, plus a gate exchange). c1 belongs to the sibling project, so they go there as a proposal.
