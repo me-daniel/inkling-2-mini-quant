@@ -653,3 +653,74 @@ Daniel chose v2c as the default ("v2c as default"), with the German guard overri
   - The labels name the main expert type, not the only one. By bytes, v1 is IQ4_NL 40% (down projections), IQ3_XXS 27%, IQ2_S 11%; v2c is IQ4_NL 40%, IQ3_XXS 29%, IQ2_S 17%. The 8.9G file's file_type is 19 (IQ2_XXS).
   - The card's Use section says the copies are byte-identical.
 - Tag v1.2 stays at 3a8dab9.
+
+### Addendum H amendment 18: head-to-head against ISTA-DASLab's GSQ-RCO files and Unsloth (2026-11-27, before any of its data; Daniel's go for "the full comparison")
+
+Why: on 26 Nov ISTA-DASLab published `Inkling-2-Mini-GSQ-RCO-GGUF`: four all-Metal files with learned-grid encoding (GSQ, joint codes and scales) and a per-tensor type budget (RCO). Our cards' "closest" claims cover only the files tested on 21 Nov, and Unsloth's UD-IQ3_XXS was already closer than v2c on fresh code (A2). The design was reviewed before data by Astra (high), Sol (xhigh) and Fable (medium); the reviews are in `reviews/2026-11-27-a18-*.md`.
+
+Scope: this compares released files, not methods. Each of our files differs from ISTA's in map, encoder, calibration and pipeline together. Method attribution is the descriptive part D below. Every KL claim is "closer to our Q8_0": D_KL(Q8_0 ‖ file) at P = 3, our Q8_0 and llama.cpp build (29b52d3 plus `patches/llama.cpp`), identical token ids, -c 1024 with the second half of each chunk scored.
+
+Files:
+- Ours: v1 (cand), v2m (refined), v2c (refined2), c1 (the 8.9G file, `inkling-2-mini-under10/models/release/c1.gguf`, sha256 a01a9156…bca9, read-only).
+- ISTA at f0da109: IQ3_S, IQ3_XXS, Q2_K_XL, IQ2_S (`scripts/fetch-ista.sh`, sha256 against the Hub in `results/a18/ista-sha256.txt`).
+- Unsloth UD-IQ3_XXS at ea0c79b (`Mainline_Support`, as in amendment 4).
+- Excluded, named: AtomicChat AD-IQ2_S, bartowski IQ2_S and mudler APEX-I-Nano. They lost to v1 on 21 Nov.
+- Exact bytes are reported from the files.
+
+Step 0, before scoring: a packaging check. Every file must carry the same tokenizer tokens (hash), chat template, loop count and vocabulary as our Q8_0. Tensor types, fallbacks and bytes are read from the headers (`scripts/gguf-types.py`).
+
+A3, the fresh set (`scripts/a18-data.py`, hashed in `results/a18/data.md` before any model is scored on it). 5 domains, 12 documents × 4,096 tokens each, 48 chunks per domain:
+- python and javascript: 12 new repositories each, battery A's half-old, half-recent rule. JavaScript is in no calibration text of ours.
+- german and english: Wikipedia articles created in the 30 days before the build.
+- math: arXiv LaTeX, 13–26 Nov 2026.
+
+Sampling rules, fallbacks and overlap with calib-mix, calib-mixc and calib-code are fixed in the script. Not included: a chat-template domain, because our llama-perplexity does not parse special tokens (Ling's patch 0013 is not ported here). The task battery stands in for chat use. The two code domains together get 40% weight, and so do the two Wikipedia domains. Conclusions are scoped to this mixture and context.
+
+Primary statistic per pair: G = exp(mean over the 5 domains of the per-domain mean of log(KL_ours / KL_other) per chunk). It is symmetric: swapping the files gives 1/G.
+- 95% CI from a paired, domain-stratified cluster bootstrap. Resample the 12 documents of each domain with replacement, carrying all 4 chunks and both files, and recompute G. 10,000 resamples, seed 0; `analysis/a18.py`, with a toy-fixture test.
+- No joint claim across pairs, so no multiplicity adjustment. Each pair has its own actions.
+
+Outcomes per pair, written now:
+- Ours closer: upper bound < 1 and G ≤ 0.97.
+- Other closer: lower bound > 1 and G ≥ 1/0.97.
+- Equivalent at ±5%: the whole CI inside [0.95, 1/0.95].
+- Otherwise: inconclusive.
+
+Sensitivity results, reported beside every primary result:
+- leave-English-out G;
+- leave-one-document-out range;
+- per-domain G with CIs and the count of domains favouring each file;
+- absolute and token-weighted KL per file and domain;
+- p99 KL and top-1 agreement per domain.
+
+Primary pairs:
+- P1: v2c (11.567 GB) against ISTA IQ3_S (11.43 GB). ISTA is 137 MB smaller, so an ISTA win means dominance and a v2c win is a trade-off of +1.2% bytes.
+- P2: c1 (8.932 GB) against ISTA IQ2_S (8.98 GB). c1 is 48 MB smaller, so a c1 win means dominance.
+- P3: v2c against UD-IQ3_XXS (11.66 GB).
+- Descriptive: the KL-against-bytes frontier of all 9 files on A3. No equal-byte estimate is drawn from interpolation.
+
+Descriptive, in this order of GPU priority (fixed now):
+- A. KL on A3 for all 9 files. KL on S, T1 and T2 for ISTA's 4 files and UD; these sets are seen for us, and S selected our files.
+- B. Speed for P1 and P2 with `scripts/bench-v2m.sh` (pp512, tg128, depth 16K): back to back in both orders, quiet machine, all layers on Metal checked in the log.
+- C. Reciprocal same-type tensor swaps, scored on S and T1 only (A3 is kept for the registered files). Where v2c and ISTA IQ3_S hold the same type for the same tensor, swap that tensor class both ways (gate_up, then downs). That compares the two encodings at fixed bytes and fixed type. Splices use `scripts/splice.py --verify`.
+- D. If ISTA wins P1: "ISTA map, stock encoder", a llama-quantize build at ISTA IQ3_S's exact per-tensor types with our imatrix, from a BF16 rebuilt from the release. Scored on S, T1 and A3. Path-specific log contrasts are reported, never shares:
+  - ISTA against ISTA-map-stock = encoder + calibration + pipeline;
+  - ISTA-map-stock against v2a (UD map, stock) = map difference at stock encoding.
+- E. Tasks (amendment 15's 300 items, same prompts, decoding and scorer) only for a pair whose KL outcome is equivalent or inconclusive. Report:
+  - discordant wins and losses per suite;
+  - a paired item bootstrap within suites;
+  - a one-sided 95% lower bound on ours minus the other file, against a −5-point margin.
+
+  With 300 items this screens only for large differences; the power from the observed discordance is reported.
+
+Actions, written now:
+- P1, ISTA closer:
+  - the card gets a dated correction naming the closer files;
+  - no further release from the current fixed-scale refiner;
+  - backlog T2 (alternating scale updates) first;
+  - C and D decide between encoder work and map work.
+- P1, ours closer: the card adds the comparison with revisions and date. The "closest" wording stays dropped while UD is closer (P3). Backlog T8 (GSQ head-to-head) is dropped.
+- P1, equivalent or inconclusive: no more head-to-heads at 11.5 GB until T2 has a result. Tasks (E) decide the card line.
+- P2, ISTA closer: the sibling project corrects c1's claim and stops tuning KL-per-byte promotions.
+- P2, ours closer while P1 is lost or tied: c1's gain-restored Q2_0 downs and per-byte ranking are tried at 11.5 GB.
+- Either way: the shared guidelines' edge claim is rewritten to the measured result. Card changes are Daniel's call.
