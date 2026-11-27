@@ -1,0 +1,23 @@
+# Outlook review: astra (concept), 28 Nov 2026
+
+Model: gpt-6.2-astra via codex-ask.sh, effort high. Inputs at b1990a6 (tree dirty only in untracked card drafts). Prompt: `reviews/2026-11-28-outlook-prompt.md` with the concept/outlook ROLE line.
+
+## Reply (verbatim)
+
+1. [measured] **“Counting Passes” already has a defensible thesis result.** On this checkpoint at \(P=3\), joint KL was 0.87–1.23 times the sum of single-visit KLs, and the third visit contributed most. The registered pass split also separated from the layer split, 0.748 versus 1.108. Write up the roughly additive aggregate error and unequal visit contributions now. Neither finding depends on v3 shipping.
+
+2. [inference] **The biggest thesis risk is mistaking visit sensitivity for a law about pass count.** At fixed \(P=3\), each visit sees different activations, routes and remaining depth. Near-additivity in aggregate can also hide interactions that cancel. Register a prediction for the same loop tensors at another supported pass count, using a Q8_0 reference at that same count. If that experiment is impractical, scope the conclusion to the measured three-pass model.
+
+3. [measured] **The current competitive claim is narrower than “better quantization.”** On A3, v2c was closer to the project’s Q8_0 than ISTA IQ3_S (\(G=0.710\)) and farther away than Unsloth UD-IQ3_XXS (\(G=1.116\)). The task battery resolved no advantage over ISTA. Report named files, bytes, reference and intervals. At 9 GB, c1 beat ISTA on A3, while the smaller Unsloth comparison remains unresolved.
+
+4. [inference] **Run A first as the baseline for judging originality.** The donor swap establishes the value of those particular down tensors. It changes both format and encoded values. Start from the roughly 20 GB original mixed-precision checkpoint, inspect the source codes and scales, and check whether a direct conversion reproduces the donor values. Then measure the owner’s NVFP4 build against v2c with only downs 0–19 changed. Recovering native weights is a sound engineering result and sets the bar for the next experiment. [Original checkpoint card](https://huggingface.co/thinkingmachines/Inkling-2-Mini)
+
+5. [inference] **D is the strongest candidate for an original, thesis-linked advance, but its proposed comparison confounds pooling with calibration text.** Audit what the public imatrix already accumulates. On a preregistered loop `gate_up` subset, cross a defined baseline visit rule and the proposed pooling rule with ordinary and model-generated text. Match token budgets, refinement and tensor types. Scale to 24 layers only if the pooling contrast improves end-to-end KL. ISTA already documents model-generated calibration. [ISTA method](https://huggingface.co/ISTA-DASLab/Inkling-2-Mini-GSQ-RCO-GGUF#quantization-procedure)
+
+6. [inference] **B tests whether a particular trade pays, while C can tell you which side paid for it.** Loop membership and layer depth move together in B. After A, price the promotion and demotion separately on the owner’s build, then measure the paired exchange. Use C’s prices to nominate a size-neutral combination and test it intact. Earlier combinations missed their additive predictions by about 0.0004 KL. Recheck the winning moves if D changes the encoder.
+
+7. [inference] **E changes the budget being optimized.** The Q8_0 embedding buys a measured 3% reduction on S for 232 MB on disk and zero additional GPU-resident bytes. Set the disk ceiling before allocation and report GPU residency separately. Include E in a same-size comparison only if the allocator pays for it elsewhere.
+
+8. [inference] **The biggest release risk is that all reproducible gain comes from A.** Register a minimum worthwhile gain from an owner-developed change over **A alone**, at the same disk budget, before selection on S. Use T1 as a development check and T2 as a reasoning-trace check. Freeze one candidate, then run one A4 comparison against A, v2c, Unsloth and ISTA with the registered document bootstrap. A parity claim needs a prespecified equivalence margin. If the original change misses its threshold, describe A as an optional compatibility-dependent file and prioritize the thesis write-up over a flagship launch.
+
+9. [measured] **The old speed headline expired with the November 23 Metal merge.** On the tested Mac and build, v2c versus UD measured 443 versus 436 t/s at pp512 and 31.4 versus 29.7 at tg128. At the owner-approved release, benchmark the actual shipping file, name the Mac and llama.cpp revision, and label the earlier 3.3×/1.75× figures as pre-merge results with CPU fallback. Keep v2c available for those builds. [llama.cpp PR #32825](https://github.com/ggml-org/llama.cpp/pull/32825)

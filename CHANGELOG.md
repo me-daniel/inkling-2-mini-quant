@@ -915,3 +915,11 @@ Splice verified (684 tensors from v2c, 20 NVFP4 downs and 20 `.scale` tensors fr
 - Against UD-IQ3_XXS (descriptive): S −0.00060 [−0.00145, +0.00029], T1 −0.00048 [−0.00140, +0.00046], T2 +0.00019 [−0.00107, +0.00145]; none resolved, at 97 MB less.
 
 Reading: the down format is worth about 5% of v2c's KL on every set, the same size as amendment 2's mirror (+0.00099 for UD with IQ4_NL downs). With it, v2c's encoding ties UD's file. The a22-nv file is deleted; it was never a candidate. Next: the v3 track needs its own registration (our NVFP4 encoding via Daniel's snap tool, S select, T1 confirm, A4 once against UD and ISTA).
+
+### Correction and reviews: amendment 22 and the outlook (2026-11-28; `reviews/2026-11-28-outlook-*.md`)
+
+- Amendment 22's record said "v2c's encoding ties UD's file". That overstates it: against UD no difference is resolved (S −0.00060 [−0.00145, +0.00029]), and the interval is wider than a 5% margin. It now reads "difference unresolved"; a parity claim needs a registered equivalence margin.
+- The registration's "our own NVFP4 downs (the owner's snap tool)" was wrong in kind. The release stores layers 0-19 experts as NVFP4 (record of 21 Nov; `docs/report.md`), and UD's downs equal those values. Keeping them is a lossless repack from the original checkpoint, a conversion fix and not an encoder of ours. Option A therefore needs neither the BF16 rebuild nor the snap tool, and it carries no headline.
+- Checked after sol's flag (#32704): the measurement build carries `patches/llama.cpp/0001`, which re-shares the loop slots after the per-expert scales load, so passes 2 and 3 used the NVFP4 scales in a22-nv and in the UD logs.
+- The master speed build 12d47ba2f is b12680 (24 Nov), after the #32825 merge.
+- Answers, point by point: `reviews/2026-11-28-outlook-answers.md`. Proposed order (not registered yet): A as a repack base; a five-domain development set; B on that base; the imatrix pooling audit and a 2×2 pilot for D; C only for unmeasured groups; then one candidate against A alone, UD and ISTA on A4.
