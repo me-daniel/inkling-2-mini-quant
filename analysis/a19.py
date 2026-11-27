@@ -101,6 +101,20 @@ def main() -> None:
         for p, fb, mb, c in pick(subs, rule):
             lines.append(f"- {rule}: {'+'.join(c)}: predicted KL {base.mean() + p:.5f} (delta {p:+.5f}), "
                          f"file {fb / 1e6:+.1f} MB, Metal {mb / 1e6:+.1f} MB")
+    picks = list(dict.fromkeys("+".join(c) for rule in ("file", "metal") for *_, c in pick(subs, rule)))
+    if sys.argv[1:2] == ["picks"]:
+        print(" ".join(picks))
+        return
+    measured = [(n, ROOT / f"logs/ppl-a19-{n}-S-P3.log") for n in picks]
+    if any(log.exists() for _, log in measured):
+        lines += ["", "## Subsets, measured on S", "", "| subset | KL | delta [95% CI] | beats v2c (upper < 0) |", "|---|---|---|---|"]
+        for n, log in measured:
+            r = parse(log) if log.exists() else None
+            if r is None:
+                lines.append(f"| {n} | not scored | | |")
+                continue
+            d, lo, hi = paired_delta(np.array(r["per_chunk"]), base)
+            lines.append(f"| {n} | {r['mean_kl']:.5f} | {d:+.5f} [{lo:+.5f}, {hi:+.5f}] | {'yes' if hi < 0 else 'no'} |")
     print("\n".join(lines))
 
 
