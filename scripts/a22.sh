@@ -15,8 +15,9 @@ fi
 for s in S T1 T2; do
     log=$L/ppl-final-$n-$s-P3.log; ch=""; [ $s = S ] && { log=$L/ppl-$n-S-P3.log; ch="--chunks 16"; }
     done_log "$log" && continue
+    c=4096; [ $s = T2 ] && c=2048
     mem_wait; gpu_take
-    $BIN/llama-perplexity -m $M/$n.gguf -f data/$s.txt -c 4096 $ch -ngl 99 --override-kv "inkling2_loop.loop.count=int:3" \
+    $BIN/llama-perplexity -m $M/$n.gguf -f data/$s.txt -c $c $ch -ngl 99 --override-kv "inkling2_loop.loop.count=int:3" \
         --kl-divergence-base $K/ref-$s-P3.kld --kl-divergence > "$log" 2>&1
     gpu_give; echo "$s: $(grep -E 'Mean +KLD' "$log")"
 done
