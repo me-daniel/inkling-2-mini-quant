@@ -898,3 +898,11 @@ Cleanup: the BF16 rebuild (52 GB) and the IQ3_S donor are deleted. Every subset 
 Unpatched master 12d47ba2f (23 Nov, includes #32825). UD-IQ3_XXS loads all expert tensors on Metal: the only CPU buffer is 248 MiB (token_embd) (`logs/master-splits-UD3.log`). llama-bench pp512 / tg128, interleaved UD, v2c, UD, v2c, five reps each (`results/master/bench-rep.txt`): UD 435.5 and 435.6 / 29.81 and 29.68 t/s; v2c 443.5 and 443.4 / 31.36 and 31.53 t/s. So v2c is about 2% faster on prompts and 6% faster at generating. A first, non-interleaved round (`bench-v2c.txt`, `bench-UD-IQ3_XXS.txt`) ran at about 260 pp512 for both, with UD's tg128 at ±3.6 t/s; the machine was not idle (not checked by what), so that round is not used.
 
 Consequence: the card's "3.3× faster prompts, 1.75× faster generation than UD-IQ3_XXS" holds only on llama.cpp builds before 23 Nov (our measurement build 29b52d3). On current master the speed gap is about 2% / 6%, and UD's NVFP4 downs no longer cost it Metal. Card wording is Daniel's call.
+
+### Addendum H amendment 22: NVFP4-down diagnostic (2026-11-27, before its data; Daniel's go)
+
+Why: llama.cpp master runs NVFP4 on Metal since 23 Nov (#32825), so the all-Metal reason for IQ4_NL downs is gone on current builds. Amendment 2's mirror measured that UD loses 0.00099 on S with our IQ4_NL downs in layers 0-19 (0.02149 vs 0.02050); v2c trails UD on S by 0.00049.
+
+Build: `scripts/splice.py` on v2c, `--take` UD-IQ3_XXS's NVFP4 `ffn_down_exps.weight` in layers 0-19 and `--add` their `.scale` tensors (+10 KB; NVFP4 and IQ4_NL are both 4.5 bpw). Name `a22-nv`. A donor build: a diagnostic, never a release candidate.
+Scoring: measurement build (NVFP4 on the CPU there; master vs this build on UD-IQ2_XXS +0.00008 [-0.00011, +0.00027], sibling record), P = 3, S, then T1 and T2. Paired chunk bootstrap against v2c (`analysis/a19.py` paired_delta), built by `analysis/a22.py`.
+Rule, on S: KL(a22-nv) - KL(v2c) with CI upper below 0 → register a v3 track with our own NVFP4 downs (Daniel's snap tool), selected on S, confirmed on T1, checked once against UD on a new fresh set. Otherwise the down format is not worth a build-dependent file and the track stops. T1, T2 and the comparison with UD are descriptive.
