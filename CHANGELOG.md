@@ -784,3 +784,23 @@ Decision, written now:
 - If J does not fall by 2%: stop T2 here.
 
 GPU and CPU order: after amendment 18's parts A-C. The Gram capture and both arms share the locks with amendment 19.
+
+### Record: amendment 18 part A result (2026-11-27, 13:30; from `results/a18/a18.md`, built by `analysis/a18.py`)
+
+Step 0 passed: all 9 files carry our Q8_0's tokenizer, chat template, vocabulary and loop count 3 (`results/a18/pack.txt`).
+
+Registered outcomes on A3 (G = geometric mean ratio of KL over 5 domains, 95% document-cluster bootstrap CI):
+- P1, v2c against ISTA IQ3_S: G = 0.710 [0.692, 0.727]. Ours closer, 5 of 5 domains, leave-English-out 0.716, leave-one-document-out 0.707 to 0.713. v2c is 141 MB larger, so this is a trade-off, not dominance.
+- P2, c1 against ISTA IQ2_S: G = 0.757 [0.734, 0.781]. Ours closer, 5 of 5 domains. c1 is 44 MB smaller, so c1 dominates ISTA IQ2_S on this measure.
+- P3, v2c against UD-IQ3_XXS: G = 1.116 [1.095, 1.136]. UD closer, 0 of 5 domains favour v2c (python 1.026 [0.981, 1.074] is the only domain whose CI crosses 1). This repeats amendment 16's A2 result on new text.
+
+Descriptive: on the seen sets (`results/a18/seen.md`, `analysis/a18-seen.py`) the order is the same on S and T1. On T2, c1 (0.0489) and ISTA IQ2_S (0.0497) nearly tie.
+
+Actions, as registered:
+- P1 ours closer: the card may add the comparison with revisions and date; the "closest" wording stays dropped while UD is closer. Backlog T8 (GSQ head-to-head) is dropped. Card wording is Daniel's call.
+- P2 ours closer: the "P1 lost or tied" action does not apply.
+- Part D (ISTA map, stock encoder) does not run: ISTA did not win P1. Part E (tasks) does not run: no pair is equivalent or inconclusive.
+- The shared guidelines' edge claim is rewritten to this result.
+- Parts B and C run next; amendments 19 and 20 wait for them.
+
+Process note: the waiter that was to start parts B and C matched its own shell in `pgrep -f a18-score.sh` and never fired. It was stopped and parts B and C were started by hand at 13:31.

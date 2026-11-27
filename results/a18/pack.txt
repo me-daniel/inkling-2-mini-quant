@@ -1,0 +1,198 @@
+reference models/Inkling-2-Mini-Q8_0.gguf: loop 3, 704 tensors
+cand: 11,514,054,944 B, 704 tensors, loop 3, tokenizer/template/vocab identical
+v2m: 11,566,703,648 B, 704 tensors, loop 3, tokenizer/template/vocab identical
+v2c: 11,566,703,648 B, 704 tensors, loop 3, tokenizer/template/vocab identical
+c1: 8,932,121,888 B, 704 tensors, loop 3, tokenizer/template/vocab identical
+ista-IQ3_S: 11,425,259,648 B, 704 tensors, loop 3, tokenizer/template/vocab identical
+ista-IQ3_XXS: 10,608,205,952 B, 704 tensors, loop 3, tokenizer/template/vocab identical
+ista-Q2_K_XL: 9,792,516,224 B, 704 tensors, loop 3, tokenizer/template/vocab identical
+ista-IQ2_S: 8,975,863,424 B, 704 tensors, loop 3, tokenizer/template/vocab identical
+UD-IQ3_XXS: 11,663,310,784 B, 744 tensors, loop 3, tokenizer/template/vocab identical
+== cand
+arch inkling2_loop  loop.count 3  tensor bytes 11,502,076,800
+mtp tensors: 0
+tensors in types Metal cannot multiply: 0 (experts: 0 )
+   4.586 GB  IQ4_NL   ffn_down_exps.weight
+   3.121 GB  IQ3_XXS  ffn_gate_up_exps.weight
+   1.306 GB  IQ2_S    ffn_gate_up_exps.weight
+   1.051 GB  IQ2_XXS  ffn_gate_up_exps.weight
+   0.530 GB  Q6_K     other
+   0.380 GB  Q6_K     output.weight
+   0.380 GB  Q6_K     token_embd.weight
+   0.147 GB  F32      other
+   0.000 GB  F32      output_norm.weight
+   0.000 GB  F32      output_res_query.weight
+   0.000 GB  F32      token_embd_norm.weight
+== v2m
+arch inkling2_loop  loop.count 3  tensor bytes 11,554,725,504
+mtp tensors: 0
+tensors in types Metal cannot multiply: 0 (experts: 0 )
+   4.586 GB  IQ4_NL   ffn_down_exps.weight
+   3.381 GB  IQ3_XXS  ffn_gate_up_exps.weight
+   1.959 GB  IQ2_S    ffn_gate_up_exps.weight
+   0.530 GB  Q6_K     other
+   0.318 GB  Q5_K     output.weight
+   0.261 GB  Q4_K     token_embd.weight
+   0.196 GB  IQ2_XS   ffn_gate_up_exps.weight
+   0.175 GB  IQ2_XXS  ffn_gate_up_exps.weight
+   0.147 GB  F32      other
+   0.000 GB  F32      output_norm.weight
+   0.000 GB  F32      output_res_query.weight
+   0.000 GB  F32      token_embd_norm.weight
+== v2c
+arch inkling2_loop  loop.count 3  tensor bytes 11,554,725,504
+mtp tensors: 0
+tensors in types Metal cannot multiply: 0 (experts: 0 )
+   4.586 GB  IQ4_NL   ffn_down_exps.weight
+   3.381 GB  IQ3_XXS  ffn_gate_up_exps.weight
+   1.959 GB  IQ2_S    ffn_gate_up_exps.weight
+   0.530 GB  Q6_K     other
+   0.318 GB  Q5_K     output.weight
+   0.261 GB  Q4_K     token_embd.weight
+   0.196 GB  IQ2_XS   ffn_gate_up_exps.weight
+   0.175 GB  IQ2_XXS  ffn_gate_up_exps.weight
+   0.147 GB  F32      other
+   0.000 GB  F32      output_norm.weight
+   0.000 GB  F32      output_res_query.weight
+   0.000 GB  F32      token_embd_norm.weight
+== c1
+arch inkling2_loop  loop.count 3  tensor bytes 8,920,144,128
+mtp tensors: 0
+tensors in types Metal cannot multiply: 0 (experts: 0 )
+   1.720 GB  IQ4_NL   ffn_down_exps.weight
+   1.433 GB  Q2_0     ffn_down_exps.weight
+   1.226 GB  IQ2_XXS  ffn_gate_up_exps.weight
+   1.178 GB  IQ2_XS   ffn_gate_up_exps.weight
+   1.088 GB  IQ2_S    ffn_gate_up_exps.weight
+   0.531 GB  IQ1_S    ffn_gate_up_exps.weight
+   0.520 GB  IQ3_XXS  ffn_gate_up_exps.weight
+   0.383 GB  Q8_0     other
+   0.246 GB  IQ4_XS   output.weight
+   0.246 GB  IQ4_XS   token_embd.weight
+   0.147 GB  F32      other
+   0.100 GB  Q6_K     other
+   0.051 GB  Q5_K     other
+   0.037 GB  Q4_K     other
+   0.008 GB  IQ3_XXS  other
+   0.004 GB  BF16     other
+   0.000 GB  F32      output_norm.weight
+   0.000 GB  F32      output_res_query.weight
+   0.000 GB  F32      token_embd_norm.weight
+== ista-IQ3_S
+arch inkling2_loop  loop.count 3  tensor bytes 11,413,281,792
+mtp tensors: 0
+tensors in types Metal cannot multiply: 0 (experts: 0 )
+   4.013 GB  IQ4_NL   ffn_down_exps.weight
+   1.561 GB  IQ3_XXS  ffn_gate_up_exps.weight
+   1.168 GB  IQ3_S    ffn_gate_up_exps.weight
+   1.051 GB  IQ2_XXS  ffn_gate_up_exps.weight
+   0.926 GB  BF16     token_embd.weight
+   0.653 GB  IQ2_S    ffn_gate_up_exps.weight
+   0.398 GB  IQ1_S    ffn_gate_up_exps.weight
+   0.393 GB  IQ2_XS   ffn_gate_up_exps.weight
+   0.318 GB  Q5_K     output.weight
+   0.287 GB  Q2_0     ffn_down_exps.weight
+   0.207 GB  Q6_K     other
+   0.147 GB  F32      other
+   0.097 GB  Q5_K     other
+   0.074 GB  Q4_K     other
+   0.046 GB  BF16     other
+   0.043 GB  Q8_0     other
+   0.030 GB  IQ4_XS   other
+   0.000 GB  F32      output_norm.weight
+   0.000 GB  F32      output_res_query.weight
+   0.000 GB  F32      token_embd_norm.weight
+== ista-IQ3_XXS
+arch inkling2_loop  loop.count 3  tensor bytes 10,596,228,096
+mtp tensors: 0
+tensors in types Metal cannot multiply: 0 (experts: 0 )
+   3.440 GB  IQ4_NL   ffn_down_exps.weight
+   1.306 GB  IQ2_S    ffn_gate_up_exps.weight
+   1.178 GB  IQ2_XS   ffn_gate_up_exps.weight
+   1.051 GB  IQ2_XXS  ffn_gate_up_exps.weight
+   0.926 GB  BF16     token_embd.weight
+   0.573 GB  Q2_0     ffn_down_exps.weight
+   0.520 GB  IQ3_XXS  ffn_gate_up_exps.weight
+   0.398 GB  IQ1_S    ffn_gate_up_exps.weight
+   0.318 GB  Q5_K     output.weight
+   0.292 GB  IQ3_S    ffn_gate_up_exps.weight
+   0.147 GB  F32      other
+   0.117 GB  IQ4_XS   other
+   0.106 GB  Q6_K     other
+   0.088 GB  Q5_K     other
+   0.076 GB  Q4_K     other
+   0.046 GB  BF16     other
+   0.013 GB  Q8_0     other
+   0.000 GB  F32      output_norm.weight
+   0.000 GB  F32      output_res_query.weight
+   0.000 GB  F32      token_embd_norm.weight
+== ista-Q2_K_XL
+arch inkling2_loop  loop.count 3  tensor bytes 9,780,538,368
+mtp tensors: 0
+tensors in types Metal cannot multiply: 0 (experts: 0 )
+   2.484 GB  IQ4_NL   ffn_down_exps.weight
+   1.741 GB  IQ2_S    ffn_gate_up_exps.weight
+   1.051 GB  Q2_0     ffn_down_exps.weight
+   0.926 GB  BF16     token_embd.weight
+   0.876 GB  IQ2_XXS  ffn_gate_up_exps.weight
+   0.664 GB  IQ1_S    ffn_gate_up_exps.weight
+   0.589 GB  IQ2_XS   ffn_gate_up_exps.weight
+   0.318 GB  Q5_K     output.weight
+   0.297 GB  IQ1_M    ffn_gate_up_exps.weight
+   0.260 GB  IQ3_XXS  ffn_gate_up_exps.weight
+   0.147 GB  F32      other
+   0.142 GB  IQ4_XS   other
+   0.104 GB  Q4_K     other
+   0.063 GB  Q5_K     other
+   0.048 GB  Q6_K     other
+   0.046 GB  BF16     other
+   0.023 GB  Q8_0     other
+   0.000 GB  F32      output_norm.weight
+   0.000 GB  F32      output_res_query.weight
+   0.000 GB  F32      token_embd_norm.weight
+== ista-IQ2_S
+arch inkling2_loop  loop.count 3  tensor bytes 8,963,885,568
+mtp tensors: 0
+tensors in types Metal cannot multiply: 0 (experts: 0 )
+   1.720 GB  IQ4_NL   ffn_down_exps.weight
+   1.433 GB  Q2_0     ffn_down_exps.weight
+   1.178 GB  IQ2_XS   ffn_gate_up_exps.weight
+   0.929 GB  IQ1_S    ffn_gate_up_exps.weight
+   0.926 GB  BF16     token_embd.weight
+   0.876 GB  IQ2_XXS  ffn_gate_up_exps.weight
+   0.653 GB  IQ2_S    ffn_gate_up_exps.weight
+   0.446 GB  IQ1_M    ffn_gate_up_exps.weight
+   0.246 GB  IQ4_XS   output.weight
+   0.188 GB  IQ4_XS   other
+   0.147 GB  F32      other
+   0.084 GB  Q4_K     other
+   0.050 GB  Q5_K     other
+   0.046 GB  BF16     other
+   0.033 GB  Q6_K     other
+   0.008 GB  Q8_0     other
+   0.000 GB  F32      output_norm.weight
+   0.000 GB  F32      output_res_query.weight
+   0.000 GB  F32      token_embd_norm.weight
+== UD-IQ3_XXS
+arch inkling2_loop  loop.count 3  tensor bytes 11,651,330,816
+mtp tensors: 0
+tensors in types Metal cannot multiply: 20 (experts: 20 )
+   3.822 GB  NVFP4    ffn_down_exps.weight
+   3.381 GB  IQ3_XXS  ffn_gate_up_exps.weight
+   1.959 GB  IQ2_S    ffn_gate_up_exps.weight
+   0.764 GB  IQ4_NL   ffn_down_exps.weight
+   0.476 GB  Q8_0     other
+   0.318 GB  Q5_K     output.weight
+   0.261 GB  Q4_K     token_embd.weight
+   0.196 GB  IQ2_XS   ffn_gate_up_exps.weight
+   0.175 GB  IQ2_XXS  ffn_gate_up_exps.weight
+   0.147 GB  F32      other
+   0.090 GB  Q6_K     other
+   0.045 GB  Q5_K     other
+   0.012 GB  Q4_K     other
+   0.004 GB  BF16     other
+   0.000 GB  F32      ffn_down_exps.scale
+   0.000 GB  F32      ffn_gate_up_exps.scale
+   0.000 GB  F32      output_norm.weight
+   0.000 GB  F32      output_res_query.weight
+   0.000 GB  F32      token_embd_norm.weight
