@@ -848,3 +848,18 @@ Result: all four files offload 49/49 layers. Only the token embedding stays on t
 - c1 8.674 GB, ISTA IQ2_S 8.038 GB: c1 holds 0.64 GB more on the GPU, although it is 44 MB smaller on disk.
 
 So the registered outcomes (file bytes) stand, but "c1 dominates ISTA IQ2_S" holds for file size only. On GPU memory, which is what limits a Mac, both pairs are trade-offs: ours are closer to Q8_0 and use more Metal memory, because ISTA moves 0.93 GB into a BF16 embedding that sits in CPU memory. Any card line must say this. The 16K fit of c1 on a 16 GB Mac was measured by the sibling and is unaffected.
+
+### Record: amendment 18 parts B and C (2026-11-27, 15:00; `results/a18/bc.md`, built by `analysis/a18-bc.py`)
+
+B, speed (llama-bench pp512/tg128 at depth 0, 4K and 16K; each pair back to back in both orders, means of the two orders):
+- v2c against ISTA IQ3_S: within 1.3% on every test (ratios 0.994 to 1.013). No speed difference.
+- c1 against ISTA IQ2_S: ISTA generates 3.8–4.0% faster at every depth (tg128 22.4 against 23.3 t/s at depth 0), with order spreads of 0.1 t/s or less. Prompt speed is within 2.6%. That fits ISTA IQ2_S holding 0.64 GB less on Metal (`results/a18/load.md`).
+- The bench's "peak memory footprint" is the process figure and leaves out mapped Metal buffers. It is not GPU memory.
+
+C, reciprocal same-type swaps (S and T1, swap minus recipient, paired chunk CI):
+- gate_up, 6 layers: ISTA's into v2c −0.00028 [−0.00075, +0.00021] on S, −0.00025 [−0.00057, +0.00009] on T1. v2c's into ISTA −0.00036 [−0.00088, +0.00017] on S, +0.00008 on T1. No CI excludes 0.
+- downs, 21 IQ4_NL layers: ISTA's into v2c −0.00003 on S, −0.00024 [−0.00061, +0.00010] on T1. v2c's into ISTA −0.00036 [−0.00091, +0.00017] on S and −0.00044 [−0.00074, −0.00014] on T1, the only CI that excludes 0.
+- Reading (inference): at fixed type and bytes the two released encodings are close, within about 2% of v2c's KL and 1.5% of ISTA's. The P1 gap (G 0.71, about 0.009 KL on S) is far larger than any swap effect. So it comes from the map and allocation, not from GSQ's encoding against our refiner. Each payload carries its calibration and pipeline, so this is a statement about the released payloads, not the algorithms. Part D (map attribution) did not run.
+- Embedding (added before data, labelled): ISTA's BF16 token_embd in v2c, −0.00062 [−0.00095, −0.00035] on S (−3.0%), −0.00028 [−0.00047, −0.00009] on T1 (−1.4%). It costs 0 Metal bytes and +0.67 GB on disk. That breaks both of amendment 19's byte rules (file ≤ v2c; or Metal ≤ v2c with file ≤ UD's 11.66 GB), so it is not a candidate there. It supports the mechanism behind amendment 19's s4 (a Q8_0 embedding, +232 MB). s4 is selected on S as registered; this swap is not used to select it.
+
+Amendment 18 is complete: A, B, C done, D and E not triggered. Amendment 21 (tasks) runs next to amendments 19 and 20.

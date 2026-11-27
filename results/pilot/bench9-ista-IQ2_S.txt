@@ -1,0 +1,6 @@
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| inkling2_loop ?B IQ2_S - 2.5 bpw |   8.35 GiB |    26.07 B | MTL,BLAS   |       5 |           pp512 |        283.17 ± 1.74 |
+| inkling2_loop ?B IQ2_S - 2.5 bpw |   8.35 GiB |    26.07 B | MTL,BLAS   |       5 |           tg128 |         23.55 ± 0.19 |
+
+build: 9f5b9d6 (8)

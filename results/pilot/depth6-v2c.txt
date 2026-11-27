@@ -1,0 +1,10 @@
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| inkling2_loop ?B Q6_K          |  10.76 GiB |    26.07 B | MTL,BLAS   |       5 |           pp512 |        272.98 ± 2.07 |
+| inkling2_loop ?B Q6_K          |  10.76 GiB |    26.07 B | MTL,BLAS   |       5 |           tg128 |         21.10 ± 0.05 |
+| inkling2_loop ?B Q6_K          |  10.76 GiB |    26.07 B | MTL,BLAS   |       5 |   pp512 @ d4096 |        187.42 ± 7.89 |
+| inkling2_loop ?B Q6_K          |  10.76 GiB |    26.07 B | MTL,BLAS   |       5 |   tg128 @ d4096 |         20.08 ± 0.11 |
+| inkling2_loop ?B Q6_K          |  10.76 GiB |    26.07 B | MTL,BLAS   |       5 |  pp512 @ d16384 |        133.78 ± 3.69 |
+| inkling2_loop ?B Q6_K          |  10.76 GiB |    26.07 B | MTL,BLAS   |       5 |  tg128 @ d16384 |         18.55 ± 0.35 |
+
+build: 9f5b9d6 (8)
