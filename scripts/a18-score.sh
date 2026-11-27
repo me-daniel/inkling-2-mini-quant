@@ -42,7 +42,8 @@ for d in python javascript german english math; do
         log=$L/ppl-a3-$d-$n-P3.log; done_log "$log" && continue
         step "$d: $n"
         ppl "$log" $M/$n.gguf --kl-divergence-base "$base" --kl-divergence
-        grep -q "offloaded 25/25 layers to GPU\|offloaded .*layers to GPU" "$log" || step "WARN: $n offload line missing"
+        # no offload check here: this build logs no loader lines by default, and KL does not depend on placement;
+        # Metal placement is checked where it matters, in the speed bench (scripts/bench-v2m.sh)
         grep -E 'Mean +KLD|Same top p' "$log"
     done
     rm -f "$base"

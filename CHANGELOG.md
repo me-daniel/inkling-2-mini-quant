@@ -838,3 +838,13 @@ Design:
 - Reading: a lower bound above −5 points says "no large task loss". No claim of a task win unless the lower bound is above 0. Card wording stays Daniel's call.
 
 Order: after amendment 18's parts B and C (`scripts/a21.sh`), sharing the GPU lock with amendments 19 and 20. About 1.2 h per file.
+
+### Record: amendment 18 placement check, and what "smaller" means (2026-11-27, ~14:15)
+
+The offload grep in `scripts/a18-score.sh` never matched: this build prints no loader lines at default verbosity, so every part A log raised "offload line missing" and the check verified nothing. KL doesn't depend on placement, so part A stands; the dead check is removed. Part B's registered "all layers on Metal checked in the log" is now a load-only run at `-lv 5` per benched file (`scripts/a18-load.sh` → `logs/load-a18-*.log`, table `results/a18/load.md` by `analysis/a18-load.py`). It ran under the GPU lock between benches.
+
+Result: all four files offload 49/49 layers. Only the token embedding stays on the CPU (llama.cpp keeps token_embd there). On Metal:
+- v2c 11.294 GB, ISTA IQ3_S 10.487 GB: v2c holds 0.81 GB more on the GPU, against 141 MB more on disk.
+- c1 8.674 GB, ISTA IQ2_S 8.038 GB: c1 holds 0.64 GB more on the GPU, although it is 44 MB smaller on disk.
+
+So the registered outcomes (file bytes) stand, but "c1 dominates ISTA IQ2_S" holds for file size only. On GPU memory, which is what limits a Mac, both pairs are trade-offs: ours are closer to Q8_0 and use more Metal memory, because ISTA moves 0.93 GB into a BF16 embedding that sits in CPU memory. Any card line must say this. The 16K fit of c1 on a 16 GB Mac was measured by the sibling and is unaffected.
