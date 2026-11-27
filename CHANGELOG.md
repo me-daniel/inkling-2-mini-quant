@@ -879,3 +879,16 @@ Registered rule: J not 2% lower in both layers, so T2 stops. Joint scale refinem
 - P1, v2c against ISTA IQ3_S: all four suites +1.7 points [−0.4, +3.2], discordant 9 / 4. B1+B3+B4 +1.5 [−0.5, +2.4]. B3 (MBPP+) 49 against 45, with 4 / 0 discordant.
 
 Reading, as registered: both lower bounds are above −5, so neither of our files shows a large task loss against ISTA's. Neither lower bound is above 0, so there is no task-win claim. Every point estimate favours ours; 300 items cannot resolve differences this size.
+
+### Record: amendment 19 result, no v3 (2026-11-27, 20:52; `results/a18/a19-singles.md`, built by `analysis/a19.py`)
+
+Singles on v2c, KL on S (v2c 0.02099), paired chunk CI:
+- Savings cost more than they free: s1 (gate_up 0–2 IQ1_S, −212 MB) +0.00249 [+0.00181, +0.00318]; s2 (downs 0, 1, 3 Q2_0, −287 MB) +0.00171 [+0.00125, +0.00219].
+- Help, at added bytes: s3 (attn_v 6–17 Q8_0, +7 MB) −0.00017 [−0.00029, −0.00005]; s4 (token_embd Q8_0, +232 MB file, 0 Metal) −0.00063 [−0.00106, −0.00028]; s5 (gate_up 6, 7, 8, 12, 18 IQ3_XXS, +212 MB) −0.00056 [−0.00100, −0.00013].
+- No effect: s6, s7 (BF16 small attention tensors), s8 (IQ3_S gate_up 9, 10, 15, −0.00010 [−0.00050, +0.00030]).
+
+The rule's subsets (`scripts/a19-subsets.sh`), measured: s2+s3+s4 +0.00129 [+0.00086, +0.00177]; s2+s3+s4+s7 +0.00120; s2+s3+s4+s8 +0.00122; s2+s3+s4+s7+s8 +0.00127. All CIs are above 0, and all came out about 0.0004 worse than the additive prediction. None beats v2c, so T1 and A4 don't run and amendment 19 makes no v3.
+
+Reading: under both byte rules, every useful change needs a saving, and ISTA's savings (starved early layers) are the most expensive bytes in our map. The one cheap lever is the embedding (s4): −3.0% on S at no Metal cost, +232 MB on disk. Whether disk bytes count is Daniel's product call; a file that spends them needs its own registration and A4.
+
+Cleanup: the BF16 rebuild (52 GB) and the IQ3_S donor are deleted. Every subset file was deleted after scoring.

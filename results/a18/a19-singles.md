@@ -21,3 +21,12 @@ v2c: KL 0.02099
 - file: s2+s3+s4+s7: predicted KL 0.02192 (delta +0.00093), file -20.9 MB, Metal -252.5 MB
 - metal: s2+s3+s4+s8: predicted KL 0.02180 (delta +0.00081), file +47.3 MB, Metal -184.2 MB
 - metal: s2+s3+s4+s7+s8: predicted KL 0.02182 (delta +0.00083), file +74.6 MB, Metal -156.9 MB
+
+## Subsets, measured on S
+
+| subset | KL | delta [95% CI] | beats v2c (upper < 0) |
+|---|---|---|---|
+| s2+s3+s4 | 0.02228 | +0.00129 [+0.00086, +0.00177] | no |
+| s2+s3+s4+s7 | 0.02219 | +0.00120 [+0.00080, +0.00162] | no |
+| s2+s3+s4+s8 | 0.02221 | +0.00122 [+0.00061, +0.00187] | no |
+| s2+s3+s4+s7+s8 | 0.02226 | +0.00127 [+0.00072, +0.00183] | no |
