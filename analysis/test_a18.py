@@ -36,3 +36,11 @@ def test_outcome_bands():
     assert outcome(0.99, 0.985, 0.995, "A", "B") == "equivalent at +-5%"  # bound < 1 but G > 0.97
     assert outcome(1.05, 1.02, 1.08, "A", "B") == "B closer"
     assert outcome(1.0, 0.90, 1.10, "A", "B") == "inconclusive"
+
+
+def test_swapping_files_inverts_g_and_its_ci():
+    rng = np.random.default_rng(1)
+    pairs = {d: (rng.uniform(0.01, 0.05, 48), rng.uniform(0.01, 0.05, 48)) for d in "abcde"}
+    g, lo, hi = g_stat(pairs, n_boot=2000)
+    gi, loi, hii = g_stat({d: (b, a) for d, (a, b) in pairs.items()}, n_boot=2000)
+    assert np.allclose([gi, loi, hii], [1 / g, 1 / hi, 1 / lo])

@@ -804,3 +804,37 @@ Actions, as registered:
 - Parts B and C run next; amendments 19 and 20 wait for them.
 
 Process note: the waiter that was to start parts B and C matched its own shell in `pgrep -f a18-score.sh` and never fired. It was stopped and parts B and C were started by hand at 13:31.
+
+### Record: reviews of amendment 18 part A and our answers (2026-11-27, ~14:00)
+
+Prompt `reviews/2026-11-27-a18-results-prompt.md` (registration, `results/a18/a18.md`, `results/a18/seen.md`, role byte totals; names and paths removed). Replies verbatim in `reviews/2026-11-27-a18-results-{astra,sol,fable}.md`: Astra (concept, high), Sol (technique, xhigh), Fable (direction, medium).
+
+Checked and answered:
+- Byte deltas (Fable 10): the registration's 137 and 48 MB came from rounded GB. The exact deltas from the files are +141,444,000 B (v2c − ISTA IQ3_S) and −43,741,536 B (c1 − ISTA IQ2_S). Registered outcomes don't depend on them.
+- Role totals short of file size by 12–13 MB (Sol 7): the GGUF header. Tensor data starts at byte 11,977,760 in v2c and 11,977,856 in ISTA IQ3_S; tensor payloads plus header equal the file size.
+- Bootstrap symmetry (Sol 3): swapping the files negates every log ratio under the same draws, so G → 1/G and [L, U] → [1/U, 1/L]. Now a test (`analysis/test_a18.py`, 5 passed).
+- Equal token counts (Sol 1): every A3 chunk scores 512 tokens and every domain has 48 chunks, so the token-weighted mean equals the mean of domain means by design.
+- T2 near-tie for P2 (Fable 6, Sol 6): T2 is the Q8_0's own GSM8K reasoning traces at temperature 0, text the reference wrote itself. It is descriptive and seen; no claim rests on it.
+- Unsloth near 9 GB (Fable 7): UD-IQ2_XXS (8.49 GB) and UD-Q2_K_XL (9.14 GB) exist. The sibling's card already compares c1 with both and with AtomicChat's files. Unsloth's are closer per byte, with 7 and 11 NVFP4 expert tensors that run off the Metal GPU. So no "closest at 9 GB" wording.
+- Overlapping outcome rules (Sol 8): accepted. In future registrations "closer" takes precedence over "equivalent".
+
+Not changed:
+- Amendment 19 stays as registered (Astra 8 against Fable 3). Each change is a single, stated mechanism on v2c, selected on S and confirmed on T1 and once on A4. It already waits for part C. Fable's point that S selection transfers poorly is why A4 decides.
+- Amendment 20 stays a two-layer pilot (Astra 9 against Fable 4). Part C compares released payloads, which carry calibration and pipeline (Astra 7, Sol 9), so it can't test joint scale learning in our refiner.
+- Sol 4 (shared sources): checked. A3's 24 code repositories are distinct, and none appears in battery A or A2 (`results/a18/A3-manifest.json` against `results/battery/A-manifest.json` and `A2-manifest.json`).
+- Not run: Sol 5 (a Q8_0-against-itself floor). There is no measured floor on record. Every pair here shares the same reference, build and token positions, so a floor would shift both files' KL alike, but it would compress G toward 1 only if it were large against 0.02.
+
+Taken up: Fable 8, the task battery on the P2 pair, as amendment 21.
+
+### Addendum H amendment 21: task battery on the ISTA pairs, exploratory (2026-11-27, ~14:00, before any of its data)
+
+Why: all three A18 pairs resolved on KL, so part E did not run and every claim stays "closer to our Q8_0". Fable's results review (point 8) asked for task evidence on the pair with the largest KL gap. Exploratory: it changes no outcome or action of amendment 18.
+
+Design:
+- Amendment 15's component B (300 items: B1 GSM8K 80, B2 BFCL live simple 100, B3 MBPP+ 60, B4 JSON schema 60), same prompts, decoding, server and scorer (`scripts/battery-B.sh`, `analysis/battery_B.py`).
+- New replies for c1, ISTA IQ2_S and ISTA IQ3_S. v2c's replies are from amendment 16, same build (`results/env.md`).
+- Pairs: P2 c1 against ISTA IQ2_S; P1 v2c against ISTA IQ3_S.
+- Report (`analysis/a21.py` → `results/a18/a21-tasks.md`): per suite right counts and discordant pairs; pooled B1+B3+B4 (H3's pool) and all four suites, paired difference with one-sided 95% mid-p bounds (`battery_B.h3`).
+- Reading: a lower bound above −5 points says "no large task loss". No claim of a task win unless the lower bound is above 0. Card wording stays Daniel's call.
+
+Order: after amendment 18's parts B and C (`scripts/a21.sh`), sharing the GPU lock with amendments 19 and 20. About 1.2 h per file.
