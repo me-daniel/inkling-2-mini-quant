@@ -1,0 +1,8 @@
+UD-IQ3_XXS r1 | inkling2_loop ?B IQ3_XXS - 3.0625 bpw |  10.85 GiB |    26.07 B | MTL,BLAS   |       5 |           pp512 |        435.49 ± 0.94 |
+UD-IQ3_XXS r1 | inkling2_loop ?B IQ3_XXS - 3.0625 bpw |  10.85 GiB |    26.07 B | MTL,BLAS   |       5 |           tg128 |         29.81 ± 0.09 |
+v2c r1 | inkling2_loop ?B Q6_K          |  10.76 GiB |    26.07 B | MTL,BLAS   |       5 |           pp512 |        443.45 ± 1.05 |
+v2c r1 | inkling2_loop ?B Q6_K          |  10.76 GiB |    26.07 B | MTL,BLAS   |       5 |           tg128 |         31.36 ± 0.14 |
+UD-IQ3_XXS r2 | inkling2_loop ?B IQ3_XXS - 3.0625 bpw |  10.85 GiB |    26.07 B | MTL,BLAS   |       5 |           pp512 |        435.63 ± 0.60 |
+UD-IQ3_XXS r2 | inkling2_loop ?B IQ3_XXS - 3.0625 bpw |  10.85 GiB |    26.07 B | MTL,BLAS   |       5 |           tg128 |         29.68 ± 0.11 |
+v2c r2 | inkling2_loop ?B Q6_K          |  10.76 GiB |    26.07 B | MTL,BLAS   |       5 |           pp512 |        443.42 ± 0.53 |
+v2c r2 | inkling2_loop ?B Q6_K          |  10.76 GiB |    26.07 B | MTL,BLAS   |       5 |           tg128 |         31.53 ± 0.07 |

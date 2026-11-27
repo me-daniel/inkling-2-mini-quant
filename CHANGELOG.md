@@ -892,3 +892,9 @@ The rule's subsets (`scripts/a19-subsets.sh`), measured: s2+s3+s4 +0.00129 [+0.0
 Reading: under both byte rules, every useful change needs a saving, and ISTA's savings (starved early layers) are the most expensive bytes in our map. The one cheap lever is the embedding (s4): −3.0% on S at no Metal cost, +232 MB on disk. Whether disk bytes count is Daniel's product call; a file that spends them needs its own registration and A4.
 
 Cleanup: the BF16 rebuild (52 GB) and the IQ3_S donor are deleted. Every subset file was deleted after scoring.
+
+### Record: speed on llama.cpp master with Metal NVFP4 kernels (2026-11-27; `results/master/`, `scripts/master-bench.sh`)
+
+Unpatched master 12d47ba2f (23 Nov, includes #32825). UD-IQ3_XXS loads all expert tensors on Metal: the only CPU buffer is 248 MiB (token_embd) (`logs/master-splits-UD3.log`). llama-bench pp512 / tg128, interleaved UD, v2c, UD, v2c, five reps each (`results/master/bench-rep.txt`): UD 435.5 and 435.6 / 29.81 and 29.68 t/s; v2c 443.5 and 443.4 / 31.36 and 31.53 t/s. So v2c is about 2% faster on prompts and 6% faster at generating. A first, non-interleaved round (`bench-v2c.txt`, `bench-UD-IQ3_XXS.txt`) ran at about 260 pp512 for both, with UD's tg128 at ±3.6 t/s; the machine was not idle (not checked by what), so that round is not used.
+
+Consequence: the card's "3.3× faster prompts, 1.75× faster generation than UD-IQ3_XXS" holds only on llama.cpp builds before 23 Nov (our measurement build 29b52d3). On current master the speed gap is about 2% / 6%, and UD's NVFP4 downs no longer cost it Metal. Card wording is Daniel's call.

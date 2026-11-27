@@ -1,0 +1,6 @@
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| inkling2_loop ?B IQ3_XXS - 3.0625 bpw |  10.85 GiB |    26.07 B | MTL,BLAS   |       5 |           pp512 |        259.87 ± 3.74 |
+| inkling2_loop ?B IQ3_XXS - 3.0625 bpw |  10.85 GiB |    26.07 B | MTL,BLAS   |       5 |           tg128 |         27.43 ± 3.58 |
+
+build: 12d47ba2f (12680)
