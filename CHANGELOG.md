@@ -863,3 +863,19 @@ C, reciprocal same-type swaps (S and T1, swap minus recipient, paired chunk CI):
 - Embedding (added before data, labelled): ISTA's BF16 token_embd in v2c, −0.00062 [−0.00095, −0.00035] on S (−3.0%), −0.00028 [−0.00047, −0.00009] on T1 (−1.4%). It costs 0 Metal bytes and +0.67 GB on disk. That breaks both of amendment 19's byte rules (file ≤ v2c; or Metal ≤ v2c with file ≤ UD's 11.66 GB), so it is not a candidate there. It supports the mechanism behind amendment 19's s4 (a Q8_0 embedding, +232 MB). s4 is selected on S as registered; this swap is not used to select it.
 
 Amendment 18 is complete: A, B, C done, D and E not triggered. Amendment 21 (tasks) runs next to amendments 19 and 20.
+
+### Record: amendment 20 result, the scale pilot (2026-11-27, 19:43; `results/a18/a20-pilot.md`, built by `analysis/a20.py`)
+
+Both arms start from v2c's codes on layers 6 and 20 (Grams from calib-mixc, 400 chunks; 4 sweeps). J under G summed over refined experts:
+- layer 6 (126 experts): A 4.46784e7, B 4.41977e7, B/A 0.9892; 5,760,864 scale moves and 429,148 d moves.
+- layer 20 (124 experts): A 1.73292e7, B 1.73199e7, B/A 0.9995; 578,676 scale moves and 1,209,264 d moves.
+- KL on S: A 0.02109, B 0.02087; B − A −0.00022 [−0.00062, +0.00007].
+
+Registered rule: J not 2% lower in both layers, so T2 stops. Joint scale refinement under the gain floor moves many scales but buys about 1% of J in a looped layer and nearly nothing in layer 20. That matches part C: at fixed type our codes are already about as good as GSQ's released encoding. The a20 GGUFs are deleted; the JSON logs stay in `models/refined/`.
+
+### Record: amendment 21 result, task battery on the ISTA pairs (2026-11-27, 19:40; `results/a18/a21-tasks.md`, built by `analysis/a21.py`; exploratory)
+
+- P2, c1 against ISTA IQ2_S: all four suites +2.0 points, one-sided 95% bounds [−0.8, +4.5], discordant 16 / 10. B1+B3+B4 +1.0 [−1.4, +2.9]. B2 (tool calls) 72 against 68.
+- P1, v2c against ISTA IQ3_S: all four suites +1.7 points [−0.4, +3.2], discordant 9 / 4. B1+B3+B4 +1.5 [−0.5, +2.4]. B3 (MBPP+) 49 against 45, with 4 / 0 discordant.
+
+Reading, as registered: both lower bounds are above −5, so neither of our files shows a large task loss against ISTA's. Neither lower bound is above 0, so there is no task-win claim. Every point estimate favours ours; 300 items cannot resolve differences this size.
