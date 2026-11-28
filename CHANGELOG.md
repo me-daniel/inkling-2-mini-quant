@@ -942,3 +942,25 @@ Why: the 28 Nov outlook reviews. Option A is a lossless repack of the release's 
 - v2c-A on S: 0.019903, equal to a22-nv (gap 0). Smoke check passes. v2c-A is the 11.5 GB base.
 - c1-A (native downs in layers 5, 8, 9, 11, 13, 17, 18, 19) against c1: S −0.00049 [−0.00092, +0.00002]; T1 −0.00086 [−0.00126, −0.00049]; T2 +0.00065 [−0.00071, +0.00189]. **By the registered rule (S CI upper below 0) c1-A is not adopted; c1 stays the 9 GB base.** The gain is about 1% (8 of 20 layers, against about 5% for v2c with all 20); c1's other 12 downs are Q2_0 (2.25 bpw) and would cost 96 MB each as NVFP4.
 - DV is built and hashed (`results/a23/data.md`). Ten repositories failed the 4,096-token rule for their half; fallbacks were added to the script, checked for eligibility only, before any model was scored on DV.
+
+### Addendum H amendment 24: B, a loop-aware gate_up exchange at fixed bytes (2026-11-28, before any of its data; the owner's go: "go ahead with B after the dev set")
+
+Why: B is the cheapest direct test of whether visit count should steer bits (28 Nov outlook; Astra 6, Fable 5). Amendment 19's s5 mixed a once-run layer (18) into the promotion and used stock codes against refined ones. B keeps the loop side pure, uses v2c's encoder on both sides, and prices each side before the exchange is measured intact.
+
+Base: v2c-A (amendment 23). One step is one gate_up tensor moved by 0.5 bpw: 128 × 2304 × 2304 weights × 0.5 / 8 = 42,467,328 bytes.
+
+1. **Encoder, matched to v2c.** BF16 rebuilt from the local checkpoint (as amendment 19). Starting codes from `llama-quantize` with v2a's command and the ggml-org imatrix, gate_up types changed only where B needs them. Then `scripts/refine-codes.py` with v2c's settings (4 sweeps, tol 1e-4, shrink 0.1, min tokens 2304, gain floor on), on Grams from `scripts/gram-gu.sh` with v2c's settings (calib-mixc, 400 chunks, cand.gguf at P = 3). `scripts/v2r-check.py group` on every refined group.
+2. **Files, each v2c-A with gate_up tensors swapped, scored on DV:**
+   - U: loop layers 6, 7, 8, 12 promoted IQ2_S → IQ3_XXS (+169.9 MB). These are the four loop layers v2c holds at IQ2_S.
+   - Uc, the control: once-run layers 1, 2, 3, 5 promoted IQ2_S → IQ3_XXS (+169.9 MB). Same bytes and types as U, outside the loop.
+   - d19 … d23: one once-run layer demoted IQ3_XXS → IQ2_S each (−42.5 MB).
+3. **Selection, by rule:** D4 = the four of d19 … d23 with the lowest G against v2c-A on DV. X = v2c-A with U's four tensors and D4's four tensors. X has v2c-A's exact byte count.
+4. **Primary, on DV:** G(X / v2c-A) with the document bootstrap of `analysis/a18.py`. X becomes the 11.5 GB base if the upper bound is below 1. Otherwise v2c-A stays, and B is reported as "the exchange did not pay at this size, with this encoder".
+5. **Release margin, registered now for any own advance:** a frozen v3 candidate must be "closer" than v2c-A on DV by amendment 18's rule (G ≤ 0.97 and upper bound below 1) before it goes to A4. Below that margin, A stays the release base and the gain is reported, not shipped. The owner can change this margin before B's data exists.
+6. **Descriptive:**
+   - The thesis contrast G(U / Uc), paired on DV: does a promoted byte buy more inside the loop than in early once-run layers? Layer depth differs between the two sides, so this does not isolate visit count.
+   - Additivity: log G(X) against log G(U) + the sum of log G(d) over D4.
+   - X and v2c-A on S, T1 and T2 (paired chunk bootstrap).
+7. **Cleanup:** the BF16 rebuild, the starting-code file and every Gram are deleted after the last refinement check. Each single file is deleted after its DV score. X is kept only if it becomes the base.
+
+Scripts: `scripts/a24.sh` (starts after `scripts/dv-score.sh` has finished), `analysis/a24.py` (selection and report into `results/a24/b.md`).
