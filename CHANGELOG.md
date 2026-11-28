@@ -966,3 +966,12 @@ Base: v2c-A (amendment 23). One step is one gate_up tensor moved by 0.5 bpw: 128
 Scripts: `scripts/a24.sh` (starts after `scripts/dv-score.sh` has finished), `analysis/a24.py` (selection and report into `results/a24/b.md`).
 
 Note to amendment 24 (2026-11-28, before any B data): the owner kept the release margin as registered ("keep the 3% margin").
+
+### Record: amendment 23 DV baselines (2026-11-28; `results/a23/dv-baselines.md`, built by `analysis/a23-dv.py`)
+
+G over the five DV domains, document bootstrap 95% CI (a selection set, not a confirmation set):
+- v2c-A / UD-IQ3_XXS: 1.068 [1.051, 1.086]. UD is closer in four of five domains; python 0.973 favours v2c-A.
+- v2c-A / v2c: 0.952 [0.940, 0.964]. The native downs help in every domain (0.940 to 0.961).
+- c1 / UD-IQ2_XXS: 1.035 [1.015, 1.053]; c1-A / c1: 0.989 [0.982, 0.997]; c1-A / UD-IQ2_XXS: 1.023 [1.004, 1.043].
+
+Reading: at 11.5 GB the gap to UD on fresh text is about 7% with the native downs (A3 had 11.6% for v2c without them). At 9 GB UD-IQ2_XXS is about 3.5% closer than c1. On DV, c1-A's gain over c1 is resolved (1.1%), unlike on S; S stays the registered rule for c1-A, so c1 remains the 9 GB base, and c1-A is the natural 9 GB base for any later amendment that registers it.
