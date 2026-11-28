@@ -964,3 +964,5 @@ Base: v2c-A (amendment 23). One step is one gate_up tensor moved by 0.5 bpw: 128
 7. **Cleanup:** the BF16 rebuild, the starting-code file and every Gram are deleted after the last refinement check. Each single file is deleted after its DV score. X is kept only if it becomes the base.
 
 Scripts: `scripts/a24.sh` (starts after `scripts/dv-score.sh` has finished), `analysis/a24.py` (selection and report into `results/a24/b.md`).
+
+Note to amendment 24 (2026-11-28, before any B data): the owner kept the release margin as registered ("keep the 3% margin").
