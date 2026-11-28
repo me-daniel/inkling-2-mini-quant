@@ -32,17 +32,23 @@ DV = {
                    ("fastify/fastify", "MIT"), ("mochajs/mocha", "MIT"), ("highlightjs/highlight.js", "BSD-3-Clause"),
                    ("Leaflet/Leaflet", "BSD-2-Clause"), ("koajs/koa", "MIT"), ("yargs/yargs", "MIT")],
 }
-FALLBACK = {"python": [("PyCQA/isort", "MIT"), ("pallets/quart", "MIT"), ("python-hyper/h11", "MIT")],
-            "javascript": [("chalk/chalk", "MIT"), ("pinojs/pino", "MIT"), ("expressjs/morgan", "MIT")]}
+# python: the last three were added after the first build attempt ran out of fallbacks for the recent half (urllib3,
+# pip-tools, quart and h11 hold fewer than 4,096 tokens in files added since 2025); added before any scoring on DV.
+FALLBACK = {"python": [("PyCQA/isort", "MIT"), ("pallets/quart", "MIT"), ("python-hyper/h11", "MIT"),
+                       ("modelcontextprotocol/python-sdk", "MIT"), ("pydantic/pydantic-ai", "MIT"), ("huggingface/smolagents", "Apache-2.0")],
+            # the last three added the same way (highlight.js, koa, yargs, chalk, pino and morgan fail the recent rule);
+            # they were checked for eligibility only, nothing was scored
+            "javascript": [("chalk/chalk", "MIT"), ("pinojs/pino", "MIT"), ("expressjs/morgan", "MIT"),
+                           ("openlayers/openlayers", "BSD-2-Clause"), ("Automattic/mongoose", "MIT"), ("TryGhost/Ghost", "MIT")]}
 
 
 def after_a3(docs: list, a3: list) -> list:
     """The documents of a 24-long qualifying list that are not A3's, first 12 (A3 took the first 12 of the same list)."""
     seen = {m["source"] for m in a3}
     out = [(t, m) for t, m in docs if m["source"] not in seen]
-    if len(out) < a18.NDOC:
+    if len(out) < 12:
         raise SystemExit(f"only {len(out)} documents after A3's")
-    return out[:a18.NDOC]
+    return out[:12]
 
 
 def main() -> None:
